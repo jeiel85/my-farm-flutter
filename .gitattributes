@@ -1,0 +1,3 @@
+# flutter pub get이 Windows 플러그인 생성 파일을 LF로 다시 쓴다. 작업 트리도 LF로 두어
+# core.autocrlf=true 환경에서 매번 수정됨으로 잡히지 않게 한다.
+windows/flutter/generated_* text eol=lf

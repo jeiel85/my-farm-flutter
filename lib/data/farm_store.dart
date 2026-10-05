@@ -710,19 +710,29 @@ class FarmStore extends ChangeNotifier {
   static const maxLedgerAmount = 1e12;
 
   /// [from] 이상 [to] 미만 날짜의 기록, 최근 순(같은 날은 나중에 적은 것이 먼저).
-  List<LedgerEntry> ledgerBetween(DateTime from, DateTime to) =>
-      _state.ledger.where((e) => !e.date.isBefore(from) && e.date.isBefore(to)).toList()..sort(_byRecent);
-
-  static int _byRecent(LedgerEntry a, LedgerEntry b) {
-    final byDate = b.date.compareTo(a.date);
-    return byDate != 0 ? byDate : b.id.compareTo(a.id);
+  List<LedgerEntry> ledgerBetween(DateTime from, DateTime to) {
+    // 기록은 적은 순서대로 목록 뒤에 붙으므로(복원·이전도 순서를 지킨다) 같은 날끼리는 목록 위치로 정한다.
+    final indexed = [
+      for (final (i, e) in _state.ledger.indexed)
+        if (_inRange(e, from, to)) (i, e),
+    ];
+    indexed.sort((a, b) {
+      final byDate = b.$2.date.compareTo(a.$2.date);
+      return byDate != 0 ? byDate : b.$1.compareTo(a.$1);
+    });
+    return [for (final (_, e) in indexed) e];
   }
+
+  static bool _inRange(LedgerEntry e, DateTime from, DateTime to) => !e.date.isBefore(from) && e.date.isBefore(to);
+
+  /// 합계용. 순서가 필요 없으므로 정렬하지 않는다(분석 탭이 그릴 때마다 여러 달을 계산한다).
+  Iterable<LedgerEntry> _ledgerIn(DateTime from, DateTime to) => _state.ledger.where((e) => _inRange(e, from, to));
 
   /// [from] 이상 [to] 미만 기간의 (매출, 비용) 합계.
   (double, double) ledgerTotals(DateTime from, DateTime to) {
     var income = 0.0;
     var expense = 0.0;
-    for (final e in ledgerBetween(from, to)) {
+    for (final e in _ledgerIn(from, to)) {
       if (e.isIncome) {
         income += e.amount;
       } else {
@@ -735,7 +745,7 @@ class FarmStore extends ChangeNotifier {
   /// 기간 안 분류별 합계, 큰 순.
   List<(LedgerCategory, double)> ledgerByCategory(DateTime from, DateTime to) {
     final sums = <LedgerCategory, double>{};
-    for (final e in ledgerBetween(from, to)) {
+    for (final e in _ledgerIn(from, to)) {
       sums[e.category] = (sums[e.category] ?? 0) + e.amount;
     }
     return [for (final e in sums.entries) (e.key, e.value)]..sort((a, b) => b.$2.compareTo(a.$2));
