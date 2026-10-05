@@ -1066,5 +1066,59 @@
         "type": "int"
       }
     }
-  }
+  },
+  "ledgerSection": "매출·비용",
+  "ledgerTitle": "매출·비용 장부",
+  "ledgerCurrencyNote": "{code} 기준 · 통화는 프로필에서 바꿀 수 있어요",
+  "@ledgerCurrencyNote": {
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "openLedger": "장부 열기",
+  "income": "매출",
+  "expense": "비용",
+  "netProfit": "순이익",
+  "lastSixMonths": "최근 6개월",
+  "byCategory": "분류별",
+  "noLedgerThisMonth": "이 달에 적은 매출·비용이 없어요.",
+  "noLedgerInPeriod": "이 기간에 적은 매출·비용이 없어요.",
+  "previousMonth": "이전 달",
+  "nextMonth": "다음 달",
+  "addLedgerEntry": "매출·비용 기록",
+  "ledgerAmount": "금액",
+  "ledgerAmountTooLarge": "금액이 너무 커요. 자릿수를 확인하세요.",
+  "ledgerSaved": "장부에 기록했어요.",
+  "deleteLedgerTitle": "장부 기록 삭제",
+  "deleteLedgerBody": "{date} {category} {amount} 기록을 삭제할까요?\n삭제하면 되돌릴 수 없습니다.",
+  "@deleteLedgerBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCrops": "작물 판매",
+  "ledgerLivestock": "가축 출하",
+  "ledgerProducts": "우유·달걀",
+  "ledgerSubsidy": "보조금",
+  "ledgerOtherIncome": "기타 매출",
+  "ledgerFeed": "사료",
+  "ledgerSeeds": "종자·모종",
+  "ledgerFertilizer": "비료·농약",
+  "ledgerEquipment": "농기계·자재",
+  "ledgerLabor": "인건비",
+  "ledgerUtilities": "전기·수도·연료",
+  "ledgerVet": "진료·약품",
+  "ledgerOtherExpense": "기타 비용",
+  "currency": "통화",
+  "currencyHint": "장부 금액의 단위예요. 바꿔도 이미 적은 금액은 환산되지 않아요."
 }

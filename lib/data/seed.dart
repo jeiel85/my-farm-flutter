@@ -240,6 +240,36 @@ FarmState buildDemoFarm(DateTime now, {bool english = false}) {
     );
   }
 
+  // 장부: 최근 여섯 달의 매출·비용. 금액은 만들 때의 언어에 맞는 통화로 적는다.
+  final currency = english ? 'USD' : 'KRW';
+  final ledger = <LedgerEntry>[];
+  void book(int daysAgo, LedgerCategory category, int krw, String note) => ledger.add(
+    LedgerEntry(
+      id: 'l${ledger.length.toString().padLeft(3, '0')}',
+      category: category,
+      amount: english ? (krw / 1350).roundToDouble() : krw.toDouble(),
+      date: today.subtract(Duration(days: daysAgo)),
+      note: note,
+    ),
+  );
+  for (var m = 0; m < 6; m++) {
+    final base = m * 30;
+    book(base + 2, LedgerCategory.products, 1850000 + rng.nextInt(30) * 10000, t('우유 납유 대금', 'Milk payment'));
+    book(base + 6, LedgerCategory.products, 420000 + rng.nextInt(8) * 10000, t('달걀 직거래', 'Egg sales'));
+    book(base + 9, LedgerCategory.feed, 980000 + rng.nextInt(15) * 10000, t('곡물 사료 구입', 'Grain mix'));
+    book(base + 15, LedgerCategory.utilities, 210000 + rng.nextInt(6) * 10000, t('전기·수도 요금', 'Power & water'));
+    book(base + 20, LedgerCategory.labor, 600000, t('일손 인건비', 'Farm helpers'));
+  }
+  book(4, LedgerCategory.crops, 960000, t('토마토 공판장 출하', 'Tomatoes to market'));
+  book(11, LedgerCategory.vet, 180000, t('구제역 백신', 'FMD vaccine'));
+  book(17, LedgerCategory.crops, 540000, t('상추·당근 로컬푸드', 'Greens to local market'));
+  book(26, LedgerCategory.fertilizer, 320000, t('복합비료 20포', 'NPK fertilizer, 20 bags'));
+  book(38, LedgerCategory.livestock, 4200000, t('한우 1두 출하', 'Sold one Hanwoo steer'));
+  book(45, LedgerCategory.equipment, 750000, t('트랙터 정비', 'Tractor service'));
+  book(52, LedgerCategory.seeds, 260000, t('딸기 모종', 'Strawberry seedlings'));
+  book(70, LedgerCategory.subsidy, 1500000, t('친환경 직불금', 'Eco-farming subsidy'));
+  book(88, LedgerCategory.crops, 1250000, t('옥수수 계약 출하', 'Contract corn sale'));
+
   final todayKey = dateKeyOf(today);
   return FarmState(
     profile: FarmProfile(
@@ -250,6 +280,7 @@ FarmState buildDemoFarm(DateTime now, {bool english = false}) {
       longitude: 127.435,
       dailyEggTarget: 18,
       dailyMilkTargetL: 180,
+      currency: currency,
     ),
     fields: fields,
     animals: animals,
@@ -410,5 +441,6 @@ FarmState buildDemoFarm(DateTime now, {bool english = false}) {
         zone: ZoneId.storage,
       ),
     ],
+    ledger: ledger,
   );
 }

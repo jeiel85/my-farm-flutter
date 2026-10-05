@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../l10n/l10n.dart';
+import '../ledger/ledger_screen.dart';
 
 final _num = NumberFormat('#,##0.#');
 
@@ -33,6 +34,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final waterTotal = water.fold(0.0, (s, w) => s + w.$2);
     final totals = store.harvestTotals();
     final profile = store.state.profile;
+    final money = moneyFormat(context, profile.currency);
+    final (income, expense) = store.ledgerTotals(from, DateTime(now.year, now.month, now.day + 1));
 
     return SafeArea(
       bottom: false,
@@ -97,6 +100,56 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ],
             ),
             2,
+          ),
+          SectionTitle(
+            context.l10n.ledgerSection,
+            subtitle: context.l10n.periodDays(_days),
+            trailing: TextButton(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LedgerScreen())),
+              child: Text(context.l10n.openLedger),
+            ),
+          ),
+          rise(
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MoneyStat(label: context.l10n.income, value: money.format(income)),
+                      ),
+                      Expanded(
+                        child: _MoneyStat(label: context.l10n.expense, value: money.format(expense)),
+                      ),
+                      Expanded(
+                        child: _MoneyStat(
+                          label: context.l10n.netProfit,
+                          value: money.format(income - expense),
+                          color: income - expense < 0 ? AppColors.red : AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (income == 0 && expense == 0) ...[
+                    const SizedBox(height: 8),
+                    Text(context.l10n.noLedgerInPeriod, style: AppText.caption),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: Text(context.l10n.lastSixMonths, style: AppText.caption)),
+                      _Legend(color: ledgerColor(true), label: context.l10n.income),
+                      const SizedBox(width: 10),
+                      _Legend(color: ledgerColor(false), label: context.l10n.expense),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(height: 170, child: _monthlyBars(store.ledgerMonthly(6), money)),
+                ],
+              ),
+            ),
+            3,
           ),
           SectionTitle(context.l10n.eggProduction, subtitle: context.l10n.eggTargetLine(profile.dailyEggTarget)),
           rise(
@@ -276,6 +329,71 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  Widget _monthlyBars(List<(DateTime, double, double)> months, NumberFormat money) {
+    final top = months.fold(0.0, (m, e) => [m, e.$2, e.$3].reduce((a, b) => a > b ? a : b));
+    final compact = NumberFormat.compact(locale: context.localeName);
+    return BarChart(
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      BarChartData(
+        // 기록이 하나도 없으면 축이 0~0이 되지 않도록 최소 높이를 둔다.
+        maxY: top <= 0 ? 1 : top * 1.2,
+        gridData: FlGridData(
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) => const FlLine(color: AppColors.line, strokeWidth: 1),
+        ),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(),
+          rightTitles: const AxisTitles(),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: top > 0,
+              reservedSize: 44,
+              getTitlesWidget: (v, meta) => v == meta.max && v % meta.appliedInterval != 0
+                  ? const SizedBox()
+                  : Text(compact.format(v), style: AppText.tiny),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 24,
+              getTitlesWidget: (v, meta) {
+                final i = v.toInt();
+                if (i < 0 || i >= months.length) return const SizedBox();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(DateFormat.MMM(context.localeName).format(months[i].$1), style: AppText.tiny),
+                );
+              },
+            ),
+          ),
+        ),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (_) => AppColors.text,
+            getTooltipItem: (group, _, rod, _) => BarTooltipItem(
+              money.format(rod.toY),
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ),
+        barGroups: [
+          for (final (i, m) in months.indexed)
+            BarChartGroupData(
+              x: i,
+              barsSpace: 3,
+              barRods: [
+                BarChartRodData(toY: m.$2, width: 9, color: ledgerColor(true), borderRadius: BorderRadius.circular(3)),
+                BarChartRodData(toY: m.$3, width: 9, color: ledgerColor(false), borderRadius: BorderRadius.circular(3)),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _bars(List<(DateTime, double)> water) {
     final maxY = water.map((w) => w.$2).fold(100.0, (a, b) => a > b ? a : b) * 1.2;
     return BarChart(
@@ -357,5 +475,48 @@ class _Summary extends StatelessWidget {
         Text(value, style: AppText.number.copyWith(fontSize: 19), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     ),
+  );
+}
+
+class _MoneyStat extends StatelessWidget {
+  const _MoneyStat({required this.label, required this.value, this.color = AppColors.text});
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: AppText.caption),
+      const SizedBox(height: 2),
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(value, style: AppText.h3.copyWith(color: color)),
+      ),
+    ],
+  );
+}
+
+class _Legend extends StatelessWidget {
+  const _Legend({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+      ),
+      const SizedBox(width: 4),
+      Text(label, style: AppText.tiny),
+    ],
   );
 }

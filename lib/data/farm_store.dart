@@ -704,6 +704,81 @@ class FarmStore extends ChangeNotifier {
 
   Future<void> deleteTask(String id) => _commit(_state.copyWith(tasks: _state.tasks.where((t) => t.id != id).toList()));
 
+  // ---------- 매출·비용 장부 ----------
+
+  /// 한 건에 적을 수 있는 최대 금액(오타로 자릿수가 크게 늘어난 입력을 막는다).
+  static const maxLedgerAmount = 1e12;
+
+  /// [from] 이상 [to] 미만 날짜의 기록, 최근 순(같은 날은 나중에 적은 것이 먼저).
+  List<LedgerEntry> ledgerBetween(DateTime from, DateTime to) =>
+      _state.ledger.where((e) => !e.date.isBefore(from) && e.date.isBefore(to)).toList()..sort(_byRecent);
+
+  static int _byRecent(LedgerEntry a, LedgerEntry b) {
+    final byDate = b.date.compareTo(a.date);
+    return byDate != 0 ? byDate : b.id.compareTo(a.id);
+  }
+
+  /// [from] 이상 [to] 미만 기간의 (매출, 비용) 합계.
+  (double, double) ledgerTotals(DateTime from, DateTime to) {
+    var income = 0.0;
+    var expense = 0.0;
+    for (final e in ledgerBetween(from, to)) {
+      if (e.isIncome) {
+        income += e.amount;
+      } else {
+        expense += e.amount;
+      }
+    }
+    return (income, expense);
+  }
+
+  /// 기간 안 분류별 합계, 큰 순.
+  List<(LedgerCategory, double)> ledgerByCategory(DateTime from, DateTime to) {
+    final sums = <LedgerCategory, double>{};
+    for (final e in ledgerBetween(from, to)) {
+      sums[e.category] = (sums[e.category] ?? 0) + e.amount;
+    }
+    return [for (final e in sums.entries) (e.key, e.value)]..sort((a, b) => b.$2.compareTo(a.$2));
+  }
+
+  /// 이번 달을 포함한 최근 [months]개월의 (달 첫날, 매출, 비용), 오래된 달부터.
+  List<(DateTime, double, double)> ledgerMonthly(int months) => [
+    for (var i = months - 1; i >= 0; i--)
+      () {
+        final start = addMonths(DateTime(now.year, now.month), -i);
+        final (income, expense) = ledgerTotals(start, addMonths(start, 1));
+        return (start, income, expense);
+      }(),
+  ];
+
+  Future<LedgerEntry> addLedgerEntry({
+    required LedgerCategory category,
+    required double amount,
+    required DateTime date,
+    String note = '',
+  }) async {
+    if (!amount.isFinite || amount <= 0 || amount > maxLedgerAmount) {
+      throw ArgumentError.value(amount, 'amount', 'must be between 0 (exclusive) and $maxLedgerAmount');
+    }
+    // 삭제는 id로 하므로 같은 시각(웹은 밀리초 단위)에 적은 기록끼리 id가 겹치지 않게 한다.
+    var stamp = now.microsecondsSinceEpoch;
+    while (_state.ledger.any((e) => e.id == 'l$stamp')) {
+      stamp++;
+    }
+    final entry = LedgerEntry(
+      id: 'l$stamp',
+      category: category,
+      amount: amount,
+      date: DateTime(date.year, date.month, date.day),
+      note: note.trim(),
+    );
+    await _commit(_state.copyWith(ledger: [..._state.ledger, entry]));
+    return entry;
+  }
+
+  Future<void> deleteLedgerEntry(String id) =>
+      _commit(_state.copyWith(ledger: _state.ledger.where((e) => e.id != id).toList()));
+
   // ---------- 농장 정보 ----------
 
   Future<void> updateProfile(FarmProfile profile) => _commit(_state.copyWith(profile: profile));

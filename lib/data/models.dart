@@ -59,6 +59,7 @@ class FarmProfile {
     required this.longitude,
     required this.dailyEggTarget,
     required this.dailyMilkTargetL,
+    required this.currency,
   });
 
   final String name;
@@ -69,6 +70,9 @@ class FarmProfile {
   final int dailyEggTarget;
   final double dailyMilkTargetL;
 
+  /// 장부 금액의 통화(ISO 4217 코드). 바꿔도 이미 적은 금액은 환산하지 않는다.
+  final String currency;
+
   FarmProfile copyWith({
     String? name,
     double? areaHa,
@@ -77,6 +81,7 @@ class FarmProfile {
     double? longitude,
     int? dailyEggTarget,
     double? dailyMilkTargetL,
+    String? currency,
   }) => FarmProfile(
     name: name ?? this.name,
     areaHa: areaHa ?? this.areaHa,
@@ -85,6 +90,7 @@ class FarmProfile {
     longitude: longitude ?? this.longitude,
     dailyEggTarget: dailyEggTarget ?? this.dailyEggTarget,
     dailyMilkTargetL: dailyMilkTargetL ?? this.dailyMilkTargetL,
+    currency: currency ?? this.currency,
   );
 
   Map<String, Object?> toJson() => {
@@ -95,6 +101,7 @@ class FarmProfile {
     'longitude': longitude,
     'dailyEggTarget': dailyEggTarget,
     'dailyMilkTargetL': dailyMilkTargetL,
+    'currency': currency,
   };
 
   factory FarmProfile.fromJson(Map<String, Object?> j) => FarmProfile(
@@ -105,6 +112,7 @@ class FarmProfile {
     longitude: _d(j['longitude']),
     dailyEggTarget: j['dailyEggTarget'] as int,
     dailyMilkTargetL: _d(j['dailyMilkTargetL']),
+    currency: j['currency'] as String,
   );
 }
 
@@ -587,4 +595,70 @@ DateTime addMonths(DateTime from, int months) {
   final month = total % 12 + 1;
   final lastDay = DateTime(year, month + 1, 0).day;
   return DateTime(year, month, from.day > lastDay ? lastDay : from.day);
+}
+
+/// 장부에서 고를 수 있는 통화.
+const supportedCurrencies = ['KRW', 'USD', 'EUR', 'JPY', 'CNY', 'GBP'];
+
+/// 장부 분류. 매출인지 비용인지는 분류가 정한다.
+enum LedgerCategory {
+  crops(true, Icons.local_florist_outlined),
+  livestock(true, Icons.pets_outlined),
+  products(true, Icons.egg_outlined),
+  subsidy(true, Icons.account_balance_outlined),
+  otherIncome(true, Icons.savings_outlined),
+  feed(false, Icons.grass_outlined),
+  seeds(false, Icons.spa_outlined),
+  fertilizer(false, Icons.science_outlined),
+  equipment(false, Icons.agriculture_outlined),
+  labor(false, Icons.groups_outlined),
+  utilities(false, Icons.bolt_outlined),
+  vet(false, Icons.medical_services_outlined),
+  otherExpense(false, Icons.receipt_long_outlined);
+
+  const LedgerCategory(this.isIncome, this.icon);
+  final bool isIncome;
+  final IconData icon;
+
+  static List<LedgerCategory> of({required bool income}) => [
+    for (final c in values)
+      if (c.isIncome == income) c,
+  ];
+}
+
+/// 매출·비용 한 건. 금액은 농장 통화 기준 양수이고, 부호는 분류로 정한다.
+class LedgerEntry {
+  const LedgerEntry({
+    required this.id,
+    required this.category,
+    required this.amount,
+    required this.date,
+    required this.note,
+  });
+
+  final String id;
+  final LedgerCategory category;
+  final double amount;
+
+  /// 거래한 날(자정).
+  final DateTime date;
+  final String note;
+
+  bool get isIncome => category.isIncome;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'category': category.name,
+    'amount': amount,
+    'date': date.toIso8601String(),
+    'note': note,
+  };
+
+  factory LedgerEntry.fromJson(Map<String, Object?> j) => LedgerEntry(
+    id: j['id'] as String,
+    category: _enumByName(LedgerCategory.values, j['category'], LedgerCategory.otherExpense),
+    amount: _d(j['amount']),
+    date: _date(j['date']),
+    note: j['note'] as String? ?? '',
+  );
 }

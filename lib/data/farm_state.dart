@@ -21,13 +21,15 @@ class FarmState {
     required this.production,
     required this.inventory,
     required this.tasks,
+    required this.ledger,
   });
 
   /// 저장 형식 버전.
   /// - 1: 최초 형식(v1.0.0~v1.1.0)
   /// - 2: 가축 이력(`animalEvents`)과 급이별 사료 차감량(`feedingUsage`) 추가(v1.2.0)
   /// - 3: 백신·진료 일정(`careItems`) 추가(v1.3.0)
-  static const schemaVersion = 3;
+  /// - 4: 매출·비용 장부(`ledger`)와 농장 통화(`profile.currency`) 추가(v1.5.0)
+  static const schemaVersion = 4;
 
   final FarmProfile profile;
   final List<CropField> fields;
@@ -46,6 +48,7 @@ class FarmState {
   final List<ProductionRecord> production;
   final List<InventoryItem> inventory;
   final List<FarmTask> tasks;
+  final List<LedgerEntry> ledger;
 
   FarmState copyWith({
     FarmProfile? profile,
@@ -61,6 +64,7 @@ class FarmState {
     List<ProductionRecord>? production,
     List<InventoryItem>? inventory,
     List<FarmTask>? tasks,
+    List<LedgerEntry>? ledger,
   }) => FarmState(
     profile: profile ?? this.profile,
     fields: fields ?? this.fields,
@@ -77,6 +81,7 @@ class FarmState {
     production: production ?? this.production,
     inventory: inventory ?? this.inventory,
     tasks: tasks ?? this.tasks,
+    ledger: ledger ?? this.ledger,
   );
 
   Map<String, Object?> toJson() => {
@@ -99,6 +104,7 @@ class FarmState {
     'production': [for (final p in production) p.toJson()],
     'inventory': [for (final i in inventory) i.toJson()],
     'tasks': [for (final t in tasks) t.toJson()],
+    'ledger': [for (final e in ledger) e.toJson()],
   };
 
   /// 이전 버전 저장본은 [migrate]로 올린 뒤 읽는다.
@@ -134,6 +140,7 @@ class FarmState {
       production: [for (final m in list('production')) ProductionRecord.fromJson(m)],
       inventory: [for (final m in list('inventory')) InventoryItem.fromJson(m)],
       tasks: [for (final m in list('tasks')) FarmTask.fromJson(m)],
+      ledger: [for (final m in list('ledger')) LedgerEntry.fromJson(m)],
     );
   }
 
@@ -157,6 +164,13 @@ class FarmState {
       // v2 → v3: 백신·진료 일정은 비어 있는 상태로 시작한다.
       j['careItems'] = <Object?>[];
       j['schemaVersion'] = 3;
+    }
+    if ((j['schemaVersion'] as int) < 4) {
+      // v3 → v4: 장부는 비어 있는 상태로 시작한다. 저장본만으로는 사용자의 통화를 알 수 없어
+      // 원화(기준 언어)로 두고, 다르면 프로필에서 바꾸게 한다(아직 금액이 없어 환산 문제가 없다).
+      j['ledger'] = <Object?>[];
+      j['profile'] = {...(j['profile'] as Map).cast<String, Object?>(), 'currency': 'KRW'};
+      j['schemaVersion'] = 4;
     }
     return j;
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
@@ -18,6 +19,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _form = GlobalKey<FormState>();
   late final Map<String, TextEditingController> _c;
+  late String _currency;
   bool _dirty = false;
 
   @override
@@ -42,6 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _c['lon']!.text = p.longitude.toString();
     _c['eggs']!.text = p.dailyEggTarget.toString();
     _c['milk']!.text = p.dailyMilkTargetL.toString();
+    _currency = p.currency;
   }
 
   @override
@@ -72,6 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       longitude: _num('lon'),
       dailyEggTarget: _num('eggs')!.round(),
       dailyMilkTargetL: _num('milk'),
+      currency: _currency,
     );
     await store.updateProfile(next);
     if (!mounted) return;
@@ -197,6 +201,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(context.l10n.locationPrivacy, style: AppText.tiny),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      // 복원·초기화로 값이 바뀌면 새 값으로 다시 그린다.
+                      key: ValueKey(_currency),
+                      initialValue: _currency,
+                      decoration: InputDecoration(
+                        labelText: context.l10n.currency,
+                        helperText: context.l10n.currencyHint,
+                        helperMaxLines: 3,
+                      ),
+                      items: [
+                        // 목록에 없는 통화(다른 기기에서 고친 백업 등)도 그대로 보여 준다.
+                        for (final code in {...supportedCurrencies, _currency})
+                          DropdownMenuItem(
+                            value: code,
+                            child: Text('$code (${NumberFormat.simpleCurrency(name: code).currencySymbol})'),
+                          ),
+                      ],
+                      onChanged: (v) {
+                        if (v == null || v == _currency) return;
+                        setState(() {
+                          _currency = v;
+                          _dirty = true;
+                        });
+                      },
                     ),
                   ],
                 ),
