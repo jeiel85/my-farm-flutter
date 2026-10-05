@@ -31,7 +31,7 @@ Collaboration Detail Document: N/A
 Version Files: pubspec.yaml (version), CHANGELOG.md
 Build/Test Commands: flutter analyze · flutter test · flutter build apk --release
 Release Trigger: 수동 (태그·릴리스 워크플로 없음)
-CI System: GitHub Actions (.github/workflows/ci.yml — analyze·test)
+CI System: GitHub Actions (.github/workflows/ci.yml — format·analyze·test)
 Expected Assets: APK
 Application ID: com.jeiel85.myfarm
 Release Keystore: .keystore/my-farm-upload.jks + .keystore/release-signing.properties (커밋 금지, 저장소 밖에 별도 백업)
