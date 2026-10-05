@@ -506,7 +506,7 @@
     }
   },
   "alertHarvestSubtitle": "수확을 기록하고 다시 심을 수 있어요",
-  "alertFeedingTitle": "{time} {label} 급이",
+  "alertFeedingTitle": "{time} {label}",
   "@alertFeedingTitle": {
     "placeholders": {
       "time": {
