@@ -25,4 +25,4 @@ v1.0.0에 넣지 않은 항목입니다. "무엇을 · 왜 · 영향 범위" 순
 
 ## 하드닝 후보
 
-GitHub 이슈 [#1 v1.0.0](https://github.com/jeiel85/my-farm-flutter/issues/1), [#2 v1.1.0](https://github.com/jeiel85/my-farm-flutter/issues/2)에서 관리합니다.
+GitHub 이슈 [#1 v1.0.0](https://github.com/jeiel85/my-farm-flutter/issues/1), [#2 v1.1.0](https://github.com/jeiel85/my-farm-flutter/issues/2), [#3 v1.2.0](https://github.com/jeiel85/my-farm-flutter/issues/3)에서 관리합니다.
