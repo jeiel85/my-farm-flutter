@@ -400,5 +400,53 @@
   "ledgerVet": "Vet & medicine",
   "ledgerOtherExpense": "Other costs",
   "currency": "Currency",
-  "currencyHint": "Used for ledger amounts. Changing it does not convert existing amounts."
+  "currencyHint": "Used for ledger amounts. Changing it does not convert existing amounts.",
+  "appUpdate": "App updates",
+  "updateAutoCheck": "Check for new versions",
+  "updateAutoCheckHint": "When on, checks GitHub releases once a day. Downloads are verified with SHA-256 before Android's installer opens.",
+  "updateInstalledVersion": "Installed version {version}",
+  "@updateInstalledVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCheckedAt": "Last checked {when}",
+  "@updateCheckedAt": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "updateChecking": "Checking…",
+  "updateCheckFailed": "Couldn't check. It will try again the next time you open the app.",
+  "updateUpToDate": "You're up to date",
+  "updateAvailableTitle": "Version {version} is available",
+  "@updateAvailableTitle": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateAvailableSubtitle": "Tap to download and install",
+  "updateSheetBody": "Download size {size} MB. Your farm records stay as they are.",
+  "@updateSheetBody": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "updateInstall": "Download and install",
+  "updateSkip": "Skip this version",
+  "updateReleaseNotes": "What's new",
+  "updateDownloading": "Downloading and verifying. This takes a moment.",
+  "updateNeedsPermission": "To install updates, allow this app to install unknown apps, then come back and tap again.",
+  "updateOpenSettings": "Open settings",
+  "updateFailed": "The download failed or the file couldn't be verified.",
+  "updateRetry": "Try again",
+  "updateOpenInBrowser": "Download in browser"
 }

@@ -3,9 +3,11 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
+import '../../data/app_update.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import '../../data/weather.dart';
+import '../update/update_widgets.dart';
 import 'backup_actions.dart';
 import '../../l10n/l10n.dart';
 
@@ -341,6 +343,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               4,
             ),
+            if (UpdateScope.of(context) case final update?) ...[
+              SectionTitle(context.l10n.appUpdate),
+              rise(UpdateSettingsCard(update: update, now: store.now), 5),
+            ],
             const SizedBox(height: 18),
             Center(child: Text(context.l10n.weatherCredit, style: AppText.tiny)),
           ],

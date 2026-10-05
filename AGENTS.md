@@ -30,9 +30,9 @@ GitHub AUP Document: N/A
 Collaboration Detail Document: N/A
 Version Files: pubspec.yaml (version), CHANGELOG.md
 Build/Test Commands: flutter analyze · flutter test · flutter build apk --release · flutter build windows --release (개발자 모드 필요) · flutter build web --release
-Release Trigger: 수동 (태그·릴리스 워크플로 없음)
+Release Trigger: 수동 — pwsh tool/release_android.ps1 -Publish (로컬 서명 → vX.Y.Z 태그 + GitHub 릴리스에 APK·update.json 업로드, CI 릴리스 워크플로 없음)
 CI System: GitHub Actions (ci.yml — format·analyze·test, pages.yml — 웹 데모·랜딩 페이지를 GitHub Pages로 배포)
-Expected Assets: APK(로컬), Windows Release 폴더(로컬), 웹(GitHub Pages)
+Expected Assets: GitHub 릴리스 my-farm-vX.Y.Z.apk + update.json(앱 안 업데이트가 읽음), Windows Release 폴더(로컬), 웹(GitHub Pages)
 Application ID: com.jeiel85.myfarm
 Release Keystore: .keystore/my-farm-upload.jks + .keystore/release-signing.properties (커밋 금지, 저장소 밖에 별도 백업)
 ```

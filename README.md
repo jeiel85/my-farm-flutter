@@ -58,6 +58,7 @@
 | ⛅ | **날씨 · 작업 조언** | 농장 위치의 현재 날씨와 5일 예보. 비·폭염·서리·강풍이면 관수와 가축 관리 조언을 띄워요. |
 | ✅ | **오늘 할 일 · 확인할 것** | 물주기·급이 지연·수확 가능·재고 부족·관리 필요 가축을 홈에 자동으로 모아 줍니다. |
 | 🌐 | **한국어 · English** | 기기 언어를 따르고, 프로필에서 직접 고를 수도 있어요. |
+| 🔄 | **앱 안 업데이트 (Android)** | 프로필에서 켜면 하루 한 번 GitHub 릴리스에서 새 버전을 확인하고, 내려받은 APK를 SHA-256으로 확인한 뒤 Android 설치 화면으로 넘겨요. 기본은 꺼짐. |
 | 📊 | **분석** | 7/14/30일 매출·비용, 달걀·우유 추이(목표선), 일별 물 사용량, 작물별 누적 수확. |
 
 > 💡 인스타그램의 "Flutter로 만든 농장 앱 UI" 영상에서 영감을 받아 화면 구성을 처음부터 다시 구현했고, 영상에 없던 온실·과수원·물탱크 연동·수확·생산·재고·날씨·할 일·분석을 더했습니다. 앞으로 넣을 만한 요소는 [BACKLOG.md](BACKLOG.md)에 있어요.
@@ -67,7 +68,7 @@
 | 플랫폼 | 방법 |
 | --- | --- |
 | 🌐 **웹** | [jeiel85.github.io/my-farm-flutter](https://jeiel85.github.io/my-farm-flutter/) — 데이터는 브라우저(localStorage)에만 저장돼요. |
-| 🤖 **Android** | `flutter build apk --release` (서명 설정은 아래 참고) |
+| 🤖 **Android** | [GitHub 릴리스](https://github.com/jeiel85/my-farm-flutter/releases/latest)의 `my-farm-vX.Y.Z.apk`를 설치하거나 `flutter build apk --release`로 직접 빌드(서명 설정은 아래 참고) |
 | 🪟 **Windows** | `flutter build windows --release` → `build/windows/x64/runner/Release/` 폴더째 실행(`MyFarm.exe`). 빌드하려면 Windows **개발자 모드**가 켜져 있어야 해요(플러그인 심볼릭 링크). |
 
 ```bash
@@ -88,7 +89,8 @@ flutter run
 | 애니메이션 | `flutter_animate`, 암시적 애니메이션 | 목록 진입, 카드 전환, 게이지 차오름 |
 | 차트 | `fl_chart` | 생산 추이, 물 사용량 |
 | 날씨 | [Open-Meteo](https://open-meteo.com/) | 무료, API 키 불필요 (CC BY 4.0, 앱 안에 출처 표기) |
-| CI/CD | GitHub Actions | 포맷·분석·테스트, 웹 데모를 Pages로 배포 |
+| 앱 업데이트 | GitHub 릴리스 자산 `update.json` + 플랫폼 채널 | markleaf-android와 같은 방식. api.github.com은 비인증 한도(IP당 시간당 60건)를 같은 통신사 IP 사용자와 나눠 써서 쓰지 않아요. 버전은 versionCode 정수로 비교하고, 설치는 `ACTION_INSTALL_PACKAGE`(파일 관리자 등이 끼어들지 않게)로 시스템 설치 화면에 맡깁니다. 해시·설치는 Kotlin `MessageDigest`·`FileProvider`라 새 패키지 의존성이 없어요. 스토어 배포가 없어 스토어용 빌드 분리는 두지 않았습니다. |
+| CI/CD | GitHub Actions | 포맷·분석·테스트, 웹 데모를 Pages로 배포. APK 릴리스는 서명 키 때문에 로컬 스크립트로 |
 
 ```mermaid
 flowchart LR
@@ -97,6 +99,7 @@ flowchart LR
   UI --> Map["FarmMapView<br/>카메라 애니메이션"]
   Map --> Painter["FarmMapPainter<br/>정적 레이어 캐시 + 동적 요소"]
   UI --> Weather["WeatherController"] --> API(("Open-Meteo"))
+  UI --> Update["UpdateController<br/>(Android)"] --> GH(("GitHub 릴리스<br/>update.json · APK"))
 ```
 
 <details>
@@ -135,6 +138,8 @@ test/                              상태 로직·날씨 파싱·앱 스모크 �
 | `KEY_ALIAS` | `keyAlias` | `my-farm` |
 | `KEY_PASSWORD` | `keyPassword` | 없음 |
 
+**릴리스**: `pwsh tool/release_android.ps1`이 서명된 APK를 빌드하고, APK에서 aapt2로 읽은 versionCode·versionName·minSdk와 크기·SHA-256으로 `build/release/update.json`을 만듭니다(pubspec과 다르면 멈춤). `-Publish`를 붙이면 HEAD가 `origin/main`일 때만 `vX.Y.Z` 태그로 GitHub 릴리스를 만들어 두 파일을 올리고, 앱이 읽는 고정 주소(`releases/latest/download/update.json`)가 새 버전을 가리키는지 확인합니다. 릴리스 노트는 CHANGELOG의 해당 버전 절입니다. 서명 키가 저장소 밖에 있어 CI가 아니라 로컬에서 실행해요.
+
 Windows에서 Pub 캐시(C:)와 프로젝트(D:)의 드라이브가 다르면 Kotlin 증분 컴파일 캐시가 실패해서 `android/gradle.properties`에 `kotlin.incremental=false`를 넣어 두었습니다.
 
 </details>
@@ -143,7 +148,7 @@ Windows에서 Pub 캐시(C:)와 프로젝트(D:)의 드라이브가 다르면 Ko
 
 - 모든 기록은 **기기(또는 브라우저) 안에만** 저장돼요. 계정·분석·광고 SDK가 없습니다. 프로필 → **백업 내보내기**로 파일을 만들어 두면 앱을 지워도 되살릴 수 있어요.
 - 저장 형식이 바뀌면 처음 실행할 때 자동으로 옮기고, 옮기기 전 원본은 앱 안에 따로 남겨 둡니다.
-- 네트워크는 날씨 조회에만 쓰고, 프로필에 입력한 **위도·경도만** Open-Meteo로 전송됩니다.
+- 네트워크는 날씨 조회와 (켰을 때만) 앱 업데이트 확인에 씁니다. 날씨는 프로필에 입력한 **위도·경도만** Open-Meteo로 보내고, 업데이트 확인은 GitHub에서 `update.json`을 받기만 하며 요청에 식별자를 붙이지 않습니다(GitHub는 요청한 IP를 볼 수 있어요).
 - 처음 열면 예시 농장 "초록골 농장"이 채워져 있어요. 프로필 → **예시 농장으로 초기화**로 언제든 되돌릴 수 있습니다.
 
 ## 🗺️ 로드맵
