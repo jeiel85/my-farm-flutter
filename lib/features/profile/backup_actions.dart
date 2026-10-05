@@ -27,6 +27,8 @@ Future<void> exportBackupFile(BuildContext context) async {
     if (uri == null) {
       showMessage(context, '백업 저장을 취소했습니다.');
     } else {
+      await store.markBackedUp();
+      if (!context.mounted) return;
       showMessage(context, '백업을 저장했습니다: ${savedFileName(uri, name)}');
     }
   } catch (e) {

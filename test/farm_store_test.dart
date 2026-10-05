@@ -31,6 +31,14 @@ class MemoryStorage implements FarmStorage {
 
   @override
   Future<void> keepCopy(String raw, String label) async => copies.add((label, raw));
+
+  final meta = <String, String>{};
+
+  @override
+  Future<String?> readMeta(String key) async => meta[key];
+
+  @override
+  Future<void> writeMeta(String key, String value) async => meta[key] = value;
 }
 
 void main() {
@@ -72,10 +80,11 @@ void main() {
     expect(store.loadNotice, isNotNull);
   });
 
-  test('v1 저장본은 v2로 마이그레이션하고 원본을 따로 보관한다', () async {
+  test('v1 저장본은 최신 형식으로 마이그레이션하고 원본을 따로 보관한다', () async {
     final v1 = buildDemoFarm(now).toJson()
       ..remove('animalEvents')
       ..remove('feedingUsage')
+      ..remove('careItems')
       ..['schemaVersion'] = 1;
     final raw = jsonEncode(v1);
     final storage = MemoryStorage(raw);
@@ -308,7 +317,7 @@ void main() {
         () => FarmStore.parseBackup(
           jsonEncode({
             'format': FarmStore.backupFormat,
-            'state': {'schemaVersion': 2},
+            'state': {'schemaVersion': 3},
           }),
         ),
         throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('손상'))),
@@ -319,10 +328,89 @@ void main() {
       final v1 = buildDemoFarm(now).toJson()
         ..remove('animalEvents')
         ..remove('feedingUsage')
+        ..remove('careItems')
         ..['schemaVersion'] = 1;
       final contents = FarmStore.parseBackup(jsonEncode({'format': FarmStore.backupFormat, 'state': v1}));
       expect(contents.state.animals, hasLength(48));
       expect(contents.exportedAt, isNull);
+    });
+  });
+
+  group('백신·진료 일정', () {
+    test('예시 일정은 날짜 순이고, 지난 일정과 7일 안 일정을 고를 수 있다', () async {
+      final (store, _) = await fresh();
+      final due = store.careDueWithin(7);
+      expect(due.map((c) => c.title), ['뉴캐슬병 백신', '정기 검진', '구제역 백신']);
+      expect(due.first.daysUntil(now), -1);
+    });
+
+    test('반복 일정을 완료하면 완료일 기준 다음 일정이 생긴다', () async {
+      final (store, _) = await fresh();
+      final next = await store.completeCare('c2');
+      expect(next, isNotNull);
+      expect(next!.dueDate, DateTime(2027, 1, 5));
+      expect(store.state.careItems.firstWhere((c) => c.id == 'c2').isDone, isTrue);
+      expect(store.pendingCare.where((c) => c.title == '뉴캐슬병 백신'), hasLength(1));
+      expect(await store.completeCare('c2'), isNull);
+    });
+
+    test('검진을 완료하면 대상 가축의 마지막 검진일이 오늘이 된다', () async {
+      final (store, _) = await fresh();
+      await store.completeCare('c3');
+      expect(store.animalById('cow-0')!.lastCheckup, now);
+      expect(store.animalById('cow-1')!.lastCheckup, isNot(now));
+    });
+
+    test('개체 일정에는 종 전체 일정도 함께 나온다', () async {
+      final (store, _) = await fresh();
+      final bella = store.animalById('cow-0')!;
+      expect(store.careFor(bella).map((c) => c.id), ['c3', 'c1']);
+      expect(store.careTargetLabel(store.pendingCare.firstWhere((c) => c.id == 'c1')), '소 전체');
+    });
+
+    test('가축을 출하하면 그 개체만의 남은 일정은 사라진다', () async {
+      final (store, _) = await fresh();
+      await store.removeAnimal('cow-0', type: AnimalEventType.sold);
+      expect(store.state.careItems.any((c) => c.id == 'c3'), isFalse);
+      expect(store.state.careItems.any((c) => c.id == 'c1'), isTrue);
+    });
+
+    test('일정 추가 시 이름이 비면 거부하고, 날짜는 자정으로 맞춘다', () async {
+      final (store, _) = await fresh();
+      expect(
+        () => store.addCareItem(kind: AnimalKind.goat, type: CareType.deworm, title: ' ', dueDate: now),
+        throwsArgumentError,
+      );
+      final item = await store.addCareItem(kind: AnimalKind.goat, type: CareType.deworm, title: '구충', dueDate: now);
+      expect(item.dueDate, DateTime(2026, 10, 5));
+      expect(item.daysUntil(now), 0);
+    });
+
+    test('addMonths는 말일을 넘지 않는다', () {
+      expect(addMonths(DateTime(2026, 1, 31), 1), DateTime(2026, 2, 28));
+      expect(addMonths(DateTime(2026, 11, 15), 3), DateTime(2027, 2, 15));
+    });
+  });
+
+  group('백업 알림', () {
+    test('한 번도 백업하지 않았으면 첫 실행 7일 뒤부터 권하고, 백업하면 14일간 조용하다', () async {
+      var clockNow = now;
+      final storage = MemoryStorage();
+      final store = await FarmStore.load(storage, clock: () => clockNow);
+      expect(store.shouldRemindBackup, isFalse);
+      clockNow = now.add(const Duration(days: 7));
+      expect(store.shouldRemindBackup, isTrue);
+      await store.markBackedUp();
+      expect(store.shouldRemindBackup, isFalse);
+      clockNow = clockNow.add(const Duration(days: 14));
+      expect(store.shouldRemindBackup, isTrue);
+      await store.snoozeBackupReminder();
+      expect(store.shouldRemindBackup, isFalse);
+
+      // 다시 열어도 기기별 기록이 유지된다.
+      final reopened = await FarmStore.load(storage, clock: () => clockNow);
+      expect(reopened.lastBackupAt, isNotNull);
+      expect(reopened.shouldRemindBackup, isFalse);
     });
   });
 }

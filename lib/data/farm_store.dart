@@ -15,6 +15,10 @@ abstract class FarmStorage {
   /// 덮어쓰거나 읽을 수 없게 된 저장본을 지우지 않고 [label]을 붙여 따로 보관한다
   /// (손상본, 마이그레이션 전 원본, 백업 복원 전 데이터).
   Future<void> keepCopy(String raw, String label);
+
+  /// 농장 데이터와 따로 두는 기기별 값(마지막 백업 시각 등). 백업 파일에 들어가지 않는다.
+  Future<String?> readMeta(String key);
+  Future<void> writeMeta(String key, String value);
 }
 
 class PrefsFarmStorage implements FarmStorage {
@@ -30,10 +34,28 @@ class PrefsFarmStorage implements FarmStorage {
     if (!ok) throw StateError('저장 공간에 기록하지 못했습니다.');
   }
 
+  /// 보관본은 최근 [maxCopies]개만 남긴다(하나에 수십 KB라 무한히 쌓이지 않게).
+  static const maxCopies = 5;
+
   @override
   Future<void> keepCopy(String raw, String label) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('${_key}_${label}_${DateTime.now().millisecondsSinceEpoch}', raw);
+    final copies = prefs.getKeys().where((k) => k.startsWith('${_key}_') && !k.startsWith('${_key}_meta_')).toList()
+      ..sort((a, b) => _stamp(b).compareTo(_stamp(a)));
+    for (final old in copies.skip(maxCopies)) {
+      await prefs.remove(old);
+    }
+  }
+
+  static int _stamp(String key) => int.tryParse(key.split('_').last) ?? 0;
+
+  @override
+  Future<String?> readMeta(String key) async => (await SharedPreferences.getInstance()).getString('${_key}_meta_$key');
+
+  @override
+  Future<void> writeMeta(String key, String value) async {
+    await (await SharedPreferences.getInstance()).setString('${_key}_meta_$key', value);
   }
 }
 
@@ -42,6 +64,18 @@ class FarmStore extends ChangeNotifier {
 
   static Future<FarmStore> load(FarmStorage storage, {DateTime Function()? clock}) async {
     final now = clock ?? DateTime.now;
+    final store = await _loadState(storage, now);
+    store._lastBackupAt = DateTime.tryParse(await storage.readMeta('last_backup') ?? '');
+    store._backupSnoozedUntil = DateTime.tryParse(await storage.readMeta('backup_snooze') ?? '');
+    final firstRun = DateTime.tryParse(await storage.readMeta('first_run') ?? '');
+    if (firstRun == null) {
+      await storage.writeMeta('first_run', now().toIso8601String());
+    }
+    store._firstRunAt = firstRun ?? now();
+    return store;
+  }
+
+  static Future<FarmStore> _loadState(FarmStorage storage, DateTime Function() now) async {
     final raw = await storage.read();
     if (raw == null) {
       final store = FarmStore._(storage, buildDemoFarm(now()), now, null);
@@ -104,6 +138,39 @@ class FarmStore extends ChangeNotifier {
       saveError = '변경 내용을 저장하지 못했습니다: $e';
       notifyListeners();
     }
+  }
+
+  // ---------- 백업 알림 ----------
+
+  DateTime? _lastBackupAt;
+  DateTime? _backupSnoozedUntil;
+  late DateTime _firstRunAt;
+
+  DateTime? get lastBackupAt => _lastBackupAt;
+
+  static const backupRemindAfter = Duration(days: 14);
+  static const backupFirstRemind = Duration(days: 7);
+
+  /// 백업을 권할 때인지. 한 번도 안 했으면 첫 실행 7일 뒤부터, 했으면 14일이 지나면 권한다.
+  bool get shouldRemindBackup {
+    final at = now;
+    if (_backupSnoozedUntil != null && at.isBefore(_backupSnoozedUntil!)) return false;
+    final last = _lastBackupAt;
+    if (last == null) return !at.isBefore(_firstRunAt.add(backupFirstRemind));
+    return !at.isBefore(last.add(backupRemindAfter));
+  }
+
+  Future<void> markBackedUp() async {
+    _lastBackupAt = now;
+    notifyListeners();
+    await _storage.writeMeta('last_backup', _lastBackupAt!.toIso8601String());
+  }
+
+  /// 백업 알림을 7일 동안 숨긴다.
+  Future<void> snoozeBackupReminder() async {
+    _backupSnoozedUntil = now.add(const Duration(days: 7));
+    notifyListeners();
+    await _storage.writeMeta('backup_snooze', _backupSnoozedUntil!.toIso8601String());
   }
 
   void dismissLoadNotice() {
@@ -208,6 +275,8 @@ class FarmStore extends ChangeNotifier {
     return _commit(
       _state.copyWith(
         animals: _state.animals.where((a) => a.id != id).toList(),
+        // 그 개체만 대상으로 한 남은 일정은 의미가 없으므로 지운다(완료 기록은 남긴다).
+        careItems: _state.careItems.where((c) => c.animalId != id || c.isDone).toList(),
         animalEvents: [
           AnimalEvent(
             id: 'e${at.microsecondsSinceEpoch}',
@@ -223,6 +292,94 @@ class FarmStore extends ChangeNotifier {
       ),
     );
   }
+
+  // ---------- 백신·진료 일정 ----------
+
+  /// 아직 하지 않은 일정(대상 개체가 사라진 것은 뺀다), 날짜 순.
+  List<CareItem> get pendingCare {
+    final ids = {for (final a in _state.animals) a.id};
+    return _state.careItems.where((c) => !c.isDone && (c.animalId == null || ids.contains(c.animalId))).toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+  }
+
+  /// [days]일 안에 해야 하거나 이미 지난 일정.
+  List<CareItem> careDueWithin(int days) => pendingCare.where((c) => c.daysUntil(now) <= days).toList();
+
+  /// 개체에 해당하는 일정(그 개체 전용 + 같은 종 전체 대상).
+  List<CareItem> careFor(Animal animal) =>
+      pendingCare.where((c) => c.animalId == animal.id || (c.animalId == null && c.kind == animal.kind)).toList();
+
+  /// 일정의 대상 이름(예: "소 전체", "벨라").
+  String careTargetLabel(CareItem c) {
+    if (c.animalId == null) return '${c.kind.label} 전체';
+    return animalById(c.animalId!)?.name ?? '${c.kind.label}(제외됨)';
+  }
+
+  Future<CareItem> addCareItem({
+    required AnimalKind kind,
+    String? animalId,
+    required CareType type,
+    required String title,
+    required DateTime dueDate,
+    int repeatMonths = 0,
+    String note = '',
+  }) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) throw ArgumentError('일정 이름을 입력하세요.');
+    if (repeatMonths < 0) throw ArgumentError('반복 주기는 0 이상이어야 합니다.');
+    final item = CareItem(
+      id: 'c${now.microsecondsSinceEpoch}',
+      kind: kind,
+      animalId: animalId,
+      type: type,
+      title: trimmed,
+      dueDate: DateTime(dueDate.year, dueDate.month, dueDate.day),
+      repeatMonths: repeatMonths,
+      doneAt: null,
+      note: note.trim(),
+    );
+    await _commit(_state.copyWith(careItems: [..._state.careItems, item]));
+    return item;
+  }
+
+  /// 일정을 완료한다. 반복 일정이면 완료한 날부터 주기만큼 뒤에 다음 일정을 만들고,
+  /// 검진이면 대상 가축의 마지막 검진일도 오늘로 바꾼다. 다음 일정을 돌려준다.
+  Future<CareItem?> completeCare(String id) async {
+    final item = _state.careItems.where((c) => c.id == id).firstOrNull;
+    if (item == null) throw StateError('일정을 찾을 수 없습니다.');
+    if (item.isDone) return null;
+    final at = now;
+    final today = DateTime(at.year, at.month, at.day);
+    final next = item.repeatMonths > 0
+        ? CareItem(
+            id: 'c${at.microsecondsSinceEpoch}',
+            kind: item.kind,
+            animalId: item.animalId,
+            type: item.type,
+            title: item.title,
+            dueDate: addMonths(today, item.repeatMonths),
+            repeatMonths: item.repeatMonths,
+            doneAt: null,
+            note: item.note,
+          )
+        : null;
+    bool targeted(Animal a) => item.animalId == null ? a.kind == item.kind : a.id == item.animalId;
+    await _commit(
+      _state.copyWith(
+        careItems: [
+          for (final c in _state.careItems) c.id == id ? c.copyWith(doneAt: at) : c,
+          ?next,
+        ],
+        animals: item.type == CareType.checkup
+            ? [for (final a in _state.animals) targeted(a) ? a.copyWith(lastCheckup: at) : a]
+            : null,
+      ),
+    );
+    return next;
+  }
+
+  Future<void> deleteCareItem(String id) =>
+      _commit(_state.copyWith(careItems: _state.careItems.where((c) => c.id != id).toList()));
 
   // ---------- 급이 ----------
 

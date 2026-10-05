@@ -215,6 +215,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       '모든 기록은 이 기기에만 저장되어 앱을 삭제하면 함께 지워집니다. 백업 파일을 내보내 두면 다른 기기나 PC·웹 버전에서도 복원할 수 있어요.',
                       style: AppText.caption,
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      store.lastBackupAt == null
+                          ? '마지막 백업: 아직 없음'
+                          : '마지막 백업: ${relativeTime(store.lastBackupAt!, store.now)}',
+                      style: AppText.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.text),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [

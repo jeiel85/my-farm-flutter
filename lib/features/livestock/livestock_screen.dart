@@ -8,6 +8,7 @@ import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import 'animal_detail_screen.dart';
 import 'animal_sheets.dart';
+import 'care_widgets.dart';
 
 class LivestockScreen extends StatefulWidget {
   const LivestockScreen({super.key});
@@ -125,6 +126,14 @@ class _LivestockScreenState extends State<LivestockScreen> {
                         ),
                         const SizedBox(height: 12),
                         rise(_FeedingCard(), 1),
+                        const SizedBox(height: 12),
+                        rise(
+                          CareCard(
+                            items: store.pendingCare.take(6).toList(),
+                            onAdd: () => showAddCareSheet(context, kind: _kind),
+                          ),
+                          1,
+                        ),
                         const SectionTitle('종류', subtitle: '눌러서 그 무리를 봅니다'),
                         rise(
                           Row(

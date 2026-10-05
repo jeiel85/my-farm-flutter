@@ -7,6 +7,7 @@ import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import 'animal_sheets.dart';
+import 'care_widgets.dart';
 
 final _date = DateFormat('yyyy년 M월 d일', 'ko');
 
@@ -124,6 +125,15 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                       ),
                     ),
                     0,
+                  ),
+                  const SizedBox(height: 12),
+                  rise(
+                    CareCard(
+                      items: FarmScope.of(context).careFor(a),
+                      onAdd: () => showAddCareSheet(context, kind: a.kind, animal: a),
+                      emptyText: '이 개체에 해당하는 일정이 없습니다.',
+                    ),
+                    1,
                   ),
                   const SectionTitle('건강 점수', subtitle: '검진 결과를 0~100으로 기록합니다'),
                   rise(

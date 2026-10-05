@@ -64,6 +64,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('오늘의 급이'), findsOneWidget);
+    expect(find.text('백신·진료 일정'), findsOneWidget);
+    // 일정 카드가 생겨 가축 목록 제목은 첫 화면 아래에 있다.
+    await tester.scrollUntilVisible(find.text('우리 소'), 300, scrollable: find.byType(Scrollable).last);
     expect(find.text('우리 소'), findsOneWidget);
 
     // 입식 시트가 열린다.

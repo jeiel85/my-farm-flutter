@@ -498,3 +498,95 @@ class AnimalEvent {
     note: j['note'] as String? ?? '',
   );
 }
+
+enum CareType {
+  vaccine('백신', Icons.vaccines_outlined),
+  checkup('검진', Icons.monitor_heart_outlined),
+  deworm('구충', Icons.bug_report_outlined),
+  other('기타', Icons.medical_services_outlined);
+
+  const CareType(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
+/// 백신·검진 같은 가축 관리 일정. [animalId]가 없으면 해당 종 전체가 대상이다.
+class CareItem {
+  const CareItem({
+    required this.id,
+    required this.kind,
+    required this.animalId,
+    required this.type,
+    required this.title,
+    required this.dueDate,
+    required this.repeatMonths,
+    required this.doneAt,
+    required this.note,
+  });
+
+  final String id;
+  final AnimalKind kind;
+  final String? animalId;
+  final CareType type;
+  final String title;
+  final DateTime dueDate;
+
+  /// 0이면 반복하지 않는다. 완료하면 이 개월 수 뒤로 다음 일정을 만든다.
+  final int repeatMonths;
+  final DateTime? doneAt;
+  final String note;
+
+  bool get isDone => doneAt != null;
+
+  /// 오늘 기준 남은 일수(지났으면 음수).
+  int daysUntil(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    final due = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    return due.difference(today).inDays;
+  }
+
+  CareItem copyWith({DateTime? doneAt}) => CareItem(
+    id: id,
+    kind: kind,
+    animalId: animalId,
+    type: type,
+    title: title,
+    dueDate: dueDate,
+    repeatMonths: repeatMonths,
+    doneAt: doneAt ?? this.doneAt,
+    note: note,
+  );
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'kind': kind.name,
+    'animalId': animalId,
+    'type': type.name,
+    'title': title,
+    'dueDate': dueDate.toIso8601String(),
+    'repeatMonths': repeatMonths,
+    'doneAt': doneAt?.toIso8601String(),
+    'note': note,
+  };
+
+  factory CareItem.fromJson(Map<String, Object?> j) => CareItem(
+    id: j['id'] as String,
+    kind: _enumByName(AnimalKind.values, j['kind'], AnimalKind.cow),
+    animalId: j['animalId'] as String?,
+    type: _enumByName(CareType.values, j['type'], CareType.other),
+    title: j['title'] as String,
+    dueDate: _date(j['dueDate']),
+    repeatMonths: j['repeatMonths'] as int? ?? 0,
+    doneAt: _dateOrNull(j['doneAt']),
+    note: j['note'] as String? ?? '',
+  );
+}
+
+/// [from]에서 [months]개월 뒤 같은 날(그 달에 없으면 말일).
+DateTime addMonths(DateTime from, int months) {
+  final total = from.year * 12 + (from.month - 1) + months;
+  final year = total ~/ 12;
+  final month = total % 12 + 1;
+  final lastDay = DateTime(year, month + 1, 0).day;
+  return DateTime(year, month, from.day > lastDay ? lastDay : from.day);
+}

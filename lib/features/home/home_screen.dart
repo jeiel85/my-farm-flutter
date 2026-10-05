@@ -9,6 +9,7 @@ import '../../data/models.dart';
 import '../../data/weather.dart';
 import '../crops/crop_detail_screen.dart';
 import '../inventory/inventory_screen.dart';
+import '../livestock/care_widgets.dart';
 import '../livestock/livestock_screen.dart';
 import '../weather/weather_screen.dart';
 
@@ -192,6 +193,32 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+    for (final c in store.careDueWithin(1)) {
+      final (due, color) = dueLabel(c, now);
+      out.add(
+        _Alert(
+          icon: c.type.icon,
+          color: color == AppColors.red ? AppColors.red : AppColors.orange,
+          title: '${c.title} · $due',
+          subtitle: '${store.careTargetLabel(c)} · 가축 관리에서 완료 체크',
+          onTap: () => push(const LivestockScreen()),
+        ),
+      );
+    }
+    if (store.shouldRemindBackup) {
+      final last = store.lastBackupAt;
+      out.add(
+        _Alert(
+          icon: Icons.save_alt_rounded,
+          color: AppColors.primary,
+          title: '백업할 때가 됐어요',
+          subtitle: last == null ? '아직 백업 파일을 만든 적이 없어요' : '마지막 백업 ${relativeTime(last, now)}',
+          onTap: () => AppShell.goTo(context, AppTab.profile),
+          actionLabel: '나중에',
+          onAction: store.snoozeBackupReminder,
+        ),
+      );
+    }
     final low = store.lowInventory;
     if (low.isNotEmpty) {
       out.add(
@@ -243,6 +270,8 @@ class _Alert extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.actionLabel,
+    this.onAction,
   });
 
   final IconData icon;
@@ -250,6 +279,8 @@ class _Alert extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) => Pressable(
@@ -273,7 +304,10 @@ class _Alert extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          if (actionLabel != null && onAction != null)
+            TextButton(onPressed: onAction, child: Text(actionLabel!))
+          else
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
         ],
       ),
     ),

@@ -10,6 +10,7 @@ class FarmState {
     required this.fields,
     required this.animals,
     required this.animalEvents,
+    required this.careItems,
     required this.feedingSlots,
     required this.feedingDone,
     required this.feedingUsage,
@@ -25,12 +26,14 @@ class FarmState {
   /// 저장 형식 버전.
   /// - 1: 최초 형식(v1.0.0~v1.1.0)
   /// - 2: 가축 이력(`animalEvents`)과 급이별 사료 차감량(`feedingUsage`) 추가(v1.2.0)
-  static const schemaVersion = 2;
+  /// - 3: 백신·진료 일정(`careItems`) 추가(v1.3.0)
+  static const schemaVersion = 3;
 
   final FarmProfile profile;
   final List<CropField> fields;
   final List<Animal> animals;
   final List<AnimalEvent> animalEvents;
+  final List<CareItem> careItems;
   final List<FeedingSlot> feedingSlots;
 
   /// 날짜 키(yyyy-MM-dd) → 완료한 급이 슬롯 인덱스.
@@ -49,6 +52,7 @@ class FarmState {
     List<CropField>? fields,
     List<Animal>? animals,
     List<AnimalEvent>? animalEvents,
+    List<CareItem>? careItems,
     Map<String, List<int>>? feedingDone,
     FeedingUsage? feedingUsage,
     double? tankStoredL,
@@ -62,6 +66,7 @@ class FarmState {
     fields: fields ?? this.fields,
     animals: animals ?? this.animals,
     animalEvents: animalEvents ?? this.animalEvents,
+    careItems: careItems ?? this.careItems,
     feedingSlots: feedingSlots,
     feedingDone: feedingDone ?? this.feedingDone,
     feedingUsage: feedingUsage ?? this.feedingUsage,
@@ -80,6 +85,7 @@ class FarmState {
     'fields': [for (final f in fields) f.toJson()],
     'animals': [for (final a in animals) a.toJson()],
     'animalEvents': [for (final e in animalEvents) e.toJson()],
+    'careItems': [for (final c in careItems) c.toJson()],
     'feedingSlots': [for (final s in feedingSlots) s.toJson()],
     'feedingDone': feedingDone,
     'feedingUsage': {
@@ -117,6 +123,7 @@ class FarmState {
       fields: [for (final m in list('fields')) CropField.fromJson(m)],
       animals: [for (final m in list('animals')) Animal.fromJson(m)],
       animalEvents: [for (final m in list('animalEvents')) AnimalEvent.fromJson(m)],
+      careItems: [for (final m in list('careItems')) CareItem.fromJson(m)],
       feedingSlots: [for (final m in list('feedingSlots')) FeedingSlot.fromJson(m)],
       feedingDone: done,
       feedingUsage: usage,
@@ -145,6 +152,11 @@ class FarmState {
       j['animalEvents'] = <Object?>[];
       j['feedingUsage'] = <String, Object?>{};
       j['schemaVersion'] = 2;
+    }
+    if ((j['schemaVersion'] as int) < 3) {
+      // v2 → v3: 백신·진료 일정은 비어 있는 상태로 시작한다.
+      j['careItems'] = <Object?>[];
+      j['schemaVersion'] = 3;
     }
     return j;
   }
