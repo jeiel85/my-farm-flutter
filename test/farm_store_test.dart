@@ -218,6 +218,24 @@ void main() {
     expect(store.totalAnimals, 48);
   });
 
+  test('개월 수로 생년월일을 거슬러 갈 때 그 달에 없는 날은 마지막 날로 맞춘다', () {
+    expect(monthsBefore(DateTime(2026, 3, 31, 9), 1), DateTime(2026, 2, 28));
+    expect(monthsBefore(DateTime(2028, 3, 31), 1), DateTime(2028, 2, 29));
+    expect(monthsBefore(DateTime(2026, 1, 15), 3), DateTime(2025, 10, 15));
+    expect(monthsBefore(DateTime(2026, 10, 5), 0), DateTime(2026, 10, 5));
+    final calf = Animal.fromJson({
+      'id': 'cow-99',
+      'kind': 'cow',
+      'tag': 'COW-999',
+      'name': '송아지',
+      'breed': '',
+      'birthDate': monthsBefore(DateTime(2026, 3, 31), 1).toIso8601String(),
+      'health': 100,
+      'weightKg': 40,
+    });
+    expect(calf.ageLabel(DateTime(2026, 3, 31)), '1개월');
+  });
+
   test('저장에 실패하면 오류를 알리고, 다음 저장이 성공하면 지운다', () async {
     final (store, storage) = await fresh();
     storage.failWrites = true;

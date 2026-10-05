@@ -106,7 +106,6 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
       return;
     }
     final store = FarmScope.read(context);
-    final today = DateTime(store.now.year, store.now.month, store.now.day);
     try {
       final animal = await store.addAnimal(
         kind: _kind,
@@ -114,7 +113,7 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
         name: _name.text,
         breed: _breed.text,
         // 생년월일을 정확히 모르는 경우가 많아 개월 수로 받고, 달력상 그만큼 앞선 날로 둔다.
-        birthDate: DateTime(today.year, today.month - months, today.day),
+        birthDate: monthsBefore(store.now, months),
         weightKg: weight,
         note: _note.text,
       );

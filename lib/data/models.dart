@@ -504,3 +504,11 @@ class FarmTask {
 
 String dateKeyOf(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+/// [d]의 날짜에서 [months]개월 앞선 날(시각은 버림).
+/// `DateTime(y, m - n, 31)`처럼 그 달에 없는 날이면 다음 달로 넘어가 나이가 어긋나므로, 그 달의 마지막 날로 맞춘다.
+DateTime monthsBefore(DateTime d, int months) {
+  final first = DateTime(d.year, d.month - months);
+  final lastDay = DateTime(first.year, first.month + 1, 0).day;
+  return DateTime(first.year, first.month, d.day < lastDay ? d.day : lastDay);
+}
