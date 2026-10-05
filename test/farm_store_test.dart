@@ -520,6 +520,49 @@ void main() {
       expect((jsonDecode(storage.value!) as Map)['schemaVersion'], 4);
     });
 
+    /// 예시 농장 JSON에서 장부·프로필 일부를 바꾼 저장본.
+    Map<String, Object?> withLedger(List<Map<String, Object?>> ledger, {Object? currency = 'KRW'}) {
+      final j = buildDemoFarm(now).toJson();
+      j['ledger'] = ledger;
+      j['profile'] = {...(j['profile'] as Map<String, Object?>), 'currency': currency};
+      return j;
+    }
+
+    Map<String, Object?> entry(String id, String category) => {
+      'id': id,
+      'category': category,
+      'amount': 1000,
+      'date': DateTime(2026, 10, 2).toIso8601String(),
+      'note': '',
+    };
+
+    test('같은 날 기록은 id 모양과 상관없이 나중에 적은 것이 먼저다', () async {
+      // 'l10'은 문자열로는 'l9'보다 앞서지만 목록에서 나중에 적혔다.
+      final storage = MemoryStorage(jsonEncode(withLedger([entry('l9', 'feed'), entry('l10', 'crops')])));
+      final store = await FarmStore.load(storage, clock: clock);
+      expect([for (final e in store.ledgerBetween(month, nextMonth)) e.id], ['l10', 'l9']);
+
+      final added = await store.addLedgerEntry(category: LedgerCategory.vet, amount: 5, date: DateTime(2026, 10, 2));
+      expect(store.ledgerBetween(month, nextMonth).first.id, added.id);
+    });
+
+    test('모르는 분류나 통화 형식이 아닌 값은 다른 값으로 바꾸지 않고 거부한다', () async {
+      Matcher damaged() => throwsA(isA<BackupException>().having((e) => e.problem, 'problem', BackupProblem.damaged));
+      String backupOf(Map<String, Object?> state) => jsonEncode({'format': FarmStore.backupFormat, 'state': state});
+
+      expect(() => FarmStore.parseBackup(backupOf(withLedger([entry('l1', 'gift')]))), damaged());
+      for (final bad in ['won', '₩', 'KRWX', '', null]) {
+        expect(() => FarmStore.parseBackup(backupOf(withLedger([], currency: bad))), damaged(), reason: '$bad');
+      }
+
+      // 기기 저장본이면 손상본으로 보관하고 예시 농장으로 시작한다(기존 손상 처리와 같다).
+      final raw = jsonEncode(withLedger([entry('l1', 'gift')]));
+      final storage = MemoryStorage(raw);
+      final store = await FarmStore.load(storage, clock: clock);
+      expect(store.recoveredFromCorruptData, isTrue);
+      expect(storage.copiesLabeled('corrupt'), [raw]);
+    });
+
     test('영어 예시 농장은 달러로 적는다', () async {
       final store = await FarmStore.load(MemoryStorage(), clock: clock, english: true);
       expect(store.state.profile.currency, 'USD');

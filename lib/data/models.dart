@@ -112,8 +112,14 @@ class FarmProfile {
     longitude: _d(j['longitude']),
     dailyEggTarget: j['dailyEggTarget'] as int,
     dailyMilkTargetL: _d(j['dailyMilkTargetL']),
-    currency: j['currency'] as String,
+    currency: _currencyCode(j['currency']),
   );
+}
+
+/// ISO 4217 형식(대문자 3자)만 받는다. 아무 문자열이나 통화 기호로 표시되지 않게 한다.
+String _currencyCode(Object? v) {
+  if (v is String && RegExp(r'^[A-Z]{3}$').hasMatch(v)) return v;
+  throw FormatException('Invalid currency code', v);
 }
 
 /// 밭(작물이 자라는 구역). 생육률은 파종일과 재배 기간으로 계산한다.
@@ -601,6 +607,10 @@ DateTime addMonths(DateTime from, int months) {
 const supportedCurrencies = ['KRW', 'USD', 'EUR', 'JPY', 'CNY', 'GBP'];
 
 /// 장부 분류. 매출인지 비용인지는 분류가 정한다.
+///
+/// 모르는 분류는 읽을 때 거부한다(다른 분류로 바꾸면 매출이 비용으로 조용히 바뀔 수 있다).
+/// 그래서 분류를 추가하면 저장 형식 버전(`FarmState.schemaVersion`)을 올려, 이전 앱이 새 데이터를
+/// 손상본이 아니라 "더 새로운 버전"으로 알아보게 해야 한다.
 enum LedgerCategory {
   crops(true, Icons.local_florist_outlined),
   livestock(true, Icons.pets_outlined),
@@ -656,7 +666,9 @@ class LedgerEntry {
 
   factory LedgerEntry.fromJson(Map<String, Object?> j) => LedgerEntry(
     id: j['id'] as String,
-    category: _enumByName(LedgerCategory.values, j['category'], LedgerCategory.otherExpense),
+    category:
+        LedgerCategory.values.asNameMap()[j['category']] ??
+        (throw FormatException('Unknown ledger category', j['category'])),
     amount: _d(j['amount']),
     date: _date(j['date']),
     note: j['note'] as String? ?? '',
