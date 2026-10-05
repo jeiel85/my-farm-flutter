@@ -5,6 +5,7 @@ import 'package:my_farm/data/farm_state.dart';
 import 'package:my_farm/data/farm_store.dart';
 import 'package:my_farm/data/models.dart';
 import 'package:my_farm/data/seed.dart';
+import 'package:my_farm/features/ledger/ledger_screen.dart';
 
 class MemoryStorage implements FarmStorage {
   MemoryStorage([this.value]);
@@ -45,6 +46,22 @@ void main() {
   final now = DateTime(2026, 10, 5, 14, 30);
   DateTime clock() => now;
 
+  /// 예시 농장을 [version] 저장 형식으로 되돌린 JSON(그 버전 이후 생긴 필드를 뺀다).
+  Map<String, Object?> legacyJson(int version) {
+    final j = buildDemoFarm(now).toJson();
+    if (version < 2) {
+      j
+        ..remove('animalEvents')
+        ..remove('feedingUsage');
+    }
+    if (version < 3) j.remove('careItems');
+    if (version < 4) {
+      j.remove('ledger');
+      j['profile'] = {...(j['profile'] as Map<String, Object?>)}..remove('currency');
+    }
+    return j..['schemaVersion'] = version;
+  }
+
   Future<(FarmStore, MemoryStorage)> fresh() async {
     final storage = MemoryStorage();
     final store = await FarmStore.load(storage, clock: clock);
@@ -81,12 +98,7 @@ void main() {
   });
 
   test('v1 저장본은 최신 형식으로 마이그레이션하고 원본을 따로 보관한다', () async {
-    final v1 = buildDemoFarm(now).toJson()
-      ..remove('animalEvents')
-      ..remove('feedingUsage')
-      ..remove('careItems')
-      ..['schemaVersion'] = 1;
-    final raw = jsonEncode(v1);
+    final raw = jsonEncode(legacyJson(1));
     final storage = MemoryStorage(raw);
     final store = await FarmStore.load(storage, clock: clock);
     expect(store.recoveredFromCorruptData, isFalse);
@@ -327,11 +339,7 @@ void main() {
     });
 
     test('v1 형식 백업도 복원할 수 있다', () {
-      final v1 = buildDemoFarm(now).toJson()
-        ..remove('animalEvents')
-        ..remove('feedingUsage')
-        ..remove('careItems')
-        ..['schemaVersion'] = 1;
+      final v1 = legacyJson(1);
       final contents = FarmStore.parseBackup(jsonEncode({'format': FarmStore.backupFormat, 'state': v1}));
       expect(contents.state.animals, hasLength(48));
       expect(contents.exportedAt, isNull);
@@ -432,5 +440,98 @@ void main() {
     expect((await FarmStore.load(storage, clock: clock)).localeOverride, 'en');
     await store.setLocaleOverride(null);
     expect((await FarmStore.load(storage, clock: clock)).localeOverride, isNull);
+  });
+
+  group('매출·비용 장부', () {
+    final month = DateTime(now.year, now.month);
+    final nextMonth = DateTime(now.year, now.month + 1);
+
+    test('예시 장부는 원화로 적혀 있고, 최근 순으로 고르며 월별 합계를 낸다', () async {
+      final (store, _) = await fresh();
+      expect(store.state.profile.currency, 'KRW');
+      final entries = store.ledgerBetween(month, nextMonth);
+      expect(entries, isNotEmpty);
+      for (var i = 1; i < entries.length; i++) {
+        expect(entries[i - 1].date.isBefore(entries[i].date), isFalse);
+      }
+      final (income, expense) = store.ledgerTotals(month, nextMonth);
+      expect(income, entries.where((e) => e.isIncome).fold(0.0, (s, e) => s + e.amount));
+      expect(expense, entries.where((e) => !e.isIncome).fold(0.0, (s, e) => s + e.amount));
+
+      final monthly = store.ledgerMonthly(6);
+      expect([for (final m in monthly) m.$1], [for (var i = 5; i >= 0; i--) DateTime(2026, 10 - i)]);
+      expect(monthly.last.$2, income);
+      expect(monthly.last.$3, expense);
+    });
+
+    test('기록하면 날짜를 자정으로 맞추고 합계에 반영되며, 삭제하면 빠진다', () async {
+      final (store, storage) = await fresh();
+      final (income0, expense0) = store.ledgerTotals(month, nextMonth);
+
+      final sale = await store.addLedgerEntry(
+        category: LedgerCategory.crops,
+        amount: 300000,
+        date: DateTime(2026, 10, 3, 17, 45),
+        note: '  토마토 직판  ',
+      );
+      await store.addLedgerEntry(category: LedgerCategory.feed, amount: 120000, date: DateTime(2026, 10, 4));
+      expect(sale.date, DateTime(2026, 10, 3));
+      expect(sale.note, '토마토 직판');
+      expect(store.ledgerTotals(month, nextMonth), (income0 + 300000, expense0 + 120000));
+      expect(jsonEncode(store.state.toJson()), storage.value);
+
+      await store.deleteLedgerEntry(sale.id);
+      expect(store.ledgerTotals(month, nextMonth), (income0, expense0 + 120000));
+    });
+
+    test('0 이하·숫자가 아닌 값·지나치게 큰 금액은 거부한다', () async {
+      final (store, _) = await fresh();
+      final count = store.state.ledger.length;
+      for (final bad in [0.0, -5.0, double.nan, double.infinity, FarmStore.maxLedgerAmount * 2]) {
+        expect(
+          () => store.addLedgerEntry(category: LedgerCategory.vet, amount: bad, date: now),
+          throwsArgumentError,
+          reason: '$bad',
+        );
+      }
+      expect(store.state.ledger, hasLength(count));
+    });
+
+    test('분류별 합계는 큰 순이다', () async {
+      final (store, _) = await fresh();
+      final from = DateTime(2020);
+      final byCategory = store.ledgerByCategory(from, nextMonth);
+      for (var i = 1; i < byCategory.length; i++) {
+        expect(byCategory[i - 1].$2 >= byCategory[i].$2, isTrue);
+      }
+      final (income, expense) = store.ledgerTotals(from, nextMonth);
+      expect(byCategory.fold(0.0, (s, c) => s + c.$2), closeTo(income + expense, 0.001));
+    });
+
+    test('v3 저장본은 빈 장부와 원화로 옮기고 원본을 따로 보관한다', () async {
+      final raw = jsonEncode(legacyJson(3));
+      final storage = MemoryStorage(raw);
+      final store = await FarmStore.load(storage, clock: clock);
+      expect(store.recoveredFromCorruptData, isFalse);
+      expect(store.state.ledger, isEmpty);
+      expect(store.state.profile.currency, 'KRW');
+      expect(store.state.careItems, isNotEmpty);
+      expect(storage.copiesLabeled('pre_migration_v3'), [raw]);
+      expect((jsonDecode(storage.value!) as Map)['schemaVersion'], 4);
+    });
+
+    test('영어 예시 농장은 달러로 적는다', () async {
+      final store = await FarmStore.load(MemoryStorage(), clock: clock, english: true);
+      expect(store.state.profile.currency, 'USD');
+      expect(store.state.ledger, isNotEmpty);
+    });
+
+    test('금액 입력은 천 단위 쉼표를 무시하고 통화 소수 자릿수로 반올림한다', () {
+      expect(parseMoney('1,250,000', 0), 1250000);
+      expect(parseMoney(' 1500.6 ', 0), 1501);
+      expect(parseMoney('12.346', 2), 12.35);
+      expect(parseMoney('abc', 0), isNull);
+      expect(parseMoney('', 2), isNull);
+    });
   });
 }

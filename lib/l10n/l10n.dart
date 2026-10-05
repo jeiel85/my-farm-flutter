@@ -82,6 +82,22 @@ extension Labels on AppLocalizations {
     CareType.other => careOther,
   };
 
+  String ledgerCategory(LedgerCategory c) => switch (c) {
+    LedgerCategory.crops => ledgerCrops,
+    LedgerCategory.livestock => ledgerLivestock,
+    LedgerCategory.products => ledgerProducts,
+    LedgerCategory.subsidy => ledgerSubsidy,
+    LedgerCategory.otherIncome => ledgerOtherIncome,
+    LedgerCategory.feed => ledgerFeed,
+    LedgerCategory.seeds => ledgerSeeds,
+    LedgerCategory.fertilizer => ledgerFertilizer,
+    LedgerCategory.equipment => ledgerEquipment,
+    LedgerCategory.labor => ledgerLabor,
+    LedgerCategory.utilities => ledgerUtilities,
+    LedgerCategory.vet => ledgerVet,
+    LedgerCategory.otherExpense => ledgerOtherExpense,
+  };
+
   String weatherText(WeatherCondition c) => switch (c) {
     WeatherCondition.clear => wxClear,
     WeatherCondition.partlyCloudy => wxPartlyCloudy,

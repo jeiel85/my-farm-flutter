@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 import 'package:my_farm/data/farm_store.dart';
+import 'package:my_farm/data/models.dart';
 import 'package:my_farm/data/weather.dart';
 import 'package:my_farm/main.dart';
 
@@ -89,6 +91,47 @@ void main() {
       expect(tester.takeException(), isNull);
     }
     expect(find.text('농장 정보'), findsOneWidget);
+    await _unmount(tester);
+  });
+
+  testWidgets('분석에서 장부를 열어 비용을 적으면 목록과 합계에 나온다', (tester) async {
+    final store = await pumpApp(tester);
+    await tester.tap(find.text('분석').last);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('매출·비용'), findsOneWidget);
+
+    await tester.tap(find.text('장부 열기'));
+    await tester.pumpAndSettle();
+    expect(find.text('매출·비용 장부'), findsOneWidget);
+    expect(find.text('2026년 10월'), findsOneWidget);
+
+    await tester.tap(find.text('매출·비용 기록'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: find.byType(SegmentedButton<bool>), matching: find.text('비용')));
+    await tester.pump();
+    await tester.tap(find.text('진료·약품'));
+    await tester.enterText(find.byType(TextField).first, '0');
+    await tester.tap(find.text('기록하기'));
+    await tester.pump();
+    expect(find.text('0보다 큰 숫자로 입력하세요.'), findsOneWidget);
+
+    final before = store.state.ledger.length;
+    await tester.enterText(find.byType(TextField).first, '45,000');
+    await tester.enterText(find.byType(TextField).last, '송아지 설사약');
+    await tester.tap(find.text('기록하기'));
+    await tester.pumpAndSettle();
+    expect(store.state.ledger, hasLength(before + 1));
+    final added = store.state.ledger.last;
+    expect((added.category, added.amount, added.note), (LedgerCategory.vet, 45000.0, '송아지 설사약'));
+    expect(find.text('장부에 기록했어요.'), findsOneWidget);
+    expect(find.text('송아지 설사약'), findsOneWidget);
+    expect(find.text('-₩45,000'), findsOneWidget);
+    // 순이익은 요약 카드에만 나오고, 방금 적은 비용이 빠진 값이어야 한다.
+    final (income, expense) = store.ledgerTotals(DateTime(2026, 10), DateTime(2026, 11));
+    expect(expense, greaterThanOrEqualTo(45000));
+    final won = NumberFormat.simpleCurrency(locale: 'ko', name: 'KRW');
+    expect(find.text(won.format(income - expense)), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 
