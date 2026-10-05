@@ -1,0 +1,60 @@
+name: Pages
+
+# 랜딩 페이지(site/)와 Flutter 웹 데모(/app/)를 GitHub Pages에 배포한다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - lib/**
+      - web/**
+      - site/**
+      - docs/screenshots/**
+      - pubspec.yaml
+      - pubspec.lock
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.6
+          cache: true
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter build web --release --base-href /${{ github.event.repository.name }}/app/
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp -r site/. _site/
+          cp -r docs/screenshots _site/screenshots
+          cp -r build/web _site/app
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

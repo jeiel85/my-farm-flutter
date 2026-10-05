@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 — 2026-10-05
+
+- Windows 데스크톱 버전 추가(`MyFarm.exe`, 창 제목 "마이팜", 휴대폰 비율 창)
+- 웹 버전과 GitHub Pages 랜딩 페이지·라이브 데모 추가(https://jeiel85.github.io/my-farm-flutter/)
+- 웹·PC처럼 화면이 넓으면 앱을 휴대폰 폭(480)으로 가운데 정렬
+- README 개편(배너, 배지, 기능표, 구조도)
+
 ## 1.0.0 — 2026-10-05
 
 첫 공개 버전.
