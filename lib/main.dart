@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'app_shell.dart';
 import 'core/theme.dart';
+import 'data/app_update.dart';
 import 'data/farm_store.dart';
 import 'data/weather.dart';
 import 'l10n/l10n.dart';
@@ -20,33 +23,45 @@ Future<void> main() async {
     ),
   );
   final systemLanguage = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
-  final store = await FarmStore.load(PrefsFarmStorage(), english: systemLanguage != 'ko');
-  runApp(MyFarmApp(store: store, weather: WeatherController(WeatherService())));
+  final storage = PrefsFarmStorage();
+  final store = await FarmStore.load(storage, english: systemLanguage != 'ko');
+  final update = appUpdateSupported
+      ? UpdateController(storage: storage, platform: MethodChannelUpdatePlatform())
+      : null;
+  runApp(MyFarmApp(store: store, weather: WeatherController(WeatherService()), update: update));
+  // 첫 화면을 막지 않도록 앱을 띄운 뒤 확인한다.
+  unawaited(update?.init());
 }
 
 class MyFarmApp extends StatelessWidget {
-  const MyFarmApp({super.key, required this.store, required this.weather});
+  const MyFarmApp({super.key, required this.store, required this.weather, this.update});
 
   final FarmStore store;
   final WeatherController weather;
+
+  /// 앱 안 업데이트를 쓰지 않는 플랫폼(웹·Windows)에서는 null.
+  final UpdateController? update;
 
   @override
   Widget build(BuildContext context) => FarmScope(
     store: store,
     child: WeatherScope(
       controller: weather,
-      child: ValueListenableBuilder<String?>(
-        valueListenable: store.locale,
-        builder: (context, localeCode, _) => MaterialApp(
-          onGenerateTitle: (context) => context.l10n.appTitle,
-          debugShowCheckedModeBanner: false,
-          theme: buildTheme(),
-          locale: localeCode == null ? null : Locale(localeCode),
-          // 한국어·영어가 아닌 기기에서는 영어로 보여 준다(첫 항목이 기본값).
-          supportedLocales: AppLocalizations.supportedLocales.reversed.toList(),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          builder: (context, child) => PhoneWidthFrame(child: child!),
-          home: const AppShell(),
+      child: UpdateScope(
+        controller: update,
+        child: ValueListenableBuilder<String?>(
+          valueListenable: store.locale,
+          builder: (context, localeCode, _) => MaterialApp(
+            onGenerateTitle: (context) => context.l10n.appTitle,
+            debugShowCheckedModeBanner: false,
+            theme: buildTheme(),
+            locale: localeCode == null ? null : Locale(localeCode),
+            // 한국어·영어가 아닌 기기에서는 영어로 보여 준다(첫 항목이 기본값).
+            supportedLocales: AppLocalizations.supportedLocales.reversed.toList(),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            builder: (context, child) => PhoneWidthFrame(child: child!),
+            home: const AppShell(),
+          ),
         ),
       ),
     ),

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../app_shell.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
+import '../../data/app_update.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import '../../data/weather.dart';
@@ -11,6 +12,7 @@ import '../crops/crop_detail_screen.dart';
 import '../inventory/inventory_screen.dart';
 import '../livestock/care_widgets.dart';
 import '../livestock/livestock_screen.dart';
+import '../update/update_widgets.dart';
 import '../weather/weather_screen.dart';
 import '../../l10n/l10n.dart';
 
@@ -230,6 +232,19 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () => AppShell.goTo(context, AppTab.profile),
           actionLabel: context.l10n.later,
           onAction: store.snoozeBackupReminder,
+        ),
+      );
+    }
+    final update = UpdateScope.of(context);
+    final offer = update?.offer;
+    if (offer != null) {
+      out.add(
+        _Alert(
+          icon: Icons.system_update_rounded,
+          color: AppColors.primary,
+          title: context.l10n.updateAvailableTitle(offer.versionName),
+          subtitle: context.l10n.updateAvailableSubtitle,
+          onTap: () => showUpdateSheet(context, update!, offer),
         ),
       );
     }

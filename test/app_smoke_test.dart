@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,17 +7,19 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
+import 'package:my_farm/data/app_update.dart';
 import 'package:my_farm/data/farm_store.dart';
 import 'package:my_farm/data/models.dart';
 import 'package:my_farm/data/weather.dart';
 import 'package:my_farm/main.dart';
 
+import 'app_update_test.dart' show FakePlatform, MetaStorage;
 import 'farm_store_test.dart' show MemoryStorage;
 
 void main() {
   setUpAll(() => initializeDateFormatting('ko'));
 
-  Future<FarmStore> pumpApp(WidgetTester tester, {String locale = 'ko'}) async {
+  Future<FarmStore> pumpApp(WidgetTester tester, {String locale = 'ko', UpdateController? update}) async {
     await tester.binding.setSurfaceSize(const Size(400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     // 테스트 환경의 기기 언어와 상관없이 화면 언어를 고정한다.
@@ -41,7 +44,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpWidget(MyFarmApp(store: store, weather: weather));
+    await tester.pumpWidget(MyFarmApp(store: store, weather: weather, update: update));
     await tester.pump(const Duration(seconds: 2));
     return store;
   }
@@ -91,6 +94,50 @@ void main() {
       expect(tester.takeException(), isNull);
     }
     expect(find.text('농장 정보'), findsOneWidget);
+    await _unmount(tester);
+  });
+
+  testWidgets('새 버전이 있으면 홈 알림에서 안내 시트를 열고, 프로필에 업데이트 설정이 나온다', (tester) async {
+    final now = DateTime(2026, 10, 5, 14, 30);
+    final storage = MetaStorage()
+      ..meta['update_enabled'] = 'true'
+      ..meta['update_checked_at'] = now.toIso8601String()
+      ..meta['update_manifest'] = jsonEncode({
+        'versionCode': 99,
+        'versionName': '9.9.0',
+        'apkUrl': 'https://example.test/a.apk',
+        'apkSizeBytes': 52 * 1024 * 1024,
+        'sha256': 'ab' * 32,
+        'minSdk': 24,
+        'releaseNotesUrl': 'https://example.test/notes',
+      });
+    final update = UpdateController(
+      storage: storage,
+      platform: FakePlatform(Directory.systemTemp.path),
+      clock: () => now,
+      client: MockClient((_) async => fail('하루 안에는 다시 확인하지 않는다')),
+    );
+    // 캐시 폴더 정리가 실제 파일 시스템을 쓰므로 가짜 시간 밖에서 초기화한다.
+    await tester.runAsync(update.init);
+    await pumpApp(tester, update: update);
+    final vertical = find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).first;
+
+    await tester.scrollUntilVisible(find.text('새 버전 9.9.0 사용 가능'), 200, scrollable: vertical);
+    await tester.tap(find.text('새 버전 9.9.0 사용 가능'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('내려받을 크기 52.0MB. 업데이트해도 농장 기록은 그대로 남아요.'), findsOneWidget);
+    // 홈의 백업 알림에도 '나중에'가 있으므로 시트 안의 버튼을 누른다.
+    await tester.tap(find.descendant(of: find.byType(BottomSheet), matching: find.text('나중에')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.tap(find.text('프로필').last);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.scrollUntilVisible(find.text('새 버전 자동 확인'), 300, scrollable: vertical);
+    expect(find.text('설치된 버전 1.6.0'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 

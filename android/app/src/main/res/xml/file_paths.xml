@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱 안 업데이트가 내려받은 APK만 시스템 설치 화면에 넘긴다. -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>
