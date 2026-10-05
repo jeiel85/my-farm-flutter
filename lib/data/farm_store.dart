@@ -127,6 +127,102 @@ class FarmStore extends ChangeNotifier {
   Future<void> updateAnimal(Animal updated) =>
       _commit(_state.copyWith(animals: [for (final a in _state.animals) a.id == updated.id ? updated : a]));
 
+  /// 최근 [limit]건의 입식·출하·폐사 기록(최신순).
+  List<AnimalEvent> recentAnimalEvents([int limit = 5]) => _state.animalEvents.take(limit).toList();
+
+  /// 새 개체에 붙일 태그 제안. 출하·폐사한 개체 번호도 피해서 이력 기록과 겹치지 않게 한다.
+  String suggestTag(AnimalKind kind) {
+    var max = 0;
+    final tags = [
+      for (final a in _state.animals)
+        if (a.kind == kind) a.tag,
+      for (final e in _state.animalEvents)
+        if (e.kind == kind) e.tag,
+    ];
+    for (final t in tags) {
+      final n = int.tryParse(t.split('-').last) ?? 0;
+      if (n > max) max = n;
+    }
+    return '${kind.tagPrefix}-${(max + 1).toString().padLeft(3, '0')}';
+  }
+
+  /// 가축을 들인다(입식). 같은 태그가 이미 있으면 [StateError].
+  ///
+  /// id는 `종류-번호`로 만들어 [Animal.variant](아이콘 무늬)가 작은 수로 유지되게 한다.
+  /// 번호는 기록에 남은 id까지 포함한 최댓값 + 1이라, 출하한 개체의 id를 재사용하지 않는다.
+  Future<Animal> addAnimal({
+    required AnimalKind kind,
+    required String tag,
+    required String name,
+    required String breed,
+    required DateTime birthDate,
+    required double weightKg,
+    String note = '',
+  }) async {
+    final cleanTag = tag.trim();
+    final cleanName = name.trim();
+    if (cleanTag.isEmpty || cleanName.isEmpty) throw StateError('이름과 태그를 입력하세요.');
+    if (weightKg <= 0) throw StateError('체중을 0보다 큰 숫자로 입력하세요.');
+    if (_state.animals.any((a) => a.tag == cleanTag)) throw StateError('태그 $cleanTag는 이미 쓰고 있습니다.');
+
+    var seq = -1;
+    for (final id in [for (final a in _state.animals) a.id, for (final e in _state.animalEvents) e.animalId]) {
+      final parts = id.split('-');
+      if (parts.first != kind.name) continue;
+      final n = int.tryParse(parts.last) ?? -1;
+      if (n > seq) seq = n;
+    }
+    final at = now;
+    final animal = Animal(
+      id: '${kind.name}-${seq + 1}',
+      kind: kind,
+      tag: cleanTag,
+      name: cleanName,
+      breed: breed.trim(),
+      birthDate: birthDate,
+      health: 100,
+      weightKg: weightKg,
+      lastCheckup: null,
+      note: note.trim(),
+    );
+    await _commit(
+      _state.copyWith(
+        animals: [..._state.animals, animal],
+        animalEvents: [_eventFor(animal, AnimalEventType.added, at, animal.note), ..._state.animalEvents],
+      ),
+    );
+    return animal;
+  }
+
+  /// 가축을 출하하거나 폐사 처리해 목록에서 뺀다. 이름·태그는 기록에 남는다.
+  Future<void> removeAnimal(String id, AnimalEventType type, {String note = ''}) {
+    if (type == AnimalEventType.added) throw ArgumentError('입식은 addAnimal로 기록합니다.');
+    final animal = animalById(id);
+    if (animal == null) throw StateError('가축을 찾을 수 없습니다.');
+    return _commit(
+      _state.copyWith(
+        animals: _state.animals.where((a) => a.id != id).toList(),
+        animalEvents: [_eventFor(animal, type, now, note.trim()), ..._state.animalEvents],
+      ),
+    );
+  }
+
+  AnimalEvent _eventFor(Animal a, AnimalEventType type, DateTime at, String note) => AnimalEvent(
+    // 같은 순간에 여러 건이 생겨도(테스트 시계 등) 겹치지 않게 건수를 덧붙인다.
+    id: 'ae${at.microsecondsSinceEpoch}-${_state.animalEvents.length}',
+    type: type,
+    animalId: a.id,
+    kind: a.kind,
+    tag: a.tag,
+    name: a.name,
+    date: at,
+    note: note,
+  );
+
+  /// [from] 이후 종류별 기록 건수. 분석·요약용.
+  int animalEventCountSince(AnimalEventType type, DateTime from) =>
+      _state.animalEvents.where((e) => e.type == type && !e.date.isBefore(from)).length;
+
   // ---------- 급이 ----------
 
   Set<int> get feedingDoneToday => {...?_state.feedingDone[todayKey]};

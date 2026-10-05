@@ -286,6 +286,63 @@ class Animal {
   );
 }
 
+/// 가축 수가 바뀐 이유. 출하·폐사한 개체는 목록에서 빠지므로 이 기록이 유일한 이력이다.
+enum AnimalEventType {
+  added('입식', Icons.add_circle_outline_rounded, Color(0xFF2E7D4F)),
+  sold('출하', Icons.local_shipping_outlined, Color(0xFF3D8ED8)),
+  died('폐사', Icons.heart_broken_outlined, Color(0xFF7C837D));
+
+  const AnimalEventType(this.label, this.icon, this.color);
+  final String label;
+  final IconData icon;
+  final Color color;
+}
+
+/// 입식·출하·폐사 기록. 개체가 목록에서 사라진 뒤에도 읽을 수 있도록 이름·태그를 함께 남긴다.
+class AnimalEvent {
+  const AnimalEvent({
+    required this.id,
+    required this.type,
+    required this.animalId,
+    required this.kind,
+    required this.tag,
+    required this.name,
+    required this.date,
+    required this.note,
+  });
+
+  final String id;
+  final AnimalEventType type;
+  final String animalId;
+  final AnimalKind kind;
+  final String tag;
+  final String name;
+  final DateTime date;
+  final String note;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'type': type.name,
+    'animalId': animalId,
+    'kind': kind.name,
+    'tag': tag,
+    'name': name,
+    'date': date.toIso8601String(),
+    'note': note,
+  };
+
+  factory AnimalEvent.fromJson(Map<String, Object?> j) => AnimalEvent(
+    id: j['id'] as String,
+    type: _enumByName(AnimalEventType.values, j['type'], AnimalEventType.added),
+    animalId: j['animalId'] as String,
+    kind: _enumByName(AnimalKind.values, j['kind'], AnimalKind.cow),
+    tag: j['tag'] as String,
+    name: j['name'] as String,
+    date: _date(j['date']),
+    note: j['note'] as String? ?? '',
+  );
+}
+
 class FeedingSlot {
   const FeedingSlot({required this.hour, required this.minute, required this.label});
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/animal_painter.dart';
 import '../../core/theme.dart';
@@ -7,6 +8,7 @@ import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import 'animal_detail_screen.dart';
+import 'animal_sheets.dart';
 
 class LivestockScreen extends StatefulWidget {
   const LivestockScreen({super.key});
@@ -126,17 +128,30 @@ class _LivestockScreenState extends State<LivestockScreen> {
                           ),
                           2,
                         ),
-                        SectionTitle('우리 ${_kind.label}', subtitle: '${animals.length}${_kind.unit} · 눌러서 자세히 보기'),
+                        SectionTitle(
+                          '우리 ${_kind.label}',
+                          subtitle: '${animals.length}${_kind.unit} · 눌러서 자세히 보기',
+                          trailing: Pressable(
+                            onTap: () => _addAnimal(context),
+                            child: const Tag('들이기', icon: Icons.add_rounded),
+                          ),
+                        ),
+                        if (animals.isEmpty)
+                          AppCard(child: Text('이 무리에는 지금 가축이 없어요. 오른쪽 위 \'들이기\'로 추가할 수 있어요.', style: AppText.caption)),
                       ],
                     ),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList.separated(
                       itemCount: animals.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, i) => rise(_AnimalTile(animal: animals[i]), i.clamp(0, 8)),
                     ),
+                  ),
+                  const SliverPadding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 28),
+                    sliver: SliverToBoxAdapter(child: _EventHistory()),
                   ),
                 ],
               ),
@@ -145,6 +160,14 @@ class _LivestockScreenState extends State<LivestockScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _addAnimal(BuildContext context) async {
+    final added = await showAddAnimalSheet(context, kind: _kind);
+    if (added == null || !context.mounted) return;
+    // 다른 종류를 골라 들였다면 그 무리로 바꿔 보여줘야 방금 추가한 개체가 목록에 보인다.
+    setState(() => _kind = added.kind);
+    showMessage(context, '${added.kind.label} ${added.name}(${added.tag}) 입식을 기록했습니다.');
   }
 
   Future<void> _showProductionSheet(BuildContext context) async {
@@ -409,7 +432,8 @@ class _AnimalTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(animal.name, style: AppText.h3),
-                  Text(animal.breed, style: AppText.caption),
+                  // 입식할 때 품종은 선택 입력이라 비어 있으면 빈 줄을 남기지 않는다.
+                  if (animal.breed.isNotEmpty) Text(animal.breed, style: AppText.caption),
                   const SizedBox(height: 5),
                   Row(
                     children: [
@@ -432,6 +456,52 @@ class _AnimalTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 최근 입식·출하·폐사 기록과 이번 달 건수.
+class _EventHistory extends StatelessWidget {
+  const _EventHistory();
+
+  @override
+  Widget build(BuildContext context) {
+    final store = FarmScope.of(context);
+    final events = store.recentAnimalEvents();
+    final monthStart = DateTime(store.now.year, store.now.month);
+    final summary = [for (final t in AnimalEventType.values) '${t.label} ${store.animalEventCountSince(t, monthStart)}']
+        .join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionTitle('입식·출하 기록', subtitle: '이번 달 $summary'),
+        AppCard(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: events.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Text('아직 기록이 없어요. 가축을 들이거나 상세 화면에서 출하·폐사를 처리하면 여기에 남아요.', style: AppText.caption),
+                )
+              : Column(
+                  children: [
+                    for (final e in events)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        leading: Icon(e.type.icon, color: e.type.color),
+                        title: Text('${e.type.label} · ${e.kind.label} ${e.name}', style: AppText.body),
+                        subtitle: Text(
+                          [e.tag, if (e.note.isNotEmpty) e.note].join(' · '),
+                          style: AppText.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(DateFormat('M월 d일', 'ko').format(e.date), style: AppText.tiny),
+                      ),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 }

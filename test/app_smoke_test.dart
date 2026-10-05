@@ -5,8 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:my_farm/core/widgets.dart';
 import 'package:my_farm/data/farm_store.dart';
+import 'package:my_farm/data/models.dart';
 import 'package:my_farm/data/weather.dart';
+import 'package:my_farm/features/livestock/livestock_screen.dart';
 import 'package:my_farm/main.dart';
 
 import 'farm_store_test.dart' show MemoryStorage;
@@ -77,6 +80,39 @@ void main() {
       expect(tester.takeException(), isNull);
     }
     expect(find.text('농장 정보'), findsOneWidget);
+    await _unmount(tester);
+  });
+
+  testWidgets('가축 관리에서 염소를 들이면 목록과 입식 기록에 바로 보인다', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final store = await FarmStore.load(MemoryStorage(), clock: () => DateTime(2026, 10, 5, 14, 30));
+    await tester.pumpWidget(
+      FarmScope(
+        store: store,
+        child: const MaterialApp(home: LivestockScreen()),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 2));
+
+    await tester.tap(find.text('들이기'));
+    // 첫 프레임에서 시트 애니메이션이 시작되므로 한 번 더 그린 뒤 시간을 흘린다.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.widgetWithText(ChoiceChip, '염소'));
+    await tester.pump();
+    await tester.enterText(find.widgetWithText(TextField, '이름'), '새봄');
+    await tester.enterText(find.widgetWithText(TextField, '나이'), '6');
+    await tester.enterText(find.widgetWithText(TextField, '체중'), '32');
+    await tester.tap(find.widgetWithText(PrimaryButton, '들이기'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(store.countOf(AnimalKind.goat), 5);
+    expect(find.text('우리 염소'), findsOneWidget);
+    await tester.scrollUntilVisible(find.textContaining('입식 · 염소 새봄'), 300);
+    expect(find.textContaining('입식 · 염소 새봄'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 }

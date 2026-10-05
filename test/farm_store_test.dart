@@ -144,6 +144,80 @@ void main() {
     expect(store.tasksToday.any((t) => t.title.isEmpty), isFalse);
   });
 
+  test('가축을 들이면 개체와 입식 기록이 함께 늘고, 저장 후 다시 읽어도 남는다', () async {
+    final (store, storage) = await fresh();
+    final tag = store.suggestTag(AnimalKind.goat);
+    final goat = await store.addAnimal(
+      kind: AnimalKind.goat,
+      tag: tag,
+      name: '  새봄 ',
+      breed: '보어',
+      birthDate: DateTime(2026, 4, 5),
+      weightKg: 32,
+    );
+    expect(goat.name, '새봄');
+    expect(store.countOf(AnimalKind.goat), 5);
+    expect(store.totalAnimals, 49);
+    expect(store.recentAnimalEvents().first.type, AnimalEventType.added);
+    expect(store.recentAnimalEvents().first.animalId, goat.id);
+
+    final reloaded = await FarmStore.load(MemoryStorage(storage.value), clock: clock);
+    expect(reloaded.animalById(goat.id)?.tag, tag);
+    expect(reloaded.state.animalEvents, hasLength(1));
+  });
+
+  test('이미 쓰는 태그로는 들일 수 없고, 제안 태그는 내보낸 개체 번호도 피한다', () async {
+    final (store, _) = await fresh();
+    final existing = store.animalsOf(AnimalKind.cow).first;
+    await expectLater(
+      store.addAnimal(kind: AnimalKind.cow, tag: existing.tag, name: '중복', breed: '', birthDate: now, weightKg: 40),
+      throwsStateError,
+    );
+    // 번호가 가장 큰 소를 출하해도 다음 제안 태그·id는 그 번호를 다시 쓰지 않는다.
+    final suggested = store.suggestTag(AnimalKind.cow);
+    final last = store.animalsOf(AnimalKind.cow).firstWhere((a) => a.id == 'cow-17');
+    await store.removeAnimal(last.id, AnimalEventType.sold);
+    expect(store.suggestTag(AnimalKind.cow), suggested);
+    final calf = await store.addAnimal(
+      kind: AnimalKind.cow,
+      tag: store.suggestTag(AnimalKind.cow),
+      name: '송아지',
+      breed: '한우',
+      birthDate: now,
+      weightKg: 40,
+    );
+    expect(calf.id, 'cow-18');
+  });
+
+  test('출하·폐사하면 목록에서 빠지고 이름·태그가 기록에 남는다', () async {
+    final (store, _) = await fresh();
+    final hen = store.animalsOf(AnimalKind.chicken).first;
+    final cow = store.animalsOf(AnimalKind.cow).first;
+    await store.removeAnimal(hen.id, AnimalEventType.died, note: ' 고열 ');
+    await store.removeAnimal(cow.id, AnimalEventType.sold);
+    expect(store.animalById(hen.id), isNull);
+    expect(store.totalAnimals, 46);
+    final events = store.recentAnimalEvents();
+    expect(events.map((e) => e.type), [AnimalEventType.sold, AnimalEventType.died]);
+    expect(events.last.name, hen.name);
+    expect(events.last.tag, hen.tag);
+    expect(events.last.note, '고열');
+    expect(events.map((e) => e.id).toSet(), hasLength(2));
+    expect(store.animalEventCountSince(AnimalEventType.sold, DateTime(now.year, now.month)), 1);
+    expect(() => store.removeAnimal(hen.id, AnimalEventType.sold), throwsStateError);
+    expect(() => store.removeAnimal(cow.id, AnimalEventType.added), throwsArgumentError);
+  });
+
+  test('입식·출하 기록이 없던 이전 저장본도 그대로 읽는다', () async {
+    final json = buildDemoFarm(now).toJson()..remove('animalEvents');
+    final storage = MemoryStorage(jsonEncode(json));
+    final store = await FarmStore.load(storage, clock: clock);
+    expect(storage.corrupt, isEmpty);
+    expect(store.loadNotice, isNull);
+    expect(store.state.animalEvents, isEmpty);
+    expect(store.totalAnimals, 48);
+  });
+
   test('저장에 실패하면 오류를 알리고, 다음 저장이 성공하면 지운다', () async {
     final (store, storage) = await fresh();
     storage.failWrites = true;

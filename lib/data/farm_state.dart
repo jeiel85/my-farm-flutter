@@ -15,6 +15,7 @@ class FarmState {
     required this.production,
     required this.inventory,
     required this.tasks,
+    this.animalEvents = const [],
   });
 
   static const schemaVersion = 1;
@@ -34,6 +35,9 @@ class FarmState {
   final List<InventoryItem> inventory;
   final List<FarmTask> tasks;
 
+  /// 입식·출하·폐사 기록(최신이 앞). 1.2.0 이전 저장본에는 이 키가 없어 빈 목록으로 읽는다.
+  final List<AnimalEvent> animalEvents;
+
   FarmState copyWith({
     FarmProfile? profile,
     List<CropField>? fields,
@@ -45,6 +49,7 @@ class FarmState {
     List<ProductionRecord>? production,
     List<InventoryItem>? inventory,
     List<FarmTask>? tasks,
+    List<AnimalEvent>? animalEvents,
   }) => FarmState(
     profile: profile ?? this.profile,
     fields: fields ?? this.fields,
@@ -58,6 +63,7 @@ class FarmState {
     production: production ?? this.production,
     inventory: inventory ?? this.inventory,
     tasks: tasks ?? this.tasks,
+    animalEvents: animalEvents ?? this.animalEvents,
   );
 
   Map<String, Object?> toJson() => {
@@ -74,6 +80,7 @@ class FarmState {
     'production': [for (final p in production) p.toJson()],
     'inventory': [for (final i in inventory) i.toJson()],
     'tasks': [for (final t in tasks) t.toJson()],
+    'animalEvents': [for (final e in animalEvents) e.toJson()],
   };
 
   factory FarmState.fromJson(Map<String, Object?> j) {
@@ -96,6 +103,10 @@ class FarmState {
       production: [for (final m in list('production')) ProductionRecord.fromJson(m)],
       inventory: [for (final m in list('inventory')) InventoryItem.fromJson(m)],
       tasks: [for (final m in list('tasks')) FarmTask.fromJson(m)],
+      // 키를 추가만 했으므로 schemaVersion을 올리지 않는다. 올리면 이전 버전 앱이 새 저장본을 손상본으로 취급한다.
+      animalEvents: j['animalEvents'] == null
+          ? const []
+          : [for (final m in list('animalEvents')) AnimalEvent.fromJson(m)],
     );
   }
 }

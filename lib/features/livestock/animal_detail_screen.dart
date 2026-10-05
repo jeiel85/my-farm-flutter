@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
+import 'animal_sheets.dart';
 
 final _date = DateFormat('yyyy년 M월 d일', 'ko');
 
@@ -66,6 +67,14 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
     }
   }
 
+  Future<void> _remove(Animal a) async {
+    final done = await showRemoveAnimalSheet(context, a);
+    if (!done || !mounted) return;
+    // 처리된 개체는 목록에서 빠졌으므로 상세 화면에 머물 이유가 없다. 저장하지 않은 수정은 버린다.
+    showMessage(context, '${a.name}(${a.tag}) 처리를 기록했습니다.');
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final a = _original;
@@ -99,7 +108,7 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(a.name, style: AppText.title),
-                          Text(a.breed, style: AppText.caption),
+                          if (a.breed.isNotEmpty) Text(a.breed, style: AppText.caption),
                           const SizedBox(height: 14),
                           Row(
                             children: [
@@ -188,6 +197,8 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                     ),
                     2,
                   ),
+                  const SizedBox(height: 18),
+                  PrimaryButton(label: '출하·폐사 처리', icon: Icons.logout_rounded, filled: false, onTap: () => _remove(a)),
                 ],
               ),
             ),
