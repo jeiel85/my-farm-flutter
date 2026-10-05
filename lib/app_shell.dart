@@ -1,0 +1,190 @@
+import 'package:flutter/material.dart';
+
+import 'core/theme.dart';
+import 'core/widgets.dart';
+import 'data/farm_store.dart';
+import 'features/analytics/analytics_screen.dart';
+import 'features/farm/farm_screen.dart';
+import 'features/harvest/harvest_screen.dart';
+import 'features/home/home_screen.dart';
+import 'features/profile/profile_screen.dart';
+
+enum AppTab {
+  home('홈', Icons.home_outlined, Icons.home_rounded),
+  farm('농장', Icons.spa_outlined, Icons.spa_rounded),
+  analytics('분석', Icons.bar_chart_outlined, Icons.bar_chart_rounded),
+  harvest('수확', Icons.inventory_2_outlined, Icons.inventory_2_rounded),
+  profile('프로필', Icons.person_outline_rounded, Icons.person_rounded);
+
+  const AppTab(this.label, this.icon, this.activeIcon);
+  final String label;
+  final IconData icon;
+  final IconData activeIcon;
+}
+
+class AppShell extends StatefulWidget {
+  const AppShell({super.key});
+
+  /// 하위 화면에서 탭을 전환할 때 쓴다.
+  static void goTo(BuildContext context, AppTab tab) => context.findAncestorStateOfType<_AppShellState>()?._select(tab);
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  AppTab _tab = AppTab.home;
+
+  void _select(AppTab tab) {
+    if (tab == _tab) return;
+    setState(() => _tab = tab);
+  }
+
+  Widget _page(AppTab tab) => switch (tab) {
+    AppTab.home => const HomeScreen(),
+    AppTab.farm => const FarmScreen(),
+    AppTab.analytics => const AnalyticsScreen(),
+    AppTab.harvest => const HarvestScreen(),
+    AppTab.profile => const ProfileScreen(),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final store = FarmScope.of(context);
+    return Scaffold(
+      body: Column(
+        children: [
+          if (store.loadNotice != null) _Banner(text: store.loadNotice!, onClose: store.dismissLoadNotice),
+          if (store.saveError != null) _Banner(text: store.saveError!, color: AppColors.red),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 380),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, anim) => FadeTransition(
+                opacity: anim,
+                child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(anim), child: child),
+              ),
+              child: KeyedSubtree(key: ValueKey(_tab), child: _page(_tab)),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _BottomBar(current: _tab, onSelect: _select),
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({required this.text, this.onClose, this.color = AppColors.orange});
+
+  final String text;
+  final VoidCallback? onClose;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    bottom: false,
+    child: Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, color: color, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, style: AppText.caption.copyWith(color: AppColors.text)),
+          ),
+          if (onClose != null)
+            IconButton(
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded, size: 18),
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({required this.current, required this.onSelect});
+
+  final AppTab current;
+  final ValueChanged<AppTab> onSelect;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: const BoxDecoration(
+      color: AppColors.surface,
+      boxShadow: [BoxShadow(color: Color(0x143A2E12), blurRadius: 20, offset: Offset(0, -4))],
+    ),
+    child: SafeArea(
+      top: false,
+      child: SizedBox(
+        height: 66,
+        child: Row(
+          children: [
+            for (final tab in AppTab.values)
+              Expanded(
+                child: Pressable(
+                  onTap: () => onSelect(tab),
+                  scale: 0.9,
+                  child: _BarItem(tab: tab, active: tab == current),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _BarItem extends StatelessWidget {
+  const _BarItem({required this.tab, required this.active});
+
+  final AppTab tab;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    selected: active,
+    button: true,
+    label: tab.label,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.symmetric(horizontal: active ? 16 : 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: active ? AppColors.primarySoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              active ? tab.activeIcon : tab.icon,
+              key: ValueKey(active),
+              size: 22,
+              color: active ? AppColors.primary : AppColors.muted,
+            ),
+          ),
+        ),
+        const SizedBox(height: 3),
+        AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 200),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+            color: active ? AppColors.primary : AppColors.muted,
+          ),
+          child: Text(tab.label),
+        ),
+      ],
+    ),
+  );
+}
