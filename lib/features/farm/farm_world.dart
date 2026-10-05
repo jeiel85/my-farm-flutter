@@ -608,7 +608,7 @@ void _drawWaterLevel(Canvas c, double ratio, double t) {
 
 // ---------------------------------------------------------------- 라벨
 
-final _labelCache = <ZoneId, TextPainter>{};
+final _labelCache = <String, TextPainter>{};
 final _iconCache = <ZoneId, TextPainter>{};
 
 TextPainter _iconLabel(ZoneId zone) => _iconCache.putIfAbsent(
@@ -627,10 +627,10 @@ TextPainter _iconLabel(ZoneId zone) => _iconCache.putIfAbsent(
   )..layout(),
 );
 
-TextPainter _label(ZoneId zone) => _labelCache.putIfAbsent(zone, () {
+TextPainter _label(String text) => _labelCache.putIfAbsent(text, () {
   final tp = TextPainter(
     text: TextSpan(
-      text: zone.shortLabel,
+      text: text,
       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF1C211E)),
     ),
     textDirection: TextDirection.ltr,
@@ -648,6 +648,7 @@ class FarmMapPainter extends CustomPainter {
     required this.labelOpacity,
     required this.tankRatio,
     required this.needsWater,
+    required this.zoneLabels,
   }) : super(repaint: time);
 
   final Rect view;
@@ -657,6 +658,9 @@ class FarmMapPainter extends CustomPainter {
   final double labelOpacity;
   final double tankRatio;
   final Set<ZoneId> needsWater;
+
+  /// 구역 라벨(현재 언어).
+  final Map<ZoneId, String> zoneLabels;
 
   static double scaleFor(Rect view, Size size) => math.max(size.width / view.width, size.height / view.height);
 
@@ -713,7 +717,7 @@ class FarmMapPainter extends CustomPainter {
   }
 
   void _drawLabel(Canvas canvas, ZoneId zone, double scale) {
-    final tp = _label(zone);
+    final tp = _label(zoneLabels[zone] ?? zone.name);
     final r = FarmWorld.zones[zone]!;
     // 화면 크기가 일정하게 보이도록 배율을 상쇄한다.
     final k = 0.42 / scale;
@@ -743,7 +747,8 @@ class FarmMapPainter extends CustomPainter {
       old.selectionT != selectionT ||
       old.labelOpacity != labelOpacity ||
       old.tankRatio != tankRatio ||
-      !setEquals(old.needsWater, needsWater);
+      !setEquals(old.needsWater, needsWater) ||
+      old.zoneLabels[ZoneId.house] != zoneLabels[ZoneId.house];
 }
 
 bool setEquals<T>(Set<T> a, Set<T> b) => a.length == b.length && a.containsAll(b);

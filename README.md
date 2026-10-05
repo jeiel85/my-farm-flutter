@@ -16,6 +16,8 @@
 
 설치도 가입도 필요 없어요. 예시 농장이 채워진 상태로 열립니다.
 
+<sub>🇺🇸 A farm-management app built with Flutter: a top-down animated farm map, livestock, watering, harvests and inventory. The UI is available in Korean and English (follows your device language, or pick one in Profile).</sub>
+
 </div>
 
 ---
@@ -54,6 +56,7 @@
 | 💾 | **백업 · 복원** | 전체 기록을 JSON 파일로 내보내고 다른 기기나 PC·웹 버전에서 복원할 수 있어요. 오래 백업하지 않으면 홈에서 알려 줘요. |
 | ⛅ | **날씨 · 작업 조언** | 농장 위치의 현재 날씨와 5일 예보. 비·폭염·서리·강풍이면 관수와 가축 관리 조언을 띄워요. |
 | ✅ | **오늘 할 일 · 확인할 것** | 물주기·급이 지연·수확 가능·재고 부족·관리 필요 가축을 홈에 자동으로 모아 줍니다. |
+| 🌐 | **한국어 · English** | 기기 언어를 따르고, 프로필에서 직접 고를 수도 있어요. |
 | 📊 | **분석** | 7/14/30일 달걀·우유 추이(목표선), 일별 물 사용량, 작물별 누적 수확. |
 
 > 💡 인스타그램의 "Flutter로 만든 농장 앱 UI" 영상에서 영감을 받아 화면 구성을 처음부터 다시 구현했고, 영상에 없던 온실·과수원·물탱크 연동·수확·생산·재고·날씨·할 일·분석을 더했습니다. 앞으로 넣을 만한 요소는 [BACKLOG.md](BACKLOG.md)에 있어요.
@@ -94,6 +97,13 @@ flowchart LR
   Map --> Painter["FarmMapPainter<br/>정적 레이어 캐시 + 동적 요소"]
   UI --> Weather["WeatherController"] --> API(("Open-Meteo"))
 ```
+
+<details>
+<summary><b>🌐 번역</b></summary>
+
+화면 문구는 `lib/l10n/app_ko.arb`(기준)와 `app_en.arb`에 있고, `flutter pub get` 때 `gen-l10n`이 Dart 코드를 만듭니다(생성물은 커밋하지 않음). 문구를 추가할 때는 두 파일에 같은 키를 넣으세요.
+
+</details>
 
 <details>
 <summary><b>📁 폴더 구조</b></summary>

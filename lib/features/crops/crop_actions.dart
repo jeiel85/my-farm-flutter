@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 
 Future<void> waterFieldWithFeedback(BuildContext context, CropField field) async {
   final store = FarmScope.read(context);
@@ -12,10 +13,10 @@ Future<void> waterFieldWithFeedback(BuildContext context, CropField field) async
     await store.waterField(field.id);
     HapticFeedback.lightImpact();
     if (context.mounted) {
-      showMessage(context, '${field.cropName}에 물을 ${field.litersPerWatering.round()}L 줬습니다.');
+      showMessage(context, context.l10n.wateredField(field.cropName, field.litersPerWatering.round()));
     }
-  } on StateError catch (e) {
-    if (context.mounted) showMessage(context, e.message);
+  } on InsufficientWaterException catch (e) {
+    if (context.mounted) showMessage(context, context.l10n.tankTooLow(e.storedL.round()));
   }
 }
 
@@ -23,11 +24,11 @@ Future<void> smartWateringWithFeedback(BuildContext context) async {
   final (watered, skipped) = await FarmScope.read(context).smartWatering();
   if (!context.mounted) return;
   if (watered == 0 && skipped == 0) {
-    showMessage(context, '2시간 안에 물을 줄 밭이 없습니다.');
+    showMessage(context, context.l10n.nothingToWater);
   } else if (skipped == 0) {
-    showMessage(context, '밭 $watered곳에 물을 줬습니다.');
+    showMessage(context, context.l10n.wateredFields(watered));
   } else {
-    showMessage(context, '밭 $watered곳에 물을 줬고, 물탱크가 부족해 $skipped곳은 건너뛰었습니다.');
+    showMessage(context, context.l10n.wateredFieldsSkipped(watered, skipped));
   }
 }
 
@@ -73,7 +74,7 @@ class _HarvestSheetState extends State<_HarvestSheet> {
   Future<void> _save() async {
     final kg = double.tryParse(_amount.text.replaceAll(',', '.').trim());
     if (kg == null || kg <= 0) {
-      setState(() => _error = '수확량을 0보다 큰 숫자로 입력하세요.');
+      setState(() => _error = context.l10n.harvestAmountError);
       return;
     }
     await FarmScope.read(context).harvest(fieldId: _field.id, amountKg: kg, replant: _replant, note: _note.text.trim());
@@ -95,7 +96,7 @@ class _HarvestSheetState extends State<_HarvestSheet> {
           ),
         ),
         const SizedBox(height: 16),
-        const Text('수확 기록', style: AppText.h2),
+        Text(context.l10n.recordHarvest, style: AppText.h2),
         const SizedBox(height: 14),
         Wrap(
           spacing: 8,
@@ -115,23 +116,23 @@ class _HarvestSheetState extends State<_HarvestSheet> {
           controller: _amount,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: '수확량', suffixText: 'kg', errorText: _error),
+          decoration: InputDecoration(labelText: context.l10n.harvestAmount, suffixText: 'kg', errorText: _error),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _note,
-          decoration: const InputDecoration(labelText: '메모 (선택)'),
+          decoration: InputDecoration(labelText: context.l10n.optionalMemo),
         ),
         const SizedBox(height: 6),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           value: _replant,
           onChanged: (v) => setState(() => _replant = v),
-          title: const Text('수확을 마치고 오늘 다시 심기', style: AppText.body),
-          subtitle: const Text('생육률이 0%부터 다시 계산됩니다.', style: AppText.caption),
+          title: Text(context.l10n.replantToday, style: AppText.body),
+          subtitle: Text(context.l10n.replantHint, style: AppText.caption),
         ),
         const SizedBox(height: 8),
-        PrimaryButton(label: '기록하기', icon: Icons.check_rounded, onTap: _save),
+        PrimaryButton(label: context.l10n.saveRecord, icon: Icons.check_rounded, onTap: _save),
       ],
     ),
   );

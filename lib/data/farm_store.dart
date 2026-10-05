@@ -31,7 +31,7 @@ class PrefsFarmStorage implements FarmStorage {
   @override
   Future<void> write(String json) async {
     final ok = await (await SharedPreferences.getInstance()).setString(_key, json);
-    if (!ok) throw StateError('저장 공간에 기록하지 못했습니다.');
+    if (!ok) throw StateError('SharedPreferences.setString returned false');
   }
 
   /// 보관본은 최근 [maxCopies]개만 남긴다(하나에 수십 KB라 무한히 쌓이지 않게).
@@ -60,11 +60,14 @@ class PrefsFarmStorage implements FarmStorage {
 }
 
 class FarmStore extends ChangeNotifier {
-  FarmStore._(this._storage, this._state, this._clock, this.loadNotice);
+  FarmStore._(this._storage, this._state, this._clock, this.recoveredFromCorruptData);
 
-  static Future<FarmStore> load(FarmStorage storage, {DateTime Function()? clock}) async {
+  /// [english]는 저장된 데이터가 없어 예시 농장을 새로 만들 때 쓸 언어다.
+  static Future<FarmStore> load(FarmStorage storage, {DateTime Function()? clock, bool english = false}) async {
     final now = clock ?? DateTime.now;
-    final store = await _loadState(storage, now);
+    final store = await _loadState(storage, now, english);
+    final savedLocale = await storage.readMeta('locale');
+    store.locale.value = savedLocale == null || savedLocale.isEmpty ? null : savedLocale;
     store._lastBackupAt = DateTime.tryParse(await storage.readMeta('last_backup') ?? '');
     store._backupSnoozedUntil = DateTime.tryParse(await storage.readMeta('backup_snooze') ?? '');
     final firstRun = DateTime.tryParse(await storage.readMeta('first_run') ?? '');
@@ -75,17 +78,17 @@ class FarmStore extends ChangeNotifier {
     return store;
   }
 
-  static Future<FarmStore> _loadState(FarmStorage storage, DateTime Function() now) async {
+  static Future<FarmStore> _loadState(FarmStorage storage, DateTime Function() now, bool english) async {
     final raw = await storage.read();
     if (raw == null) {
-      final store = FarmStore._(storage, buildDemoFarm(now()), now, null);
+      final store = FarmStore._(storage, buildDemoFarm(now(), english: english), now, false);
       await store._persist();
       return store;
     }
     try {
       final json = (jsonDecode(raw) as Map).cast<String, Object?>();
       final state = FarmState.fromJson(json);
-      final store = FarmStore._(storage, state, now, null);
+      final store = FarmStore._(storage, state, now, false);
       final version = json['schemaVersion'];
       if (version != FarmState.schemaVersion) {
         // 이전 형식이면 원본을 남겨 두고 새 형식으로 다시 저장한다.
@@ -94,14 +97,9 @@ class FarmStore extends ChangeNotifier {
       }
       return store;
     } catch (e) {
-      debugPrint('저장된 농장 데이터를 읽지 못함: $e');
+      debugPrint('Could not read saved farm data: $e');
       await storage.keepCopy(raw, 'corrupt');
-      final store = FarmStore._(
-        storage,
-        buildDemoFarm(now()),
-        now,
-        '저장된 데이터를 읽지 못해 예시 농장으로 시작했습니다. 이전 데이터는 별도로 보관했습니다.',
-      );
+      final store = FarmStore._(storage, buildDemoFarm(now(), english: english), now, true);
       await store._persist();
       return store;
     }
@@ -111,11 +109,23 @@ class FarmStore extends ChangeNotifier {
   final DateTime Function() _clock;
   FarmState _state;
 
-  /// 시작 시 사용자에게 알릴 내용(손상된 저장본 복구 등).
-  String? loadNotice;
+  /// 저장본을 읽지 못해 예시 농장으로 시작했는지(시작 시 사용자에게 알린다).
+  bool recoveredFromCorruptData;
 
-  /// 마지막 저장 실패 메시지. 성공하면 null로 돌아간다.
-  String? saveError;
+  /// 마지막 저장 실패 원인. 성공하면 null로 돌아간다.
+  Object? saveError;
+
+  /// 사용자가 고른 언어 코드(ko, en). null이면 기기 언어를 따른다.
+  /// 앱 루트가 이 값만 따로 듣도록 별도 알림으로 둔다.
+  final locale = ValueNotifier<String?>(null);
+
+  String? get localeOverride => locale.value;
+
+  Future<void> setLocaleOverride(String? code) async {
+    locale.value = code;
+    notifyListeners();
+    await _storage.writeMeta('locale', code ?? '');
+  }
 
   FarmState get state => _state;
   DateTime get now => _clock();
@@ -135,7 +145,7 @@ class FarmStore extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      saveError = '변경 내용을 저장하지 못했습니다: $e';
+      saveError = e;
       notifyListeners();
     }
   }
@@ -174,7 +184,7 @@ class FarmStore extends ChangeNotifier {
   }
 
   void dismissLoadNotice() {
-    loadNotice = null;
+    recoveredFromCorruptData = false;
     notifyListeners();
   }
 
@@ -231,15 +241,15 @@ class FarmStore extends ChangeNotifier {
     String note = '',
   }) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) throw ArgumentError('이름을 입력하세요.');
-    if (weightKg <= 0) throw ArgumentError('체중은 0보다 커야 합니다.');
+    if (trimmed.isEmpty) throw ArgumentError.value(name, 'name', 'must not be empty');
+    if (weightKg <= 0) throw ArgumentError.value(weightKg, 'weightKg', 'must be positive');
     final at = now;
     final animal = Animal(
       id: '${kind.name}-${at.microsecondsSinceEpoch}',
       kind: kind,
       tag: nextTag(kind),
       name: trimmed,
-      breed: breed.trim().isEmpty ? '미상' : breed.trim(),
+      breed: breed.trim(),
       birthDate: birthDate,
       health: health.clamp(0, 100),
       weightKg: weightKg,
@@ -268,9 +278,9 @@ class FarmStore extends ChangeNotifier {
 
   /// 출하·폐사 등으로 목록에서 뺀다. 개체 정보는 이력으로 남는다.
   Future<void> removeAnimal(String id, {required AnimalEventType type, String note = ''}) {
-    if (type == AnimalEventType.added) throw ArgumentError('입식은 제외 사유가 아닙니다.');
+    if (type == AnimalEventType.added) throw ArgumentError.value(type, 'type', 'is not a removal reason');
     final animal = animalById(id);
-    if (animal == null) throw StateError('가축을 찾을 수 없습니다.');
+    if (animal == null) throw StateError('No animal with id $id');
     final at = now;
     return _commit(
       _state.copyWith(
@@ -309,12 +319,6 @@ class FarmStore extends ChangeNotifier {
   List<CareItem> careFor(Animal animal) =>
       pendingCare.where((c) => c.animalId == animal.id || (c.animalId == null && c.kind == animal.kind)).toList();
 
-  /// 일정의 대상 이름(예: "소 전체", "벨라").
-  String careTargetLabel(CareItem c) {
-    if (c.animalId == null) return '${c.kind.label} 전체';
-    return animalById(c.animalId!)?.name ?? '${c.kind.label}(제외됨)';
-  }
-
   Future<CareItem> addCareItem({
     required AnimalKind kind,
     String? animalId,
@@ -325,8 +329,8 @@ class FarmStore extends ChangeNotifier {
     String note = '',
   }) async {
     final trimmed = title.trim();
-    if (trimmed.isEmpty) throw ArgumentError('일정 이름을 입력하세요.');
-    if (repeatMonths < 0) throw ArgumentError('반복 주기는 0 이상이어야 합니다.');
+    if (trimmed.isEmpty) throw ArgumentError.value(title, 'title', 'must not be empty');
+    if (repeatMonths < 0) throw ArgumentError.value(repeatMonths, 'repeatMonths', 'must not be negative');
     final item = CareItem(
       id: 'c${now.microsecondsSinceEpoch}',
       kind: kind,
@@ -346,7 +350,7 @@ class FarmStore extends ChangeNotifier {
   /// 검진이면 대상 가축의 마지막 검진일도 오늘로 바꾼다. 다음 일정을 돌려준다.
   Future<CareItem?> completeCare(String id) async {
     final item = _state.careItems.where((c) => c.id == id).firstOrNull;
-    if (item == null) throw StateError('일정을 찾을 수 없습니다.');
+    if (item == null) throw StateError('No care item with id $id');
     if (item.isDone) return null;
     final at = now;
     final today = DateTime(at.year, at.month, at.day);
@@ -535,12 +539,12 @@ class FarmStore extends ChangeNotifier {
 
   List<CropField> get fieldsNeedingWater => _state.fields.where((f) => f.needsWater(now)).toList();
 
-  /// 밭에 물을 준다. 물탱크가 부족하면 [StateError].
+  /// 밭에 물을 준다. 물탱크가 부족하면 [InsufficientWaterException].
   Future<void> waterField(String id) {
     final field = fieldById(id);
-    if (field == null) throw StateError('밭을 찾을 수 없습니다.');
+    if (field == null) throw StateError('No field with id $id');
     if (_state.tankStoredL < field.litersPerWatering) {
-      throw StateError('물탱크 잔량(${_state.tankStoredL.round()}L)이 부족합니다. 먼저 물을 보충하세요.');
+      throw InsufficientWaterException(_state.tankStoredL);
     }
     final at = now;
     return _commit(
@@ -549,7 +553,7 @@ class FarmStore extends ChangeNotifier {
         tankStoredL: _state.tankStoredL - field.litersPerWatering,
         waterLogs: _trimLogs([
           ..._state.waterLogs,
-          WaterLog(at: at, liters: field.litersPerWatering, note: '${field.cropName} 관수'),
+          WaterLog(at: at, liters: field.litersPerWatering, fieldId: field.id),
         ]),
       ),
     );
@@ -573,7 +577,7 @@ class FarmStore extends ChangeNotifier {
       }
       stored -= f.litersPerWatering;
       watered.add(f.id);
-      logs.add(WaterLog(at: at, liters: f.litersPerWatering, note: '${f.cropName} 스마트 관수'));
+      logs.add(WaterLog(at: at, liters: f.litersPerWatering, fieldId: f.id, smart: true));
     }
     if (watered.isNotEmpty) {
       await _commit(
@@ -593,7 +597,7 @@ class FarmStore extends ChangeNotifier {
     return _commit(
       _state.copyWith(
         tankStoredL: _state.tankCapacityL,
-        waterLogs: _trimLogs([..._state.waterLogs, WaterLog(at: now, liters: -amount, note: '물탱크 보충')]),
+        waterLogs: _trimLogs([..._state.waterLogs, WaterLog(at: now, liters: -amount)]),
       ),
     );
   }
@@ -625,7 +629,7 @@ class FarmStore extends ChangeNotifier {
   /// 수확을 기록한다. [replant]이면 같은 밭에 오늘 날짜로 다시 심는다.
   Future<void> harvest({required String fieldId, required double amountKg, required bool replant, String note = ''}) {
     final field = fieldById(fieldId);
-    if (field == null) throw StateError('밭을 찾을 수 없습니다.');
+    if (field == null) throw StateError('No field with id $fieldId');
     final record = HarvestRecord(
       id: 'h${now.microsecondsSinceEpoch}',
       cropName: field.cropName,
@@ -704,7 +708,7 @@ class FarmStore extends ChangeNotifier {
 
   Future<void> updateProfile(FarmProfile profile) => _commit(_state.copyWith(profile: profile));
 
-  Future<void> resetToDemo() => _commit(buildDemoFarm(now));
+  Future<void> resetToDemo({required bool english}) => _commit(buildDemoFarm(now, english: english));
 
   // ---------- 백업 ----------
 
@@ -715,24 +719,24 @@ class FarmStore extends ChangeNotifier {
       const JsonEncoder.withIndent('  ')
           .convert({'format': backupFormat, 'exportedAt': now.toIso8601String(), 'state': _state.toJson()});
 
-  /// 백업 파일 내용을 검사해 복원할 상태를 돌려준다. 형식이 맞지 않으면 [FormatException].
+  /// 백업 파일 내용을 검사해 복원할 상태를 돌려준다. 형식이 맞지 않으면 [BackupException].
   static BackupContents parseBackup(String text) {
     final Object? decoded;
     try {
       decoded = jsonDecode(text);
     } on FormatException {
-      throw const FormatException('JSON 파일이 아닙니다.');
+      throw const BackupException(BackupProblem.notJson);
     }
     if (decoded is! Map || decoded['format'] != backupFormat || decoded['state'] is! Map) {
-      throw const FormatException('마이팜 백업 파일이 아닙니다.');
+      throw const BackupException(BackupProblem.notBackup);
     }
     final FarmState state;
     try {
       state = FarmState.fromJson((decoded['state'] as Map).cast<String, Object?>());
-    } on FormatException {
-      rethrow;
+    } on UnsupportedSchemaException catch (e) {
+      throw BackupException(e.newer ? BackupProblem.newerVersion : BackupProblem.damaged);
     } catch (_) {
-      throw const FormatException('백업 파일 내용이 손상되었습니다.');
+      throw const BackupException(BackupProblem.damaged);
     }
     return BackupContents(state: state, exportedAt: DateTime.tryParse('${decoded['exportedAt']}'));
   }
@@ -742,6 +746,23 @@ class FarmStore extends ChangeNotifier {
     await _storage.keepCopy(jsonEncode(_state.toJson()), 'before_restore');
     await _commit(restored);
   }
+}
+
+enum BackupProblem { notJson, notBackup, damaged, newerVersion }
+
+class BackupException implements Exception {
+  const BackupException(this.problem);
+  final BackupProblem problem;
+  @override
+  String toString() => 'BackupException($problem)';
+}
+
+/// 물탱크에 남은 물([storedL])이 모자라 물을 줄 수 없다.
+class InsufficientWaterException implements Exception {
+  const InsufficientWaterException(this.storedL);
+  final double storedL;
+  @override
+  String toString() => 'InsufficientWaterException($storedL L)';
 }
 
 class BackupContents {

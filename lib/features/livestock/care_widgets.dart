@@ -6,29 +6,36 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
-
-final _md = DateFormat('M월 d일', 'ko');
-final _ymd = DateFormat('yyyy년 M월 d일', 'ko');
+import '../../l10n/l10n.dart';
 
 /// 올해 날짜는 월·일만, 다른 해는 연도까지 적는다.
-String careDate(DateTime d) => d.year == DateTime.now().year ? _md.format(d) : _ymd.format(d);
+String careDate(BuildContext context, DateTime d) => d.year == DateTime.now().year
+    ? DateFormat.MMMd(context.localeName).format(d)
+    : DateFormat.yMMMd(context.localeName).format(d);
+
+/// 일정의 대상 이름(예: "소 전체", "벨라").
+String careTargetLabel(BuildContext context, FarmStore store, CareItem c) {
+  final l = context.l10n;
+  if (c.animalId == null) return l.wholeKind(l.kind(c.kind));
+  return store.animalById(c.animalId!)?.name ?? l.removedAnimal(l.kindOne(c.kind));
+}
 
 /// "오늘", "D-3", "2일 지남" 같은 남은 날 표시와 색.
-(String, Color) dueLabel(CareItem item, DateTime now) {
+(String, Color) dueLabel(AppLocalizations l, CareItem item, DateTime now) {
   final d = item.daysUntil(now);
-  if (d < 0) return ('${-d}일 지남', AppColors.red);
-  if (d == 0) return ('오늘', AppColors.orange);
-  if (d == 1) return ('내일', AppColors.orange);
-  return ('D-$d', d <= 7 ? AppColors.primary : AppColors.muted);
+  if (d < 0) return (l.dueOverdue(-d), AppColors.red);
+  if (d == 0) return (l.dueToday, AppColors.orange);
+  if (d == 1) return (l.dueTomorrow, AppColors.orange);
+  return (l.dueIn(d), d <= 7 ? AppColors.primary : AppColors.muted);
 }
 
 /// 백신·진료 일정 목록 카드.
 class CareCard extends StatelessWidget {
-  const CareCard({super.key, required this.items, required this.onAdd, this.emptyText = '예정된 일정이 없습니다.'});
+  const CareCard({super.key, required this.items, required this.onAdd, this.emptyText});
 
   final List<CareItem> items;
   final VoidCallback onAdd;
-  final String emptyText;
+  final String? emptyText;
 
   @override
   Widget build(BuildContext context) => AppCard(
@@ -43,15 +50,19 @@ class CareCard extends StatelessWidget {
               child: Icon(Icons.vaccines_outlined, size: 16, color: AppColors.red),
             ),
             const SizedBox(width: 10),
-            const Expanded(child: Text('백신·진료 일정', style: AppText.h3)),
-            TextButton.icon(onPressed: onAdd, icon: const Icon(Icons.add_rounded, size: 18), label: const Text('추가')),
+            Expanded(child: Text(context.l10n.careSchedules, style: AppText.h3)),
+            TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: Text(context.l10n.add),
+            ),
           ],
         ),
         const SizedBox(height: 4),
         if (items.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Text(emptyText, style: AppText.caption),
+            child: Text(emptyText ?? context.l10n.noSchedules, style: AppText.caption),
           ),
         for (final item in items) CareTile(key: ValueKey(item.id), item: item),
       ],
@@ -70,7 +81,9 @@ class CareTile extends StatelessWidget {
     if (!context.mounted) return;
     showMessage(
       context,
-      next == null ? '${item.title} 완료를 기록했습니다.' : '${item.title} 완료. 다음 일정은 ${careDate(next.dueDate)}입니다.',
+      next == null
+          ? context.l10n.careDone(item.title)
+          : context.l10n.careDoneNext(item.title, careDate(context, next.dueDate)),
     );
   }
 
@@ -78,13 +91,13 @@ class CareTile extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('일정 삭제'),
-        content: Text('${item.title}(${careDate(item.dueDate)}) 일정을 삭제할까요?'),
+        title: Text(context.l10n.deleteSchedule),
+        content: Text(context.l10n.deleteScheduleBody(item.title, careDate(context, item.dueDate))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('삭제', style: TextStyle(color: AppColors.red)),
+            child: Text(context.l10n.delete, style: const TextStyle(color: AppColors.red)),
           ),
         ],
       ),
@@ -95,7 +108,7 @@ class CareTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = FarmScope.of(context);
-    final (due, dueColor) = dueLabel(item, store.now);
+    final (due, dueColor) = dueLabel(context.l10n, item, store.now);
     return InkWell(
       borderRadius: BorderRadius.circular(14),
       onLongPress: () => _delete(context),
@@ -112,9 +125,9 @@ class CareTile extends StatelessWidget {
                   Text(item.title, style: AppText.body.copyWith(fontWeight: FontWeight.w600)),
                   Text(
                     [
-                      store.careTargetLabel(item),
-                      careDate(item.dueDate),
-                      if (item.repeatMonths > 0) '${item.repeatMonths}개월마다',
+                      careTargetLabel(context, store, item),
+                      careDate(context, item.dueDate),
+                      if (item.repeatMonths > 0) context.l10n.everyMonths(item.repeatMonths),
                     ].join(' · '),
                     style: AppText.caption,
                   ),
@@ -123,7 +136,7 @@ class CareTile extends StatelessWidget {
             ),
             Tag(due, color: dueColor),
             IconButton(
-              tooltip: '완료',
+              tooltip: context.l10n.done,
               onPressed: () => _complete(context),
               icon: const Icon(Icons.check_circle_outline_rounded, color: AppColors.primary),
             ),
@@ -186,7 +199,7 @@ class _AddCareSheetState extends State<_AddCareSheet> {
 
   Future<void> _save() async {
     if (_title.text.trim().isEmpty) {
-      setState(() => _titleError = '일정 이름을 입력하세요.');
+      setState(() => _titleError = context.l10n.scheduleNameError);
       return;
     }
     await FarmScope.read(context).addCareItem(
@@ -211,9 +224,9 @@ class _AddCareSheetState extends State<_AddCareSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('백신·진료 일정 추가', style: AppText.h2),
+            Text(context.l10n.addScheduleTitle, style: AppText.h2),
             const SizedBox(height: 14),
-            const Text('대상', style: AppText.caption),
+            Text(context.l10n.target, style: AppText.caption),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
@@ -227,7 +240,7 @@ class _AddCareSheetState extends State<_AddCareSheet> {
                     selectedColor: AppColors.primarySoft,
                   ),
                   ChoiceChip(
-                    label: Text('${animal.kind.label} 전체'),
+                    label: Text(context.l10n.wholeKind(context.l10n.kind(animal.kind))),
                     selected: _wholeKind,
                     onSelected: (_) => setState(() => _wholeKind = true),
                     selectedColor: AppColors.primarySoft,
@@ -235,7 +248,7 @@ class _AddCareSheetState extends State<_AddCareSheet> {
                 ] else
                   for (final k in AnimalKind.values)
                     ChoiceChip(
-                      label: Text('${k.label} 전체'),
+                      label: Text(context.l10n.wholeKind(context.l10n.kind(k))),
                       selected: _kind == k,
                       onSelected: (_) => setState(() => _kind = k),
                       selectedColor: AppColors.primarySoft,
@@ -243,7 +256,7 @@ class _AddCareSheetState extends State<_AddCareSheet> {
               ],
             ),
             const SizedBox(height: 12),
-            const Text('종류', style: AppText.caption),
+            Text(context.l10n.type, style: AppText.caption),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
@@ -251,7 +264,7 @@ class _AddCareSheetState extends State<_AddCareSheet> {
                 for (final t in CareType.values)
                   ChoiceChip(
                     avatar: Icon(t.icon, size: 16),
-                    label: Text(t.label),
+                    label: Text(context.l10n.careType(t)),
                     selected: _type == t,
                     onSelected: (_) => setState(() => _type = t),
                     selectedColor: AppColors.primarySoft,
@@ -261,7 +274,11 @@ class _AddCareSheetState extends State<_AddCareSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _title,
-              decoration: InputDecoration(labelText: '일정 이름', hintText: '예: 구제역 백신', errorText: _titleError),
+              decoration: InputDecoration(
+                labelText: context.l10n.scheduleName,
+                hintText: context.l10n.scheduleNameHint,
+                errorText: _titleError,
+              ),
             ),
             const SizedBox(height: 10),
             Row(
@@ -271,8 +288,8 @@ class _AddCareSheetState extends State<_AddCareSheet> {
                     borderRadius: BorderRadius.circular(14),
                     onTap: _pickDate,
                     child: InputDecorator(
-                      decoration: const InputDecoration(labelText: '날짜'),
-                      child: Text(_md.format(_due), style: AppText.body),
+                      decoration: InputDecoration(labelText: context.l10n.date),
+                      child: Text(careDate(context, _due), style: AppText.body),
                     ),
                   ),
                 ),
@@ -280,9 +297,13 @@ class _AddCareSheetState extends State<_AddCareSheet> {
                 Expanded(
                   child: DropdownButtonFormField<int>(
                     initialValue: _repeat,
-                    decoration: const InputDecoration(labelText: '반복'),
+                    decoration: InputDecoration(labelText: context.l10n.repeat),
                     items: [
-                      for (final m in _repeats) DropdownMenuItem(value: m, child: Text(m == 0 ? '한 번만' : '$m개월마다')),
+                      for (final m in _repeats)
+                        DropdownMenuItem(
+                          value: m,
+                          child: Text(m == 0 ? context.l10n.once : context.l10n.everyMonths(m)),
+                        ),
                     ],
                     onChanged: (v) => setState(() => _repeat = v ?? 0),
                   ),
@@ -292,10 +313,10 @@ class _AddCareSheetState extends State<_AddCareSheet> {
             const SizedBox(height: 10),
             TextField(
               controller: _note,
-              decoration: const InputDecoration(labelText: '메모 (선택)'),
+              decoration: InputDecoration(labelText: context.l10n.optionalMemo),
             ),
             const SizedBox(height: 16),
-            PrimaryButton(label: '일정 추가', icon: Icons.add_rounded, onTap: _save),
+            PrimaryButton(label: context.l10n.addSchedule, icon: Icons.add_rounded, onTap: _save),
           ],
         ),
       ),

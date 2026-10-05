@@ -6,8 +6,9 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 
-final _date = DateFormat('yyyy년 M월 d일', 'ko');
+String _date(BuildContext context, DateTime d) => DateFormat.yMMMd(context.localeName).format(d);
 
 const _sheetShape = RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28)));
 
@@ -53,7 +54,6 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
       initialDate: _birth,
       firstDate: DateTime(now.year - 30),
       lastDate: now,
-      locale: const Locale('ko'),
     );
     if (picked != null) setState(() => _birth = picked);
   }
@@ -61,8 +61,8 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
   Future<void> _save() async {
     final weight = double.tryParse(_weight.text.replaceAll(',', '.').trim());
     setState(() {
-      _nameError = _name.text.trim().isEmpty ? '이름을 입력하세요.' : null;
-      _weightError = weight == null || weight <= 0 ? '체중을 0보다 큰 숫자로 입력하세요.' : null;
+      _nameError = _name.text.trim().isEmpty ? context.l10n.nameError : null;
+      _weightError = weight == null || weight <= 0 ? context.l10n.weightError : null;
     });
     if (_nameError != null || _weightError != null) return;
     final animal = await FarmScope.read(context)
@@ -80,8 +80,8 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('가축 입식', style: AppText.h2),
-            Text('번호표는 ${store.nextTag(_kind)}로 자동 부여됩니다.', style: AppText.caption),
+            Text(context.l10n.addAnimalTitle, style: AppText.h2),
+            Text(context.l10n.tagAssigned(store.nextTag(_kind)), style: AppText.caption),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -101,7 +101,7 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
                         child: Column(
                           children: [
                             AnimalAvatar(kind: k, size: 36),
-                            Text(k.label, style: AppText.caption),
+                            Text(context.l10n.kindOne(k), style: AppText.caption),
                           ],
                         ),
                       ),
@@ -114,13 +114,13 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
             TextField(
               controller: _name,
               textInputAction: TextInputAction.next,
-              decoration: InputDecoration(labelText: '이름', errorText: _nameError),
+              decoration: InputDecoration(labelText: context.l10n.name, errorText: _nameError),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _breed,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(labelText: '품종 (선택)', hintText: '예: 한우, 레그혼'),
+              decoration: InputDecoration(labelText: context.l10n.breedOptional, hintText: context.l10n.breedHint),
             ),
             const SizedBox(height: 10),
             Row(
@@ -129,7 +129,11 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
                   child: TextField(
                     controller: _weight,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(labelText: '체중', suffixText: 'kg', errorText: _weightError),
+                    decoration: InputDecoration(
+                      labelText: context.l10n.weight,
+                      suffixText: 'kg',
+                      errorText: _weightError,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -138,7 +142,7 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
                     borderRadius: BorderRadius.circular(14),
                     onTap: _pickBirth,
                     child: InputDecorator(
-                      decoration: const InputDecoration(labelText: '태어난 날'),
+                      decoration: InputDecoration(labelText: context.l10n.bornOn),
                       child: Text(DateFormat('yy.M.d').format(_birth), style: AppText.body),
                     ),
                   ),
@@ -146,7 +150,7 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            PrimaryButton(label: '입식하기', icon: Icons.add_rounded, onTap: _save),
+            PrimaryButton(label: context.l10n.addAnimalAction, icon: Icons.add_rounded, onTap: _save),
           ],
         ),
       ),
@@ -197,15 +201,15 @@ class _RemoveAnimalSheetState extends State<_RemoveAnimalSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('${widget.animal.name} 목록에서 빼기', style: AppText.h2),
-        const Text('개체 정보는 입식·출하 이력에 남습니다.', style: AppText.caption),
+        Text(context.l10n.removeAnimalTitle(widget.animal.name), style: AppText.h2),
+        Text(context.l10n.removeAnimalHint, style: AppText.caption),
         const SizedBox(height: 14),
         Wrap(
           spacing: 8,
           children: [
             for (final t in AnimalEventType.values.where((t) => t != AnimalEventType.added))
               ChoiceChip(
-                label: Text(t.label),
+                label: Text(context.l10n.eventType(t)),
                 selected: _type == t,
                 onSelected: (_) => setState(() => _type = t),
                 selectedColor: AppColors.primarySoft,
@@ -215,10 +219,14 @@ class _RemoveAnimalSheetState extends State<_RemoveAnimalSheet> {
         const SizedBox(height: 12),
         TextField(
           controller: _note,
-          decoration: const InputDecoration(labelText: '메모 (선택)', hintText: '예: 출하처, 원인'),
+          decoration: InputDecoration(labelText: context.l10n.optionalMemo, hintText: context.l10n.removeNoteHint),
         ),
         const SizedBox(height: 16),
-        PrimaryButton(label: '${_type.label} 처리', icon: Icons.check_rounded, onTap: _confirm),
+        PrimaryButton(
+          label: context.l10n.confirmRemoval(context.l10n.eventType(_type)),
+          icon: Icons.check_rounded,
+          onTap: _confirm,
+        ),
       ],
     ),
   );
@@ -233,7 +241,7 @@ class AnimalHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AppCard(
     child: events.isEmpty
-        ? const Text('아직 입식·출하 기록이 없습니다.', style: AppText.caption)
+        ? Text(context.l10n.noHistory, style: AppText.caption)
         : Column(
             children: [
               for (final e in events.take(10))
@@ -242,7 +250,7 @@ class AnimalHistoryCard extends StatelessWidget {
                   child: Row(
                     children: [
                       Tag(
-                        e.type.label,
+                        context.l10n.eventType(e.type),
                         color: switch (e.type) {
                           AnimalEventType.added => AppColors.primary,
                           AnimalEventType.sold => AppColors.blue,
@@ -255,12 +263,15 @@ class AnimalHistoryCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${e.kind.label} ${e.name} · ${e.tag}', style: AppText.body),
+                            Text(
+                              context.l10n.historyLine(context.l10n.kindOne(e.kind), e.name, e.tag),
+                              style: AppText.body,
+                            ),
                             if (e.note.isNotEmpty) Text(e.note, style: AppText.caption),
                           ],
                         ),
                       ),
-                      Text(_date.format(e.date), style: AppText.tiny),
+                      Text(_date(context, e.date), style: AppText.tiny),
                     ],
                   ),
                 ),

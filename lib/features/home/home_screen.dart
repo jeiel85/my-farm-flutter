@@ -12,6 +12,7 @@ import '../inventory/inventory_screen.dart';
 import '../livestock/care_widgets.dart';
 import '../livestock/livestock_screen.dart';
 import '../weather/weather_screen.dart';
+import '../../l10n/l10n.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,11 +33,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _greeting(int hour) => switch (hour) {
-    < 5 => '고요한 새벽이에요',
-    < 11 => '좋은 아침이에요',
-    < 17 => '오후도 힘내세요',
-    < 21 => '오늘도 수고했어요',
-    _ => '편안한 밤 보내세요',
+    < 5 => context.l10n.greetingDawn,
+    < 11 => context.l10n.greetingMorning,
+    < 17 => context.l10n.greetingAfternoon,
+    < 21 => context.l10n.greetingEvening,
+    _ => context.l10n.greetingNight,
   };
 
   @override
@@ -59,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(DateFormat('M월 d일 EEEE', 'ko').format(now), style: AppText.caption),
+                      Text(DateFormat.MMMMEEEEd(context.localeName).format(now), style: AppText.caption),
                       const SizedBox(height: 2),
                       Text(_greeting(now.hour), style: AppText.title),
                     ],
@@ -84,14 +85,19 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               children: [
                 Expanded(
-                  child: _MiniStat(icon: Icons.eco_rounded, color: AppColors.primary, label: '평균 생육', value: avgGrowth),
+                  child: _MiniStat(
+                    icon: Icons.eco_rounded,
+                    color: AppColors.primary,
+                    label: context.l10n.avgGrowth,
+                    value: avgGrowth,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _MiniStat(
                     icon: Icons.favorite_rounded,
                     color: AppColors.red,
-                    label: '가축 건강',
+                    label: context.l10n.herdHealth,
                     value: store.herdHealth,
                   ),
                 ),
@@ -100,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _MiniStat(
                     icon: Icons.water_drop_rounded,
                     color: AppColors.blue,
-                    label: '물탱크',
+                    label: context.l10n.waterTank,
                     value: store.tankRatio,
                   ),
                 ),
@@ -108,16 +114,19 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             2,
           ),
-          SectionTitle('오늘 확인할 것', subtitle: alerts.isEmpty ? null : '${alerts.length}건'),
+          SectionTitle(
+            context.l10n.toCheckToday,
+            subtitle: alerts.isEmpty ? null : context.l10n.alertsCount(alerts.length),
+          ),
           if (alerts.isEmpty)
             rise(
-              const AppCard(
+              AppCard(
                 color: AppColors.primarySoft,
                 child: Row(
                   children: [
                     Icon(Icons.check_circle_rounded, color: AppColors.primary),
                     SizedBox(width: 10),
-                    Text('모두 순조로워요', style: AppText.h3),
+                    Text(context.l10n.allGood, style: AppText.h3),
                   ],
                 ),
               ),
@@ -126,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
           else
             for (var i = 0; i < alerts.length; i++)
               Padding(padding: const EdgeInsets.only(bottom: 8), child: rise(alerts[i], 3 + i)),
-          const SectionTitle('오늘 할 일'),
+          SectionTitle(context.l10n.todayTasks),
           rise(const _TaskCard(), 4 + alerts.length),
         ],
       ),
@@ -142,8 +151,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _Alert(
           icon: Icons.water_drop_rounded,
           color: AppColors.blue,
-          title: '${f.cropName} 물주기',
-          subtitle: '${relativeTime(f.nextWateringAt, now)}부터 필요 · ${f.litersPerWatering.round()}L',
+          title: context.l10n.alertWaterTitle(f.cropName),
+          subtitle: context.l10n.alertWaterSubtitle(
+            context.l10n.relative(f.nextWateringAt, now),
+            f.litersPerWatering.round(),
+          ),
           onTap: () => push(CropDetailScreen(fieldId: f.id)),
         ),
       );
@@ -153,8 +165,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _Alert(
           icon: Icons.agriculture_rounded,
           color: AppColors.primary,
-          title: '${f.cropName} 수확 가능',
-          subtitle: '수확을 기록하고 다시 심을 수 있어요',
+          title: context.l10n.alertHarvestTitle(f.cropName),
+          subtitle: context.l10n.alertHarvestSubtitle,
           onTap: () => push(CropDetailScreen(fieldId: f.id)),
         ),
       );
@@ -165,8 +177,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _Alert(
           icon: Icons.schedule_rounded,
           color: AppColors.orange,
-          title: '${next.timeLabel} ${next.label} 급이',
-          subtitle: '시간이 지났어요. 끝났다면 체크해 주세요',
+          title: context.l10n.alertFeedingTitle(next.timeLabel, next.label),
+          subtitle: context.l10n.alertFeedingSubtitle,
           onTap: () => push(const LivestockScreen()),
         ),
       );
@@ -176,8 +188,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _Alert(
           icon: Icons.healing_rounded,
           color: AppColors.red,
-          title: '가축 ${store.animalsNeedingCare}마리 관리 필요',
-          subtitle: '건강 점수 80 미만',
+          title: context.l10n.alertCareTitle(store.animalsNeedingCare),
+          subtitle: context.l10n.alertCareSubtitle,
           onTap: () => push(const LivestockScreen()),
         ),
       );
@@ -187,20 +199,20 @@ class _HomeScreenState extends State<HomeScreen> {
         _Alert(
           icon: Icons.opacity_rounded,
           color: AppColors.blue,
-          title: '물탱크 ${(store.tankRatio * 100).round()}%',
-          subtitle: '물을 보충해 주세요',
+          title: context.l10n.alertTankTitle((store.tankRatio * 100).round()),
+          subtitle: context.l10n.alertTankSubtitle,
           onTap: () => AppShell.goTo(context, AppTab.farm),
         ),
       );
     }
     for (final c in store.careDueWithin(1)) {
-      final (due, color) = dueLabel(c, now);
+      final (due, color) = dueLabel(context.l10n, c, now);
       out.add(
         _Alert(
           icon: c.type.icon,
           color: color == AppColors.red ? AppColors.red : AppColors.orange,
           title: '${c.title} · $due',
-          subtitle: '${store.careTargetLabel(c)} · 가축 관리에서 완료 체크',
+          subtitle: context.l10n.alertScheduleSubtitle(careTargetLabel(context, store, c)),
           onTap: () => push(const LivestockScreen()),
         ),
       );
@@ -211,10 +223,12 @@ class _HomeScreenState extends State<HomeScreen> {
         _Alert(
           icon: Icons.save_alt_rounded,
           color: AppColors.primary,
-          title: '백업할 때가 됐어요',
-          subtitle: last == null ? '아직 백업 파일을 만든 적이 없어요' : '마지막 백업 ${relativeTime(last, now)}',
+          title: context.l10n.alertBackupTitle,
+          subtitle: last == null
+              ? context.l10n.alertBackupNever
+              : context.l10n.alertBackupLast(context.l10n.relative(last, now)),
           onTap: () => AppShell.goTo(context, AppTab.profile),
-          actionLabel: '나중에',
+          actionLabel: context.l10n.later,
           onAction: store.snoozeBackupReminder,
         ),
       );
@@ -225,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _Alert(
           icon: Icons.inventory_rounded,
           color: AppColors.orange,
-          title: '재고 부족 ${low.length}개',
+          title: context.l10n.alertLowStockTitle(low.length),
           subtitle: low.map((i) => i.name).join(', '),
           onTap: () => push(const InventoryScreen()),
         ),
@@ -329,12 +343,15 @@ class _WeatherCard extends StatelessWidget {
           const Icon(Icons.cloud_off_rounded, color: Colors.white70),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(weather.error!, style: const TextStyle(color: Colors.white, fontSize: 13)),
+            child: Text(
+              weatherErrorText(context, weather.error!),
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
           ),
           TextButton(
             onPressed: () =>
                 weather.ensureLoaded(store.state.profile.latitude, store.state.profile.longitude, force: true),
-            child: const Text('다시 시도', style: TextStyle(color: Colors.white)),
+            child: Text(context.l10n.retry, style: const TextStyle(color: Colors.white)),
           ),
         ],
       );
@@ -349,7 +366,8 @@ class _WeatherCard extends StatelessWidget {
         ),
       );
     } else {
-      final (label, icon) = describeWeather(report.code);
+      final (condition, icon) = describeWeather(report.code);
+      final label = context.l10n.weatherText(condition);
       body = Row(
         children: [
           Icon(icon, color: const Color(0xFFFFD66B), size: 42),
@@ -363,7 +381,11 @@ class _WeatherCard extends StatelessWidget {
                   style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
                 ),
                 Text(
-                  '${store.state.profile.locationLabel} · 강수확률 ${report.todayRainChance}% · 바람 ${report.windKmh.round()}km/h',
+                  context.l10n.weatherSummary(
+                    store.state.profile.locationLabel,
+                    report.todayRainChance,
+                    report.windKmh.round(),
+                  ),
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
@@ -427,9 +449,9 @@ class _TaskCardState extends State<_TaskCard> {
       child: Column(
         children: [
           if (tasks.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(12),
-              child: Text('오늘 할 일이 없습니다. 아래에 추가해 보세요.', style: AppText.caption),
+              child: Text(context.l10n.noTasks, style: AppText.caption),
             ),
           for (final t in tasks) _TaskRow(key: ValueKey(t.id), task: t, overdue: t.dateKey != store.todayKey),
           Padding(
@@ -439,7 +461,7 @@ class _TaskCardState extends State<_TaskCard> {
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _add(),
               decoration: InputDecoration(
-                hintText: '할 일 추가',
+                hintText: context.l10n.addTask,
                 isDense: true,
                 suffixIcon: IconButton(
                   onPressed: _add,
@@ -501,7 +523,7 @@ class _TaskRow extends StatelessWidget {
                 child: Text(task.title),
               ),
             ),
-            if (overdue) const Tag('지난 일', color: AppColors.red),
+            if (overdue) Tag(context.l10n.overdue, color: AppColors.red),
             if (task.zone != null) ...[
               const SizedBox(width: 6),
               Icon(task.zone!.icon, size: 16, color: AppColors.muted),

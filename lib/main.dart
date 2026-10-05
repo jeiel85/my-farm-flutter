@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'app_shell.dart';
 import 'core/theme.dart';
 import 'data/farm_store.dart';
 import 'data/weather.dart';
+import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('ko');
+  await initializeDateFormatting();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -19,7 +19,8 @@ Future<void> main() async {
       systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
-  final store = await FarmStore.load(PrefsFarmStorage());
+  final systemLanguage = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+  final store = await FarmStore.load(PrefsFarmStorage(), english: systemLanguage != 'ko');
   runApp(MyFarmApp(store: store, weather: WeatherController(WeatherService())));
 }
 
@@ -34,15 +35,19 @@ class MyFarmApp extends StatelessWidget {
     store: store,
     child: WeatherScope(
       controller: weather,
-      child: MaterialApp(
-        title: '마이팜',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        locale: const Locale('ko'),
-        supportedLocales: const [Locale('ko'), Locale('en')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        builder: (context, child) => PhoneWidthFrame(child: child!),
-        home: const AppShell(),
+      child: ValueListenableBuilder<String?>(
+        valueListenable: store.locale,
+        builder: (context, localeCode, _) => MaterialApp(
+          onGenerateTitle: (context) => context.l10n.appTitle,
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(),
+          locale: localeCode == null ? null : Locale(localeCode),
+          // 한국어·영어가 아닌 기기에서는 영어로 보여 준다(첫 항목이 기본값).
+          supportedLocales: AppLocalizations.supportedLocales.reversed.toList(),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          builder: (context, child) => PhoneWidthFrame(child: child!),
+          home: const AppShell(),
+        ),
       ),
     ),
   );

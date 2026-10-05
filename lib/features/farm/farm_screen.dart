@@ -14,6 +14,7 @@ import '../inventory/inventory_screen.dart';
 import '../livestock/livestock_screen.dart';
 import '../weather/weather_screen.dart';
 import 'farm_map_view.dart';
+import '../../l10n/l10n.dart';
 
 final _liters = NumberFormat('#,###');
 
@@ -72,7 +73,7 @@ class _FarmScreenState extends State<FarmScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('내 농장', style: AppText.title),
+                        Text(context.l10n.myFarm, style: AppText.title),
                         const SizedBox(height: 2),
                         Row(
                           children: [
@@ -107,7 +108,7 @@ class _FarmScreenState extends State<FarmScreen> {
                 children: [
                   _ZoneChip(
                     key: _overviewKey,
-                    label: '전체',
+                    label: context.l10n.allZones,
                     icon: Icons.grid_view_rounded,
                     active: _zone == null,
                     onTap: () => _select(null),
@@ -115,7 +116,7 @@ class _FarmScreenState extends State<FarmScreen> {
                   for (final z in ZoneId.values)
                     _ZoneChip(
                       key: _chipKeys[z],
-                      label: z.label,
+                      label: context.l10n.zone(z),
                       icon: z.icon,
                       active: _zone == z,
                       onTap: () => _select(z),
@@ -195,7 +196,7 @@ class _FarmScreenState extends State<FarmScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SectionTitle('둘러보기'),
+                SectionTitle(context.l10n.explore),
                 _ExploreGrid(onSelectZone: _select),
               ],
             ),
@@ -270,7 +271,9 @@ class _FullMapPageState extends State<_FullMapPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
                         child: Text(
-                          _zone == null ? '구역을 누르면 확대됩니다' : '${_zone!.label} · 다시 누르면 전체 보기',
+                          _zone == null
+                              ? context.l10n.tapZoneToZoom
+                              : context.l10n.tapAgainForAll(context.l10n.zone(_zone!)),
                           style: AppText.h3.copyWith(fontSize: 13),
                         ),
                       ),
@@ -348,9 +351,12 @@ class _ZoneCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('구역을 눌러 둘러보세요', style: AppText.h3),
+                  Text(context.l10n.tapZoneToExplore, style: AppText.h3),
                   const SizedBox(height: 2),
-                  Text('${ZoneId.values.length}개 구역 · 작물 $crops종 · 가축 ${store.totalAnimals}마리', style: AppText.caption),
+                  Text(
+                    context.l10n.farmSummary(ZoneId.values.length, crops, store.totalAnimals),
+                    style: AppText.caption,
+                  ),
                 ],
               ),
             ),
@@ -364,40 +370,40 @@ class _ZoneCard extends StatelessWidget {
       ZoneId.animals => _InfoZoneCard(
         zone: z,
         stats: [
-          ('동물', '${store.totalAnimals}마리', null),
-          ('건강', '${(store.herdHealth * 100).round()}%', null),
-          ('다음 급이', store.nextFeeding?.timeLabel ?? '오늘 완료', null),
+          (context.l10n.animalsLabel, context.l10n.animalCount(store.totalAnimals), null),
+          (context.l10n.healthLabel, '${(store.herdHealth * 100).round()}%', null),
+          (context.l10n.nextFeeding, store.nextFeeding?.timeLabel ?? context.l10n.doneToday, null),
         ],
         action: PrimaryButton(
-          label: '가축 관리 열기',
+          label: context.l10n.openLivestock,
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LivestockScreen())),
         ),
       ),
       ZoneId.water => _InfoZoneCard(
         zone: z,
         stats: [
-          ('수위', '${(store.tankRatio * 100).round()}%', store.tankRatio < 0.25 ? AppColors.red : null),
-          ('저장량', '${_liters.format(store.state.tankStoredL)}L', null),
-          ('오늘 사용', '${_liters.format(store.waterUsedToday)}L', null),
+          (context.l10n.level, '${(store.tankRatio * 100).round()}%', store.tankRatio < 0.25 ? AppColors.red : null),
+          (context.l10n.stored, '${_liters.format(store.state.tankStoredL)}L', null),
+          (context.l10n.usedToday, '${_liters.format(store.waterUsedToday)}L', null),
         ],
         action: Row(
           children: [
             Expanded(
               child: PrimaryButton(
-                label: '물 보충',
+                label: context.l10n.refill,
                 icon: Icons.water_drop_outlined,
                 filled: false,
                 onTap: store.tankRatio >= 1
                     ? null
                     : () async {
                         await FarmScope.read(context).refillTank();
-                        if (context.mounted) showMessage(context, '물탱크를 가득 채웠습니다.');
+                        if (context.mounted) showMessage(context, context.l10n.tankRefilled);
                       },
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: PrimaryButton(label: '스마트 관수', onTap: () => smartWateringWithFeedback(context)),
+              child: PrimaryButton(label: context.l10n.smartWatering, onTap: () => smartWateringWithFeedback(context)),
             ),
           ],
         ),
@@ -405,23 +411,31 @@ class _ZoneCard extends StatelessWidget {
       ZoneId.storage => _InfoZoneCard(
         zone: z,
         stats: [
-          ('품목', '${store.state.inventory.length}개', null),
-          ('부족', '${store.lowInventory.length}개', store.lowInventory.isEmpty ? null : AppColors.orange),
-          ('사료', store.feedDaysLeft == null ? '-' : '${store.feedDaysLeft!.floor()}일분', null),
+          (context.l10n.items, context.l10n.countItems(store.state.inventory.length), null),
+          (
+            context.l10n.shortLabel,
+            context.l10n.countItems(store.lowInventory.length),
+            store.lowInventory.isEmpty ? null : AppColors.orange,
+          ),
+          (
+            context.l10n.feedLabel,
+            store.feedDaysLeft == null ? '-' : context.l10n.daysOfStock(store.feedDaysLeft!.floor()),
+            null,
+          ),
         ],
         action: PrimaryButton(
-          label: '재고 관리',
+          label: context.l10n.manageInventory,
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const InventoryScreen())),
         ),
       ),
       _ => _InfoZoneCard(
         zone: z,
         stats: [
-          ('면적', '${store.state.profile.areaHa}ha', null),
-          ('위치', store.state.profile.locationLabel, null),
-          ('남은 일', '${store.tasksToday.where((t) => !t.done).length}개', null),
+          (context.l10n.area, '${store.state.profile.areaHa}ha', null),
+          (context.l10n.location, store.state.profile.locationLabel, null),
+          (context.l10n.tasksLeft, context.l10n.countItems(store.tasksToday.where((t) => !t.done).length), null),
         ],
-        action: PrimaryButton(label: '오늘 할 일 보기', onTap: () => AppShell.goTo(context, AppTab.home)),
+        action: PrimaryButton(label: context.l10n.viewTodayTasks, onTap: () => AppShell.goTo(context, AppTab.home)),
       ),
     };
   }
@@ -446,7 +460,7 @@ class _InfoZoneCard extends StatelessWidget {
               child: Icon(zone.icon, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
-            Text(zone.label, style: AppText.h3.copyWith(fontSize: 16)),
+            Text(context.l10n.zone(zone), style: AppText.h3.copyWith(fontSize: 16)),
           ],
         ),
         const SizedBox(height: 14),
@@ -492,18 +506,18 @@ class _CropZoneCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(field.zone.label, style: AppText.h3.copyWith(fontSize: 16)),
-                    Text('작물: ${field.cropName}', style: AppText.caption),
+                    Text(context.l10n.zone(field.zone), style: AppText.h3.copyWith(fontSize: 16)),
+                    Text(context.l10n.cropName(field.cropName), style: AppText.caption),
                   ],
                 ),
               ),
-              Tag(field.status.label, color: field.status.color, icon: Icons.favorite_border_rounded),
+              Tag(context.l10n.status(field.status), color: field.status.color, icon: Icons.favorite_border_rounded),
             ],
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              const Text('생육', style: AppText.caption),
+              Text(context.l10n.growth, style: AppText.caption),
               const Spacer(),
               Text('${(growth * 100).round()}%', style: AppText.h3),
             ],
@@ -514,19 +528,28 @@ class _CropZoneCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: StatBox(label: '상태', value: field.status.label, valueColor: field.status.color),
+                child: StatBox(
+                  label: context.l10n.statusLabel,
+                  value: context.l10n.status(field.status),
+                  valueColor: field.status.color,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: StatBox(
-                  label: '다음 물주기',
-                  value: field.needsWater(now) ? '지금 필요' : relativeTime(field.nextWateringAt, now),
+                  label: context.l10n.nextWatering,
+                  value: field.needsWater(now)
+                      ? context.l10n.neededNow
+                      : context.l10n.relative(field.nextWateringAt, now),
                   valueColor: field.needsWater(now) ? AppColors.blue : null,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: StatBox(label: '수확까지', value: days == 0 ? '수확 가능' : '$days일'),
+                child: StatBox(
+                  label: context.l10n.untilHarvest,
+                  value: days == 0 ? context.l10n.harvestReady : context.l10n.daysValue(days),
+                ),
               ),
             ],
           ),
@@ -535,7 +558,7 @@ class _CropZoneCard extends StatelessWidget {
             children: [
               Expanded(
                 child: PrimaryButton(
-                  label: '물 주기',
+                  label: context.l10n.waterAction,
                   icon: Icons.water_drop_outlined,
                   filled: false,
                   onTap: () => waterFieldWithFeedback(context, field),
@@ -544,7 +567,7 @@ class _CropZoneCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: PrimaryButton(
-                  label: '작물 보기',
+                  label: context.l10n.viewCrop,
                   onTap: () =>
                       Navigator.of(context)
                           .push(MaterialPageRoute(builder: (_) => CropDetailScreen(fieldId: field.id))),
@@ -569,47 +592,50 @@ class _ExploreGrid extends StatelessWidget {
     final weather = WeatherScope.of(context);
     final next = store.nextWatering;
     final report = weather.report;
-    final (wLabel, wIcon) = report == null ? ('불러오는 중', Icons.wb_sunny_outlined) : describeWeather(report.code);
+    final (wCondition, wIcon) = report == null ? (null, Icons.wb_sunny_outlined) : describeWeather(report.code);
+    final wLabel = wCondition == null ? context.l10n.loading : context.l10n.weatherText(wCondition);
     final items = [
       (
         Icons.eco_outlined,
-        '내 작물',
-        '${store.state.fields.length}종 재배 중',
+        context.l10n.myCrops,
+        context.l10n.cropsGrowing(store.state.fields.length),
         AppColors.primarySoft,
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CropsScreen())),
       ),
       (
         Icons.pets_outlined,
-        '가축',
-        '${store.totalAnimals}마리',
+        context.l10n.livestock,
+        context.l10n.animalCount(store.totalAnimals),
         const Color(0xFFF7E6D9),
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LivestockScreen())),
       ),
       (
         Icons.water_drop_outlined,
-        '물주기',
-        next == null ? '-' : (next.isAfter(store.now) ? '다음 ${hm(next)}' : '지금 필요'),
+        context.l10n.watering,
+        next == null ? '-' : (next.isAfter(store.now) ? context.l10n.nextAt(hm(next)) : context.l10n.neededNow),
         const Color(0xFFDDEEFA),
         () => onSelectZone(ZoneId.water),
       ),
       (
         wIcon,
-        '날씨',
-        report == null ? (weather.error != null ? '불러오기 실패' : wLabel) : '$wLabel · ${report.temperatureC.round()}°C',
+        context.l10n.weather,
+        report == null
+            ? (weather.error != null ? context.l10n.loadFailed : wLabel)
+            : '$wLabel · ${report.temperatureC.round()}°C',
         const Color(0xFFFCF1D2),
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WeatherScreen())),
       ),
       (
         Icons.warehouse_outlined,
-        '재고',
-        store.lowInventory.isEmpty ? '모두 충분' : '부족 ${store.lowInventory.length}개',
+        context.l10n.inventory,
+        store.lowInventory.isEmpty ? context.l10n.allStocked : context.l10n.lowCount(store.lowInventory.length),
         const Color(0xFFE9E6F5),
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const InventoryScreen())),
       ),
       (
         Icons.inventory_2_outlined,
-        '수확 기록',
-        '${store.state.harvests.length}건',
+        context.l10n.harvestRecords,
+        context.l10n.recordsCount(store.state.harvests.length),
         const Color(0xFFFBE3E1),
         () => AppShell.goTo(context, AppTab.harvest),
       ),

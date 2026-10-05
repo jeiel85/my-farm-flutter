@@ -1,54 +1,43 @@
 import 'package:flutter/material.dart';
 
-/// 지도 위 구역. 순서가 칩 순서이자 지도 레이아웃 키다.
+/// 지도 위 구역. 순서가 칩 순서이자 지도 레이아웃 키다. 이름은 l10n에서 정한다.
 enum ZoneId {
-  house('농가', '농가 주택', Icons.home_outlined),
-  tomato('토마토', '토마토 밭', Icons.local_florist_outlined),
-  vegetable('채소', '채소 밭', Icons.eco_outlined),
-  corn('옥수수', '옥수수 밭', Icons.grass_outlined),
-  animals('가축', '가축 구역', Icons.pets_outlined),
-  water('물탱크', '물탱크', Icons.water_drop_outlined),
-  storage('창고', '창고', Icons.warehouse_outlined),
-  greenhouse('온실', '온실', Icons.wb_sunny_outlined),
-  orchard('과수원', '과수원·양봉', Icons.park_outlined);
+  house(Icons.home_outlined),
+  tomato(Icons.local_florist_outlined),
+  vegetable(Icons.eco_outlined),
+  corn(Icons.grass_outlined),
+  animals(Icons.pets_outlined),
+  water(Icons.water_drop_outlined),
+  storage(Icons.warehouse_outlined),
+  greenhouse(Icons.wb_sunny_outlined),
+  orchard(Icons.park_outlined);
 
-  const ZoneId(this.shortLabel, this.label, this.icon);
-  final String shortLabel;
-  final String label;
+  const ZoneId(this.icon);
   final IconData icon;
 }
 
 enum AnimalKind {
-  cow('소', '마리', 'COW'),
-  chicken('닭', '마리', 'HEN'),
-  sheep('양', '마리', 'SHP'),
-  goat('염소', '마리', 'GOT');
+  cow('COW'),
+  chicken('HEN'),
+  sheep('SHP'),
+  goat('GOT');
 
-  const AnimalKind(this.label, this.unit, this.tagPrefix);
-  final String label;
-  final String unit;
+  const AnimalKind(this.tagPrefix);
+
+  /// 번호표 앞자리. 저장 데이터에 들어가므로 언어와 무관하게 고정한다.
   final String tagPrefix;
 }
 
 enum CropStatus {
-  excellent('아주 좋음', Color(0xFF2E7D4F)),
-  good('좋음', Color(0xFF5B8C3A)),
-  attention('관리 필요', Color(0xFFD9822B));
+  excellent(Color(0xFF2E7D4F)),
+  good(Color(0xFF5B8C3A)),
+  attention(Color(0xFFD9822B));
 
-  const CropStatus(this.label, this.color);
-  final String label;
+  const CropStatus(this.color);
   final Color color;
 }
 
-enum InventoryCategory {
-  feed('사료'),
-  seed('종자'),
-  fertilizer('비료'),
-  supply('자재');
-
-  const InventoryCategory(this.label);
-  final String label;
-}
+enum InventoryCategory { feed, seed, fertilizer, supply }
 
 T _enumByName<T extends Enum>(List<T> values, Object? name, T fallback) {
   for (final v in values) {
@@ -239,11 +228,10 @@ class Animal {
   /// 아이콘 무늬를 고르는 안정적인 번호(id 끝 숫자).
   int get variant => int.tryParse(id.split('-').last) ?? 0;
 
-  String ageLabel(DateTime now) {
-    final months = (now.year - birthDate.year) * 12 + now.month - birthDate.month;
-    if (months < 12) return '${months.clamp(0, 11)}개월';
-    final years = months / 12;
-    return years == years.roundToDouble() ? '${years.toInt()}살' : '${years.toStringAsFixed(1)}살';
+  /// 태어난 뒤 지난 개월 수(0 이상).
+  int ageInMonths(DateTime now) {
+    final months = (now.year - birthDate.year) * 12 + now.month - birthDate.month - (now.day < birthDate.day ? 1 : 0);
+    return months < 0 ? 0 : months;
   }
 
   Animal copyWith({int? health, double? weightKg, DateTime? lastCheckup, String? note, String? name}) => Animal(
@@ -302,18 +290,37 @@ class FeedingSlot {
 }
 
 class WaterLog {
-  const WaterLog({required this.at, required this.liters, required this.note});
+  const WaterLog({required this.at, required this.liters, this.note = '', this.fieldId, this.smart = false});
 
   final DateTime at;
 
   /// 양수는 사용량, 음수는 보충량.
   final double liters;
+
+  /// 사용자가 남긴 메모(앱이 만든 기록은 비어 있고 화면에서 문구를 만든다).
   final String note;
 
-  Map<String, Object?> toJson() => {'at': at.toIso8601String(), 'liters': liters, 'note': note};
+  /// 물을 준 밭. 보충 기록이나 v1.3.0 이전 기록은 null.
+  final String? fieldId;
 
-  factory WaterLog.fromJson(Map<String, Object?> j) =>
-      WaterLog(at: _date(j['at']), liters: _d(j['liters']), note: j['note'] as String);
+  /// 스마트 관수로 준 물인지.
+  final bool smart;
+
+  Map<String, Object?> toJson() => {
+    'at': at.toIso8601String(),
+    'liters': liters,
+    'note': note,
+    if (fieldId != null) 'fieldId': fieldId,
+    if (smart) 'smart': true,
+  };
+
+  factory WaterLog.fromJson(Map<String, Object?> j) => WaterLog(
+    at: _date(j['at']),
+    liters: _d(j['liters']),
+    note: j['note'] as String? ?? '',
+    fieldId: j['fieldId'] as String?,
+    smart: j['smart'] as bool? ?? false,
+  );
 }
 
 class HarvestRecord {
@@ -448,15 +455,7 @@ class FarmTask {
 String dateKeyOf(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-enum AnimalEventType {
-  added('입식'),
-  sold('출하'),
-  died('폐사'),
-  other('기타 제외');
-
-  const AnimalEventType(this.label);
-  final String label;
-}
+enum AnimalEventType { added, sold, died, other }
 
 /// 가축 입식·출하·폐사 이력. 개체가 목록에서 빠져도 기록은 남는다.
 class AnimalEvent {
@@ -500,13 +499,12 @@ class AnimalEvent {
 }
 
 enum CareType {
-  vaccine('백신', Icons.vaccines_outlined),
-  checkup('검진', Icons.monitor_heart_outlined),
-  deworm('구충', Icons.bug_report_outlined),
-  other('기타', Icons.medical_services_outlined);
+  vaccine(Icons.vaccines_outlined),
+  checkup(Icons.monitor_heart_outlined),
+  deworm(Icons.bug_report_outlined),
+  other(Icons.medical_services_outlined);
 
-  const CareType(this.label, this.icon);
-  final String label;
+  const CareType(this.icon);
   final IconData icon;
 }
 

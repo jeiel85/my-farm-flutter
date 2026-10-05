@@ -6,8 +6,9 @@ import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import 'crop_actions.dart';
+import '../../l10n/l10n.dart';
 
-final _date = DateFormat('M월 d일', 'ko');
+String _date(BuildContext context, DateTime d) => DateFormat.MMMd(context.localeName).format(d);
 
 class CropDetailScreen extends StatelessWidget {
   const CropDetailScreen({super.key, required this.fieldId});
@@ -19,13 +20,14 @@ class CropDetailScreen extends StatelessWidget {
     final store = FarmScope.of(context);
     final field = store.fieldById(fieldId);
     if (field == null) {
-      return const Scaffold(body: Center(child: Text('밭을 찾을 수 없습니다.')));
+      return Scaffold(body: Center(child: Text(context.l10n.fieldNotFound)));
     }
     final now = store.now;
     final growth = field.growthAt(now);
     final harvestAt = field.plantedAt.add(Duration(days: field.growDays));
     final waterLogs = store.state.waterLogs
-        .where((w) => w.note.startsWith(field.cropName))
+        // v1.3.0 이전 기록은 밭 id가 없어 메모의 작물 이름으로 찾는다.
+        .where((w) => w.fieldId == field.id || (w.fieldId == null && w.note.startsWith(field.cropName)))
         .toList()
         .reversed
         .take(5)
@@ -37,7 +39,7 @@ class CropDetailScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            PageHeader(title: field.cropName, subtitle: field.zone.label),
+            PageHeader(title: field.cropName, subtitle: context.l10n.zone(field.zone)),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
@@ -63,7 +65,9 @@ class CropDetailScreen extends StatelessWidget {
                                   children: [
                                     Text('${(growth * 100).round()}%', style: AppText.title),
                                     Text(
-                                      field.daysToHarvest(now) == 0 ? '수확할 수 있어요' : '수확까지 ${field.daysToHarvest(now)}일',
+                                      field.daysToHarvest(now) == 0
+                                          ? context.l10n.readyToHarvest
+                                          : context.l10n.daysToHarvest(field.daysToHarvest(now)),
                                       style: AppText.caption,
                                     ),
                                   ],
@@ -77,15 +81,18 @@ class CropDetailScreen extends StatelessWidget {
                           Row(
                             children: [
                               Expanded(
-                                child: StatBox(label: '파종일', value: _date.format(field.plantedAt)),
+                                child: StatBox(label: context.l10n.plantedOn, value: _date(context, field.plantedAt)),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: StatBox(label: '수확 예정', value: _date.format(harvestAt)),
+                                child: StatBox(label: context.l10n.harvestDue, value: _date(context, harvestAt)),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: StatBox(label: '누적 수확', value: '${totalKg.toStringAsFixed(1)}kg'),
+                                child: StatBox(
+                                  label: context.l10n.totalHarvest,
+                                  value: '${totalKg.toStringAsFixed(1)}kg',
+                                ),
                               ),
                             ],
                           ),
@@ -94,7 +101,7 @@ class CropDetailScreen extends StatelessWidget {
                     ),
                     0,
                   ),
-                  const SectionTitle('작물 상태', subtitle: '현장에서 본 상태를 골라 두세요'),
+                  SectionTitle(context.l10n.cropCondition, subtitle: context.l10n.cropConditionHint),
                   rise(
                     Row(
                       children: [
@@ -112,7 +119,7 @@ class CropDetailScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
-                                  s.label,
+                                  context.l10n.status(s),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
@@ -127,7 +134,7 @@ class CropDetailScreen extends StatelessWidget {
                     ),
                     1,
                   ),
-                  const SectionTitle('물주기'),
+                  SectionTitle(context.l10n.watering),
                   rise(
                     AppCard(
                       child: Column(
@@ -135,20 +142,25 @@ class CropDetailScreen extends StatelessWidget {
                           Row(
                             children: [
                               Expanded(
-                                child: StatBox(label: '마지막', value: relativeTime(field.lastWateredAt, now)),
+                                child: StatBox(
+                                  label: context.l10n.lastLabel,
+                                  value: context.l10n.relative(field.lastWateredAt, now),
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: StatBox(
-                                  label: '다음',
-                                  value: field.needsWater(now) ? '지금 필요' : relativeTime(field.nextWateringAt, now),
+                                  label: context.l10n.nextLabel,
+                                  value: field.needsWater(now)
+                                      ? context.l10n.neededNow
+                                      : context.l10n.relative(field.nextWateringAt, now),
                                   valueColor: field.needsWater(now) ? AppColors.blue : null,
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: StatBox(
-                                  label: '1회·주기',
+                                  label: context.l10n.perTimeAndInterval,
                                   value: '${field.litersPerWatering.round()}L·${field.waterIntervalHours}h',
                                 ),
                               ),
@@ -163,8 +175,20 @@ class CropDetailScreen extends StatelessWidget {
                                   children: [
                                     const Icon(Icons.water_drop_rounded, size: 14, color: AppColors.blue),
                                     const SizedBox(width: 8),
-                                    Expanded(child: Text(w.note, style: AppText.caption)),
-                                    Text('${w.liters.round()}L · ${relativeTime(w.at, now)}', style: AppText.tiny),
+                                    Expanded(
+                                      child: Text(
+                                        w.fieldId == null
+                                            ? w.note
+                                            : (w.smart
+                                                  ? context.l10n.smartWateringLog(field.cropName)
+                                                  : context.l10n.wateringLog(field.cropName)),
+                                        style: AppText.caption,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${w.liters.round()}L · ${context.l10n.relative(w.at, now)}',
+                                      style: AppText.tiny,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -174,11 +198,11 @@ class CropDetailScreen extends StatelessWidget {
                     ),
                     2,
                   ),
-                  const SectionTitle('최근 수확'),
+                  SectionTitle(context.l10n.recentHarvests),
                   rise(
                     AppCard(
                       child: harvests.isEmpty
-                          ? const Text('아직 수확 기록이 없습니다.', style: AppText.caption)
+                          ? Text(context.l10n.noHarvestYet, style: AppText.caption)
                           : Column(
                               children: [
                                 for (final h in harvests)
@@ -188,7 +212,7 @@ class CropDetailScreen extends StatelessWidget {
                                       children: [
                                         Text(h.emoji),
                                         const SizedBox(width: 10),
-                                        Expanded(child: Text(_date.format(h.date), style: AppText.body)),
+                                        Expanded(child: Text(_date(context, h.date), style: AppText.body)),
                                         Text('${h.amountKg.toStringAsFixed(1)}kg', style: AppText.h3),
                                       ],
                                     ),
@@ -207,7 +231,7 @@ class CropDetailScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: PrimaryButton(
-                      label: '물 주기',
+                      label: context.l10n.waterAction,
                       icon: Icons.water_drop_outlined,
                       filled: false,
                       onTap: () => waterFieldWithFeedback(context, field),
@@ -216,11 +240,11 @@ class CropDetailScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: PrimaryButton(
-                      label: '수확 기록',
+                      label: context.l10n.recordHarvest,
                       icon: Icons.add_rounded,
                       onTap: () async {
                         final saved = await showHarvestSheet(context, field: field);
-                        if (saved && context.mounted) showMessage(context, '수확을 기록했습니다.');
+                        if (saved && context.mounted) showMessage(context, context.l10n.harvestSaved);
                       },
                     ),
                   ),

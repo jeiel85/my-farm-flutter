@@ -24,7 +24,7 @@ void main() {
     expect(r.daily, hasLength(2));
     expect(r.daily[1].rainChance, 80);
     expect(r.daily[1].minC, 0);
-    expect(describeWeather(r.daily[1].code).$1, '비');
+    expect(describeWeather(r.daily[1].code).$1, WeatherCondition.rain);
   });
 
   test('서버 오류는 WeatherException으로 바꾼다', () async {

@@ -8,16 +8,24 @@ import 'features/farm/farm_screen.dart';
 import 'features/harvest/harvest_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/profile/profile_screen.dart';
+import 'l10n/l10n.dart';
 
 enum AppTab {
-  home('홈', Icons.home_outlined, Icons.home_rounded),
-  farm('농장', Icons.spa_outlined, Icons.spa_rounded),
-  analytics('분석', Icons.bar_chart_outlined, Icons.bar_chart_rounded),
-  harvest('수확', Icons.inventory_2_outlined, Icons.inventory_2_rounded),
-  profile('프로필', Icons.person_outline_rounded, Icons.person_rounded);
+  home(Icons.home_outlined, Icons.home_rounded),
+  farm(Icons.spa_outlined, Icons.spa_rounded),
+  analytics(Icons.bar_chart_outlined, Icons.bar_chart_rounded),
+  harvest(Icons.inventory_2_outlined, Icons.inventory_2_rounded),
+  profile(Icons.person_outline_rounded, Icons.person_rounded);
 
-  const AppTab(this.label, this.icon, this.activeIcon);
-  final String label;
+  const AppTab(this.icon, this.activeIcon);
+
+  String label(AppLocalizations l) => switch (this) {
+    AppTab.home => l.tabHome,
+    AppTab.farm => l.tabFarm,
+    AppTab.analytics => l.tabAnalytics,
+    AppTab.harvest => l.tabHarvest,
+    AppTab.profile => l.tabProfile,
+  };
   final IconData icon;
   final IconData activeIcon;
 }
@@ -54,8 +62,10 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       body: Column(
         children: [
-          if (store.loadNotice != null) _Banner(text: store.loadNotice!, onClose: store.dismissLoadNotice),
-          if (store.saveError != null) _Banner(text: store.saveError!, color: AppColors.red),
+          if (store.recoveredFromCorruptData)
+            _Banner(text: context.l10n.recoveredNotice, onClose: store.dismissLoadNotice),
+          if (store.saveError != null)
+            _Banner(text: context.l10n.saveFailed('${store.saveError}'), color: AppColors.red),
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 380),
@@ -152,7 +162,7 @@ class _BarItem extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     selected: active,
     button: true,
-    label: tab.label,
+    label: tab.label(context.l10n),
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -182,7 +192,7 @@ class _BarItem extends StatelessWidget {
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             color: active ? AppColors.primary : AppColors.muted,
           ),
-          child: Text(tab.label),
+          child: Text(tab.label(context.l10n)),
         ),
       ],
     ),

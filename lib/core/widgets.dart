@@ -374,21 +374,4 @@ void showMessage(BuildContext context, String message) {
     ..showSnackBar(SnackBar(content: Text(message), duration: const Duration(milliseconds: 2200)));
 }
 
-String relativeTime(DateTime target, DateTime now) {
-  final diff = target.difference(now);
-  final mins = diff.inMinutes.abs();
-  final future = !diff.isNegative;
-  String span;
-  if (mins < 1) {
-    return '지금';
-  } else if (mins < 60) {
-    span = '$mins분';
-  } else if (mins < 60 * 24) {
-    span = '${(mins / 60).floor()}시간';
-  } else {
-    span = '${(mins / 1440).floor()}일';
-  }
-  return future ? '$span 후' : '$span 전';
-}
-
 String hm(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';

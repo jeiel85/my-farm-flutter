@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
+import '../../l10n/l10n.dart';
 
 /// 현재 데이터를 JSON 백업 파일로 저장한다(웹은 내려받기).
 Future<void> exportBackupFile(BuildContext context) async {
@@ -19,20 +20,20 @@ Future<void> exportBackupFile(BuildContext context) async {
       fileName: name,
       bytes: bytes,
       mimeType: 'application/json',
-      dialogTitle: '백업 파일 저장',
+      dialogTitle: context.l10n.saveBackupDialog,
       type: FileType.custom,
       allowedExtensions: const ['json'],
     );
     if (!context.mounted) return;
     if (uri == null) {
-      showMessage(context, '백업 저장을 취소했습니다.');
+      showMessage(context, context.l10n.backupCancelled);
     } else {
       await store.markBackedUp();
       if (!context.mounted) return;
-      showMessage(context, '백업을 저장했습니다: ${savedFileName(uri, name)}');
+      showMessage(context, context.l10n.backupSaved(savedFileName(uri, name)));
     }
   } catch (e) {
-    if (context.mounted) showMessage(context, '백업을 저장하지 못했습니다: $e');
+    if (context.mounted) showMessage(context, context.l10n.backupFailed('$e'));
   }
 }
 
@@ -40,9 +41,13 @@ Future<void> exportBackupFile(BuildContext context) async {
 Future<void> importBackupFile(BuildContext context) async {
   final PlatformFile? file;
   try {
-    file = await FilePicker.pickFile(dialogTitle: '백업 파일 선택', type: FileType.custom, allowedExtensions: const ['json']);
+    file = await FilePicker.pickFile(
+      dialogTitle: context.l10n.pickBackupDialog,
+      type: FileType.custom,
+      allowedExtensions: const ['json'],
+    );
   } catch (e) {
-    if (context.mounted) showMessage(context, '파일을 열지 못했습니다: $e');
+    if (context.mounted) showMessage(context, context.l10n.openFailed('$e'));
     return;
   }
   if (file == null || !context.mounted) return;
@@ -50,11 +55,19 @@ Future<void> importBackupFile(BuildContext context) async {
   final BackupContents contents;
   try {
     contents = FarmStore.parseBackup(await file.xFile.readAsString());
-  } on FormatException catch (e) {
-    if (context.mounted) showMessage(context, '복원할 수 없는 파일입니다: ${e.message}');
+  } on BackupException catch (e) {
+    if (!context.mounted) return;
+    final l = context.l10n;
+    final reason = switch (e.problem) {
+      BackupProblem.notJson => l.backupNotJson,
+      BackupProblem.notBackup => l.backupNotOurs,
+      BackupProblem.damaged => l.backupDamaged,
+      BackupProblem.newerVersion => l.backupNewer,
+    };
+    showMessage(context, l.restoreRejected(reason));
     return;
   } catch (e) {
-    if (context.mounted) showMessage(context, '파일을 읽지 못했습니다: $e');
+    if (context.mounted) showMessage(context, context.l10n.readFailed('$e'));
     return;
   }
   if (!context.mounted) return;
@@ -63,29 +76,32 @@ Future<void> importBackupFile(BuildContext context) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('백업에서 복원'),
+      title: Text(context.l10n.restoreTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(file!.name, style: AppText.caption),
           const SizedBox(height: 10),
-          Text('${s.profile.name} · 가축 ${s.animals.length}마리 · 수확 기록 ${s.harvests.length}건 · 할 일 ${s.tasks.length}개'),
+          Text(context.l10n.restoreSummary(s.profile.name, s.animals.length, s.harvests.length, s.tasks.length)),
           if (contents.exportedAt != null)
-            Text('만든 시각: ${DateFormat('yyyy.M.d HH:mm').format(contents.exportedAt!)}', style: AppText.caption),
+            Text(
+              context.l10n.backupMadeAt(DateFormat.yMd(context.localeName).add_Hm().format(contents.exportedAt!)),
+              style: AppText.caption,
+            ),
           const SizedBox(height: 10),
-          const Text('지금 데이터는 이 백업으로 바뀝니다. 바뀌기 전 데이터는 앱 안에 따로 보관됩니다.'),
+          Text(context.l10n.restoreWarning),
         ],
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('복원')),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.l10n.cancel)),
+        TextButton(onPressed: () => Navigator.pop(context, true), child: Text(context.l10n.restore)),
       ],
     ),
   );
   if (ok != true || !context.mounted) return;
   await FarmScope.read(context).restoreBackup(s);
-  if (context.mounted) showMessage(context, '백업에서 복원했습니다.');
+  if (context.mounted) showMessage(context, context.l10n.restored);
 }
 
 /// 저장된 위치(file·content·blob URI)에서 사람이 읽을 파일 이름을 뽑는다. 알 수 없으면 [fallback].

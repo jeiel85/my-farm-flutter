@@ -9,6 +9,7 @@ import '../../data/models.dart';
 import 'animal_detail_screen.dart';
 import 'animal_sheets.dart';
 import 'care_widgets.dart';
+import '../../l10n/l10n.dart';
 
 class LivestockScreen extends StatefulWidget {
   const LivestockScreen({super.key});
@@ -33,14 +34,14 @@ class _LivestockScreenState extends State<LivestockScreen> {
         child: Column(
           children: [
             PageHeader(
-              title: '가축 관리',
+              title: context.l10n.livestockTitle,
               subtitle: store.state.profile.name,
               trailing: Pressable(
                 onTap: () async {
                   final added = await showAddAnimalSheet(context, _kind);
                   if (added == null || !context.mounted) return;
                   setState(() => _kind = added.kind);
-                  showMessage(context, '${added.name}(${added.tag})을(를) 입식했습니다.');
+                  showMessage(context, context.l10n.animalAdded(added.name, added.tag));
                 },
                 child: Container(
                   width: 40,
@@ -68,7 +69,7 @@ class _LivestockScreenState extends State<LivestockScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text('전체 가축', style: AppText.caption),
+                                          Text(context.l10n.allAnimals, style: AppText.caption),
                                           Row(
                                             crossAxisAlignment: CrossAxisAlignment.baseline,
                                             textBaseline: TextBaseline.alphabetic,
@@ -81,15 +82,19 @@ class _LivestockScreenState extends State<LivestockScreen> {
                                                     Text('${v.round()}', style: AppText.title.copyWith(fontSize: 34)),
                                               ),
                                               const SizedBox(width: 4),
-                                              const Text('마리', style: AppText.caption),
+                                              Text(context.l10n.animalsUnit, style: AppText.caption),
                                             ],
                                           ),
                                         ],
                                       ),
                                     ),
                                     care == 0
-                                        ? const Tag('모두 건강', icon: Icons.verified_user_outlined)
-                                        : Tag('$care마리 관리 필요', color: AppColors.orange, icon: Icons.healing_outlined),
+                                        ? Tag(context.l10n.allHealthy, icon: Icons.verified_user_outlined)
+                                        : Tag(
+                                            context.l10n.needCareCount(care),
+                                            color: AppColors.orange,
+                                            icon: Icons.healing_outlined,
+                                          ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
@@ -99,22 +104,26 @@ class _LivestockScreenState extends State<LivestockScreen> {
                                     RingStat(
                                       value: store.herdHealth,
                                       color: AppColors.primary,
-                                      label: '건강',
-                                      caption: store.herdHealth >= 0.9 ? '아주 좋음' : '살펴보기',
+                                      label: context.l10n.healthLabel,
+                                      caption: store.herdHealth >= 0.9 ? context.l10n.healthy : context.l10n.checkUp,
                                     ),
                                     RingStat(
                                       value: feedDays == null ? 0 : feedDays / FarmStore.feedTargetDays,
                                       color: AppColors.orange,
-                                      label: '사료',
-                                      caption: feedDays == null ? '기록 없음' : '${feedDays.floor()}일분 재고',
+                                      label: context.l10n.feedLabel,
+                                      caption: feedDays == null
+                                          ? context.l10n.noRecords
+                                          : context.l10n.daysOfFeed(feedDays.floor()),
                                     ),
                                     Pressable(
                                       onTap: () => _showProductionSheet(context),
                                       child: RingStat(
                                         value: production ?? 0,
                                         color: AppColors.blue,
-                                        label: '생산',
-                                        caption: store.todayProduction == null ? '오늘 기록하기 ›' : '목표 대비',
+                                        label: context.l10n.production,
+                                        caption: store.todayProduction == null
+                                            ? context.l10n.recordToday
+                                            : context.l10n.vsTarget,
                                       ),
                                     ),
                                   ],
@@ -134,7 +143,7 @@ class _LivestockScreenState extends State<LivestockScreen> {
                           ),
                           1,
                         ),
-                        const SectionTitle('종류', subtitle: '눌러서 그 무리를 봅니다'),
+                        SectionTitle(context.l10n.kinds, subtitle: context.l10n.kindsHint),
                         rise(
                           Row(
                             children: [
@@ -153,15 +162,18 @@ class _LivestockScreenState extends State<LivestockScreen> {
                           ),
                           2,
                         ),
-                        SectionTitle('우리 ${_kind.label}', subtitle: '${animals.length}${_kind.unit} · 눌러서 자세히 보기'),
+                        SectionTitle(
+                          context.l10n.ourHerd(context.l10n.kind(_kind)),
+                          subtitle: context.l10n.herdSubtitle(context.l10n.animalCount(animals.length)),
+                        ),
                       ],
                     ),
                   ),
                   if (animals.isEmpty)
-                    const SliverPadding(
+                    SliverPadding(
                       padding: EdgeInsets.symmetric(horizontal: 20),
                       sliver: SliverToBoxAdapter(
-                        child: AppCard(child: Text('이 종류의 가축이 없습니다. 오른쪽 위 + 로 입식하세요.', style: AppText.caption)),
+                        child: AppCard(child: Text(context.l10n.noAnimalsOfKind, style: AppText.caption)),
                       ),
                     ),
                   SliverPadding(
@@ -176,7 +188,7 @@ class _LivestockScreenState extends State<LivestockScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
                     sliver: SliverList.list(
                       children: [
-                        const SectionTitle('입식·출하 이력', subtitle: '최근 10건'),
+                        SectionTitle(context.l10n.animalHistory, subtitle: context.l10n.recent10),
                         AnimalHistoryCard(events: store.state.animalEvents),
                       ],
                     ),
@@ -208,33 +220,36 @@ class _LivestockScreenState extends State<LivestockScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('오늘 생산량', style: AppText.h2),
+              Text(context.l10n.todayProduction, style: AppText.h2),
               const SizedBox(height: 4),
               Text(
-                '목표: 달걀 ${store.state.profile.dailyEggTarget}개 · 우유 ${store.state.profile.dailyMilkTargetL.round()}L',
+                context.l10n.productionTargets(
+                  store.state.profile.dailyEggTarget,
+                  store.state.profile.dailyMilkTargetL.round(),
+                ),
                 style: AppText.caption,
               ),
               const SizedBox(height: 14),
               TextField(
                 controller: eggs,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '달걀', suffixText: '개'),
+                decoration: InputDecoration(labelText: context.l10n.eggs, suffixText: context.l10n.unitEggs),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: milk,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: '우유', suffixText: 'L', errorText: error),
+                decoration: InputDecoration(labelText: context.l10n.milk, suffixText: 'L', errorText: error),
               ),
               const SizedBox(height: 16),
               PrimaryButton(
-                label: '저장',
+                label: context.l10n.save,
                 icon: Icons.check_rounded,
                 onTap: () async {
                   final e = int.tryParse(eggs.text.trim());
                   final m = double.tryParse(milk.text.replaceAll(',', '.').trim());
                   if (e == null || e < 0 || m == null || m < 0) {
-                    setSheet(() => error = '0 이상의 숫자로 입력하세요.');
+                    setSheet(() => error = context.l10n.mustBeNonNegative);
                     return;
                   }
                   await store.recordProduction(eggs: e, milkL: m);
@@ -269,9 +284,9 @@ class _FeedingCard extends StatelessWidget {
                 child: Icon(Icons.schedule_rounded, size: 16, color: AppColors.orange),
               ),
               const SizedBox(width: 10),
-              const Expanded(child: Text('오늘의 급이', style: AppText.h3)),
+              Expanded(child: Text(context.l10n.todayFeeding, style: AppText.h3)),
               Tag(
-                '${done.length}/${slots.length} 완료',
+                context.l10n.doneOf(done.length, slots.length),
                 color: done.length == slots.length ? AppColors.primary : AppColors.muted,
               ),
             ],
@@ -287,7 +302,7 @@ class _FeedingCard extends StatelessWidget {
                       HapticFeedback.lightImpact();
                       final shortages = await FarmScope.read(context).toggleFeeding(i);
                       if (shortages.isNotEmpty && context.mounted) {
-                        showMessage(context, '재고가 모자라 남은 만큼만 차감했습니다: ${shortages.join(', ')}');
+                        showMessage(context, context.l10n.feedShortage(shortages.join(', ')));
                       }
                     },
                     child: Column(
@@ -312,8 +327,10 @@ class _FeedingCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           done.contains(i)
-                              ? '완료'
-                              : (now.hour * 60 + now.minute > slots[i].hour * 60 + slots[i].minute ? '지남' : '예정'),
+                              ? context.l10n.feedDone
+                              : (now.hour * 60 + now.minute > slots[i].hour * 60 + slots[i].minute
+                                    ? context.l10n.feedLate
+                                    : context.l10n.feedPlanned),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -415,7 +432,7 @@ class _KindCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text('$count', style: AppText.h3.copyWith(fontSize: 17)),
-          Text(kind.label, style: AppText.tiny),
+          Text(context.l10n.kind(kind), style: AppText.tiny),
         ],
       ),
     ),
@@ -455,13 +472,13 @@ class _AnimalTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(animal.name, style: AppText.h3),
-                  Text(animal.breed, style: AppText.caption),
+                  Text(animal.breed.isEmpty ? context.l10n.unknownBreed : animal.breed, style: AppText.caption),
                   const SizedBox(height: 5),
                   Row(
                     children: [
                       Tag(animal.tag, color: AppColors.muted, icon: Icons.sell_outlined),
                       const SizedBox(width: 6),
-                      Tag(animal.ageLabel(now), color: AppColors.orange),
+                      Tag(context.l10n.age(animal, now), color: AppColors.orange),
                     ],
                   ),
                 ],

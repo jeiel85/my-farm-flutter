@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
+import '../../l10n/l10n.dart';
 
 final _num = NumberFormat('#,##0.#');
 
@@ -36,16 +37,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return SafeArea(
       bottom: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        padding: EdgeInsets.fromLTRB(20, 8, 20, 28),
         children: [
-          rise(const Text('분석', style: AppText.title), 0),
-          const SizedBox(height: 14),
+          rise(Text(context.l10n.analyticsTitle, style: AppText.title), 0),
+          SizedBox(height: 14),
           rise(
             SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 7, label: Text('7일')),
-                ButtonSegment(value: 14, label: Text('14일')),
-                ButtonSegment(value: 30, label: Text('30일')),
+              segments: [
+                ButtonSegment(value: 7, label: Text(context.l10n.periodDays(7))),
+                ButtonSegment(value: 14, label: Text(context.l10n.periodDays(14))),
+                ButtonSegment(value: 30, label: Text(context.l10n.periodDays(30))),
               ],
               selected: {_days},
               showSelectedIcon: false,
@@ -72,32 +73,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 _Summary(
                   icon: Icons.inventory_2_rounded,
                   color: AppColors.primary,
-                  label: '수확량',
+                  label: context.l10n.harvestAmount,
                   value: '${_num.format(harvestKg)}kg',
                 ),
                 _Summary(
                   icon: Icons.water_drop_rounded,
                   color: AppColors.blue,
-                  label: '물 사용',
+                  label: context.l10n.waterUse,
                   value: '${_num.format(waterTotal)}L',
                 ),
                 _Summary(
                   icon: Icons.egg_rounded,
                   color: AppColors.orange,
-                  label: '하루 평균 달걀',
-                  value: avgEggs == null ? '기록 없음' : '${avgEggs.toStringAsFixed(1)}개',
+                  label: context.l10n.avgDailyEggs,
+                  value: avgEggs == null ? context.l10n.noRecords : context.l10n.eggsValue(avgEggs.toStringAsFixed(1)),
                 ),
                 _Summary(
                   icon: Icons.local_drink_rounded,
                   color: const Color(0xFF8A7BD8),
-                  label: '하루 평균 우유',
-                  value: avgMilk == null ? '기록 없음' : '${avgMilk.toStringAsFixed(1)}L',
+                  label: context.l10n.avgDailyMilk,
+                  value: avgMilk == null ? context.l10n.noRecords : '${avgMilk.toStringAsFixed(1)}L',
                 ),
               ],
             ),
             2,
           ),
-          SectionTitle('달걀 생산', subtitle: '점선은 하루 목표 ${profile.dailyEggTarget}개'),
+          SectionTitle(context.l10n.eggProduction, subtitle: context.l10n.eggTargetLine(profile.dailyEggTarget)),
           rise(
             _ChartCard(
               child: _line(
@@ -112,7 +113,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             3,
           ),
-          SectionTitle('우유 생산', subtitle: '점선은 하루 목표 ${profile.dailyMilkTargetL.round()}L'),
+          SectionTitle(
+            context.l10n.milkProduction,
+            subtitle: context.l10n.milkTargetLine(profile.dailyMilkTargetL.round()),
+          ),
           rise(
             _ChartCard(
               child: _line(
@@ -127,13 +131,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             4,
           ),
-          const SectionTitle('일별 물 사용량'),
+          SectionTitle(context.l10n.dailyWaterUse),
           rise(_ChartCard(child: _bars(water)), 5),
-          const SectionTitle('작물별 누적 수확'),
+          SectionTitle(context.l10n.harvestByCrop),
           rise(
             AppCard(
               child: totals.isEmpty
-                  ? const Text('수확 기록이 없습니다.', style: AppText.caption)
+                  ? Text(context.l10n.noHarvestRecords, style: AppText.caption)
                   : Column(
                       children: [
                         for (final (name, emoji, kg) in totals)

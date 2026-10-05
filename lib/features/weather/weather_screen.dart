@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/weather.dart';
+import '../../l10n/l10n.dart';
 
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});
@@ -29,18 +30,18 @@ class _WeatherScreenState extends State<WeatherScreen> {
     final out = <(IconData, String)>[];
     final today = r.daily.isEmpty ? null : r.daily.first;
     if (r.todayRainChance >= 60) {
-      out.add((Icons.umbrella_rounded, '오늘 비 올 확률이 ${r.todayRainChance}%예요. 노지 밭 관수는 미뤄도 좋아요.'));
+      out.add((Icons.umbrella_rounded, context.l10n.adviceRain(r.todayRainChance)));
     }
     if ((today?.maxC ?? r.temperatureC) >= 30) {
-      out.add((Icons.thermostat_rounded, '한낮 기온이 30°C를 넘어요. 가축 그늘과 물통을 확인하고 온실 환기를 늘리세요.'));
+      out.add((Icons.thermostat_rounded, context.l10n.adviceHeat));
     }
     if ((today?.minC ?? r.temperatureC) <= 2) {
-      out.add((Icons.ac_unit_rounded, '최저 기온이 ${today?.minC.round()}°C예요. 서리 피해에 대비해 보온을 해 주세요.'));
+      out.add((Icons.ac_unit_rounded, context.l10n.adviceFrost((today?.minC ?? r.temperatureC).round())));
     }
     if (r.windKmh >= 30) {
-      out.add((Icons.air_rounded, '바람이 강해요(${r.windKmh.round()}km/h). 온실 비닐과 지주대를 점검하세요.'));
+      out.add((Icons.air_rounded, context.l10n.adviceWind(r.windKmh.round())));
     }
-    if (out.isEmpty) out.add((Icons.thumb_up_alt_rounded, '밭일하기 좋은 날씨예요.'));
+    if (out.isEmpty) out.add((Icons.thumb_up_alt_rounded, context.l10n.adviceGood));
     return out;
   }
 
@@ -54,7 +55,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
         child: Column(
           children: [
             PageHeader(
-              title: '날씨',
+              title: context.l10n.weather,
               subtitle: profile.locationLabel,
               trailing: IconButton(
                 onPressed: weather.loading
@@ -72,11 +73,15 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               children: [
                                 const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.muted),
                                 const SizedBox(height: 8),
-                                Text(weather.error!, style: AppText.caption, textAlign: TextAlign.center),
+                                Text(
+                                  weatherErrorText(context, weather.error!),
+                                  style: AppText.caption,
+                                  textAlign: TextAlign.center,
+                                ),
                                 TextButton(
                                   onPressed: () =>
                                       weather.ensureLoaded(profile.latitude, profile.longitude, force: true),
-                                  child: const Text('다시 시도'),
+                                  child: Text(context.l10n.retry),
                                 ),
                               ],
                             )
@@ -86,7 +91,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                       children: [
                         rise(_Current(report: r), 0),
-                        const SectionTitle('농장 조언'),
+                        SectionTitle(context.l10n.farmAdvice),
                         for (final (i, (icon, text)) in _advice(r).indexed)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8),
@@ -104,7 +109,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               1 + i,
                             ),
                           ),
-                        const SectionTitle('5일 예보'),
+                        SectionTitle(context.l10n.forecast5),
                         rise(
                           AppCard(
                             child: Column(
@@ -116,11 +121,19 @@ class _WeatherScreenState extends State<WeatherScreen> {
                                       children: [
                                         SizedBox(
                                           width: 64,
-                                          child: Text(DateFormat('E d일', 'ko').format(d.date), style: AppText.body),
+                                          child: Text(
+                                            DateFormat.MEd(context.localeName).format(d.date),
+                                            style: AppText.body,
+                                          ),
                                         ),
                                         Icon(describeWeather(d.code).$2, size: 20, color: AppColors.orange),
                                         const SizedBox(width: 8),
-                                        Expanded(child: Text(describeWeather(d.code).$1, style: AppText.caption)),
+                                        Expanded(
+                                          child: Text(
+                                            context.l10n.weatherText(describeWeather(d.code).$1),
+                                            style: AppText.caption,
+                                          ),
+                                        ),
                                         Text('💧${d.rainChance}%', style: AppText.caption),
                                         const SizedBox(width: 12),
                                         Text(
@@ -137,7 +150,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         ),
                         const SizedBox(height: 14),
                         Text(
-                          '날씨 데이터: Open-Meteo.com (CC BY 4.0) · ${DateFormat('HH:mm').format(r.fetchedAt)} 갱신',
+                          context.l10n.weatherUpdated(DateFormat('HH:mm').format(r.fetchedAt)),
                           style: AppText.tiny,
                           textAlign: TextAlign.center,
                         ),
@@ -158,7 +171,8 @@ class _Current extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, icon) = describeWeather(report.code);
+    final (condition, icon) = describeWeather(report.code);
+    final label = context.l10n.weatherText(condition);
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -190,11 +204,11 @@ class _Current extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              _Pill(Icons.water_drop_outlined, '습도 ${report.humidity}%'),
+              _Pill(Icons.water_drop_outlined, context.l10n.humidity(report.humidity)),
               const SizedBox(width: 8),
-              _Pill(Icons.air_rounded, '바람 ${report.windKmh.round()}km/h'),
+              _Pill(Icons.air_rounded, context.l10n.wind(report.windKmh.round())),
               const SizedBox(width: 8),
-              _Pill(Icons.umbrella_outlined, '강수 ${report.todayRainChance}%'),
+              _Pill(Icons.umbrella_outlined, context.l10n.rainChance(report.todayRainChance)),
             ],
           ),
         ],

@@ -4,6 +4,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import 'crop_detail_screen.dart';
+import '../../l10n/l10n.dart';
 
 class CropsScreen extends StatelessWidget {
   const CropsScreen({super.key});
@@ -17,7 +18,7 @@ class CropsScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            PageHeader(title: '내 작물', subtitle: '수확이 가까운 순'),
+            PageHeader(title: context.l10n.myCrops, subtitle: context.l10n.byHarvestDate),
             Expanded(
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
@@ -51,16 +52,16 @@ class CropsScreen extends StatelessWidget {
                                     children: [
                                       Text(f.cropName, style: AppText.h3),
                                       Text(
-                                        '${f.zone.label} · ${days == 0 ? '수확 가능' : '수확까지 $days일'}',
+                                        '${context.l10n.zone(f.zone)} · ${days == 0 ? context.l10n.harvestReady : context.l10n.daysToHarvest(days)}',
                                         style: AppText.caption,
                                       ),
                                     ],
                                   ),
                                 ),
                                 if (f.needsWater(now))
-                                  const Tag('물 필요', color: AppColors.blue, icon: Icons.water_drop_outlined),
+                                  Tag(context.l10n.needsWater, color: AppColors.blue, icon: Icons.water_drop_outlined),
                                 const SizedBox(width: 6),
-                                Tag(f.status.label, color: f.status.color),
+                                Tag(context.l10n.status(f.status), color: f.status.color),
                               ],
                             ),
                             const SizedBox(height: 12),

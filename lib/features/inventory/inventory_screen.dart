@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
+import '../../l10n/l10n.dart';
 
 final _qty = NumberFormat('#,##0.#');
 
@@ -19,7 +20,7 @@ class InventoryScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            PageHeader(title: '재고', subtitle: '눌러서 입고·사용 기록'),
+            PageHeader(title: context.l10n.inventory, subtitle: context.l10n.inventoryHint),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
@@ -27,8 +28,8 @@ class InventoryScreen extends StatelessWidget {
                   for (final cat in InventoryCategory.values) ...[
                     if (store.state.inventory.any((i) => i.category == cat)) ...[
                       SectionTitle(
-                        cat.label,
-                        subtitle: cat == InventoryCategory.feed ? '급이를 완료할 때마다 하루 사용량 ÷ 급이 횟수만큼 자동으로 빠집니다' : null,
+                        context.l10n.inventoryCategory(cat),
+                        subtitle: cat == InventoryCategory.feed ? context.l10n.feedAutoDeduct : null,
                       ),
                       for (final item in store.state.inventory.where((i) => i.category == cat))
                         Padding(
@@ -66,7 +67,8 @@ class _ItemTile extends StatelessWidget {
             Row(
               children: [
                 Expanded(child: Text(item.name, style: AppText.h3)),
-                if (item.isLow) const Tag('부족', color: AppColors.orange, icon: Icons.warning_amber_rounded),
+                if (item.isLow)
+                  Tag(context.l10n.shortLabel, color: AppColors.orange, icon: Icons.warning_amber_rounded),
                 const SizedBox(width: 8),
                 Text('${_qty.format(item.quantity)} ${item.unit}', style: AppText.h3),
               ],
@@ -90,11 +92,13 @@ class _ItemTile extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  days == null ? '소비 예측 없음' : '하루 ${_qty.format(item.dailyUse)}${item.unit} 사용 · 약 ${days.floor()}일분',
+                  days == null
+                      ? context.l10n.noForecast
+                      : context.l10n.dailyUseLeft(_qty.format(item.dailyUse), item.unit, days.floor()),
                   style: AppText.tiny,
                 ),
                 const Spacer(),
-                Text('기준 ${_qty.format(item.lowThreshold)}${item.unit}', style: AppText.tiny),
+                Text(context.l10n.threshold(_qty.format(item.lowThreshold), item.unit), style: AppText.tiny),
               ],
             ),
           ],
@@ -116,11 +120,11 @@ class _ItemTile extends StatelessWidget {
           Future<void> apply(double sign) async {
             final v = double.tryParse(controller.text.replaceAll(',', '.').trim());
             if (v == null || v <= 0) {
-              setSheet(() => error = '0보다 큰 숫자로 입력하세요.');
+              setSheet(() => error = context.l10n.mustBePositive);
               return;
             }
             if (sign < 0 && v > item.quantity) {
-              setSheet(() => error = '현재 재고(${_qty.format(item.quantity)}${item.unit})보다 많이 쓸 수 없습니다.');
+              setSheet(() => error = context.l10n.cannotUseMore(_qty.format(item.quantity), item.unit));
               return;
             }
             await FarmScope.read(context).adjustInventory(item.id, sign * v);
@@ -134,20 +138,24 @@ class _ItemTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.name, style: AppText.h2),
-                Text('현재 ${_qty.format(item.quantity)} ${item.unit}', style: AppText.caption),
+                Text(context.l10n.currentStock(_qty.format(item.quantity), item.unit), style: AppText.caption),
                 const SizedBox(height: 14),
                 TextField(
                   controller: controller,
                   autofocus: true,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(labelText: '수량', suffixText: item.unit, errorText: error),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.quantity,
+                    suffixText: item.unit,
+                    errorText: error,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: PrimaryButton(
-                        label: '사용',
+                        label: context.l10n.useStock,
                         icon: Icons.remove_rounded,
                         filled: false,
                         onTap: () => apply(-1),
@@ -155,7 +163,11 @@ class _ItemTile extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: PrimaryButton(label: '입고', icon: Icons.add_rounded, onTap: () => apply(1)),
+                      child: PrimaryButton(
+                        label: context.l10n.addStock,
+                        icon: Icons.add_rounded,
+                        onTap: () => apply(1),
+                      ),
                     ),
                   ],
                 ),

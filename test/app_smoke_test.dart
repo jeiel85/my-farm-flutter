@@ -14,10 +14,12 @@ import 'farm_store_test.dart' show MemoryStorage;
 void main() {
   setUpAll(() => initializeDateFormatting('ko'));
 
-  Future<FarmStore> pumpApp(WidgetTester tester) async {
+  Future<FarmStore> pumpApp(WidgetTester tester, {String locale = 'ko'}) async {
     await tester.binding.setSurfaceSize(const Size(400, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final store = await FarmStore.load(MemoryStorage(), clock: () => DateTime(2026, 10, 5, 14, 30));
+    // 테스트 환경의 기기 언어와 상관없이 화면 언어를 고정한다.
+    final storage = MemoryStorage()..meta['locale'] = locale;
+    final store = await FarmStore.load(storage, clock: () => DateTime(2026, 10, 5, 14, 30), english: locale == 'en');
     final weather = WeatherController(
       WeatherService(
         client: MockClient(
@@ -87,6 +89,27 @@ void main() {
       expect(tester.takeException(), isNull);
     }
     expect(find.text('농장 정보'), findsOneWidget);
+    await _unmount(tester);
+  });
+
+  testWidgets('영어로 바꾸면 화면과 예시 데이터가 영어로 나온다', (tester) async {
+    await pumpApp(tester, locale: 'en');
+    expect(find.text("Today's tasks"), findsOneWidget);
+    expect(find.text('Prune tomato suckers'), findsOneWidget);
+    expect(find.textContaining('°'), findsWidgets);
+
+    await tester.tap(find.text('Farm'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Tap a zone to explore'), findsOneWidget);
+
+    for (final tab in ['Analytics', 'Harvest', 'Profile']) {
+      await tester.tap(find.text(tab).last);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.takeException(), isNull);
+    }
+    expect(find.text('Farm details'), findsOneWidget);
     await _unmount(tester);
   });
 }

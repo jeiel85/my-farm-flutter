@@ -3,6 +3,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../../data/models.dart';
 import 'farm_world.dart';
+import '../../l10n/l10n.dart';
 
 /// 선택한 구역으로 카메라가 부드럽게 이동하는 농장 지도.
 /// [selected]가 null이면 전체 지도를 보여 준다.
@@ -94,6 +95,7 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
                   labelOpacity: widget.selected == null ? Curves.easeIn.transform(1 - focusT.clamp(0.0, 1.0)) : 0,
                   tankRatio: widget.tankRatio,
                   needsWater: widget.needsWater,
+                  zoneLabels: {for (final z in ZoneId.values) z: context.l10n.zoneShort(z)},
                 ),
               ),
             );

@@ -6,6 +6,7 @@ import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import '../crops/crop_actions.dart';
+import '../../l10n/l10n.dart';
 
 final _num = NumberFormat('#,##0.#');
 
@@ -24,7 +25,7 @@ class HarvestScreen extends StatelessWidget {
     // 월별로 묶는다.
     final groups = <String, List<HarvestRecord>>{};
     for (final h in harvests) {
-      groups.putIfAbsent(DateFormat('yyyy년 M월', 'ko').format(h.date), () => []).add(h);
+      groups.putIfAbsent(DateFormat.yMMMM(context.localeName).format(h.date), () => []).add(h);
     }
 
     var index = 3;
@@ -35,7 +36,7 @@ class HarvestScreen extends StatelessWidget {
           ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
             children: [
-              rise(const Text('수확', style: AppText.title), 0),
+              rise(Text(context.l10n.harvestTitle, style: AppText.title), 0),
               const SizedBox(height: 14),
               rise(
                 Container(
@@ -50,7 +51,10 @@ class HarvestScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('이번 달 수확', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                            Text(
+                              context.l10n.thisMonthHarvest,
+                              style: const TextStyle(color: Colors.white70, fontSize: 13),
+                            ),
                             TweenAnimationBuilder<double>(
                               tween: Tween(begin: 0, end: thisMonth),
                               duration: const Duration(milliseconds: 900),
@@ -61,7 +65,7 @@ class HarvestScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '누적 ${_num.format(total)}kg · ${harvests.length}건',
+                              context.l10n.harvestTotals(_num.format(total), harvests.length),
                               style: const TextStyle(color: Colors.white70, fontSize: 12),
                             ),
                           ],
@@ -74,9 +78,9 @@ class HarvestScreen extends StatelessWidget {
                 1,
               ),
               if (harvests.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 40),
-                  child: Center(child: Text('아직 수확 기록이 없습니다.', style: AppText.caption)),
+                  child: Center(child: Text(context.l10n.noHarvestYet, style: AppText.caption)),
                 ),
               for (final e in groups.entries) ...[
                 SectionTitle(e.key, subtitle: '${_num.format(e.value.fold(0.0, (s, h) => s + h.amountKg))}kg'),
@@ -93,11 +97,11 @@ class HarvestScreen extends StatelessWidget {
             right: 20,
             bottom: 16,
             child: PrimaryButton(
-              label: '수확 기록하기',
+              label: context.l10n.recordHarvestAction,
               icon: Icons.add_rounded,
               onTap: () async {
                 final saved = await showHarvestSheet(context);
-                if (saved && context.mounted) showMessage(context, '수확을 기록했습니다.');
+                if (saved && context.mounted) showMessage(context, context.l10n.harvestSaved);
               },
             ),
           ),
@@ -116,15 +120,19 @@ class _HarvestTile extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('수확 기록 삭제'),
+        title: Text(context.l10n.deleteHarvestTitle),
         content: Text(
-          '${DateFormat('M월 d일').format(record.date)} ${record.cropName} ${_num.format(record.amountKg)}kg 기록을 삭제할까요?\n삭제하면 되돌릴 수 없습니다.',
+          context.l10n.deleteHarvestBody(
+            DateFormat.MMMd(context.localeName).format(record.date),
+            record.cropName,
+            _num.format(record.amountKg),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('삭제', style: TextStyle(color: AppColors.red)),
+            child: Text(context.l10n.delete, style: const TextStyle(color: AppColors.red)),
           ),
         ],
       ),
@@ -151,7 +159,7 @@ class _HarvestTile extends StatelessWidget {
                 Text(record.cropName, style: AppText.h3),
                 Text(
                   [
-                    DateFormat('M월 d일 (E)', 'ko').format(record.date),
+                    DateFormat.MMMEd(context.localeName).format(record.date),
                     if (record.note.isNotEmpty) record.note,
                   ].join(' · '),
                   style: AppText.caption,
@@ -163,7 +171,7 @@ class _HarvestTile extends StatelessWidget {
           ),
           Text('${_num.format(record.amountKg)}kg', style: AppText.h3.copyWith(fontSize: 16)),
           IconButton(
-            tooltip: '삭제',
+            tooltip: context.l10n.delete,
             onPressed: () => _delete(context),
             icon: const Icon(Icons.delete_outline_rounded, color: AppColors.muted),
           ),

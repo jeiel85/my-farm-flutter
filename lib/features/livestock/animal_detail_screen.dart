@@ -8,8 +8,9 @@ import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import 'animal_sheets.dart';
 import 'care_widgets.dart';
+import '../../l10n/l10n.dart';
 
-final _date = DateFormat('yyyy년 M월 d일', 'ko');
+String _date(BuildContext context, DateTime d) => DateFormat.yMMMd(context.localeName).format(d);
 
 class AnimalDetailScreen extends StatefulWidget {
   const AnimalDetailScreen({super.key, required this.animalId});
@@ -50,7 +51,7 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
     final a = _original!;
     final weight = double.tryParse(_weight.text.replaceAll(',', '.').trim());
     if (weight == null || weight <= 0) {
-      setState(() => _weightError = '체중을 0보다 큰 숫자로 입력하세요.');
+      setState(() => _weightError = context.l10n.weightError);
       return;
     }
     final store = FarmScope.read(context);
@@ -63,7 +64,7 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
       ),
     );
     if (mounted) {
-      showMessage(context, '${a.name} 정보를 저장했습니다.');
+      showMessage(context, context.l10n.animalSaved(a.name));
       Navigator.of(context).pop();
     }
   }
@@ -71,14 +72,14 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final a = _original;
-    if (a == null) return const Scaffold(body: Center(child: Text('가축을 찾을 수 없습니다.')));
+    if (a == null) return Scaffold(body: Center(child: Text(context.l10n.animalNotFound)));
     final now = FarmScope.of(context).now;
     final healthColor = _health >= 90 ? AppColors.primary : (_health >= 80 ? AppColors.orange : AppColors.red);
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            PageHeader(title: a.name, subtitle: '${a.kind.label} · ${a.tag}'),
+            PageHeader(title: a.name, subtitle: '${context.l10n.kindOne(a.kind)} · ${a.tag}'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -101,22 +102,27 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(a.name, style: AppText.title),
-                          Text(a.breed, style: AppText.caption),
+                          Text(a.breed.isEmpty ? context.l10n.unknownBreed : a.breed, style: AppText.caption),
                           const SizedBox(height: 14),
                           Row(
                             children: [
                               Expanded(
-                                child: StatBox(label: '나이', value: a.ageLabel(now)),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: StatBox(label: '태어난 날', value: DateFormat('yy.M.d').format(a.birthDate)),
+                                child: StatBox(label: context.l10n.ageLabel, value: context.l10n.age(a, now)),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: StatBox(
-                                  label: '마지막 검진',
-                                  value: a.lastCheckup == null ? '기록 없음' : relativeTime(a.lastCheckup!, now),
+                                  label: context.l10n.bornOn,
+                                  value: DateFormat('yy.M.d').format(a.birthDate),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: StatBox(
+                                  label: context.l10n.lastCheckup,
+                                  value: a.lastCheckup == null
+                                      ? context.l10n.noRecords
+                                      : context.l10n.relative(a.lastCheckup!, now),
                                 ),
                               ),
                             ],
@@ -131,11 +137,11 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                     CareCard(
                       items: FarmScope.of(context).careFor(a),
                       onAdd: () => showAddCareSheet(context, kind: a.kind, animal: a),
-                      emptyText: '이 개체에 해당하는 일정이 없습니다.',
+                      emptyText: context.l10n.noCareForAnimal,
                     ),
                     1,
                   ),
-                  const SectionTitle('건강 점수', subtitle: '검진 결과를 0~100으로 기록합니다'),
+                  SectionTitle(context.l10n.healthScore, subtitle: context.l10n.healthScoreHint),
                   rise(
                     AppCard(
                       child: Column(
@@ -151,7 +157,9 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                               ),
                               const Spacer(),
                               Text(
-                                _health >= 90 ? '아주 좋음' : (_health >= 80 ? '관찰 필요' : '치료 필요'),
+                                _health >= 90
+                                    ? context.l10n.healthGreat
+                                    : (_health >= 80 ? context.l10n.healthWatch : context.l10n.healthTreat),
                                 style: AppText.caption,
                               ),
                             ],
@@ -168,17 +176,20 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                             contentPadding: EdgeInsets.zero,
                             value: _checkupToday,
                             onChanged: (v) => setState(() => _checkupToday = v ?? false),
-                            title: const Text('오늘 검진함으로 기록', style: AppText.body),
+                            title: Text(context.l10n.checkedToday, style: AppText.body),
                             subtitle: a.lastCheckup == null
                                 ? null
-                                : Text('이전 검진: ${_date.format(a.lastCheckup!)}', style: AppText.caption),
+                                : Text(
+                                    context.l10n.previousCheckup(_date(context, a.lastCheckup!)),
+                                    style: AppText.caption,
+                                  ),
                           ),
                         ],
                       ),
                     ),
                     1,
                   ),
-                  const SectionTitle('기록'),
+                  SectionTitle(context.l10n.records),
                   rise(
                     AppCard(
                       child: Column(
@@ -186,13 +197,20 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                           TextField(
                             controller: _weight,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: InputDecoration(labelText: '체중', suffixText: 'kg', errorText: _weightError),
+                            decoration: InputDecoration(
+                              labelText: context.l10n.weight,
+                              suffixText: 'kg',
+                              errorText: _weightError,
+                            ),
                           ),
                           const SizedBox(height: 10),
                           TextField(
                             controller: _note,
                             maxLines: 3,
-                            decoration: const InputDecoration(labelText: '메모', hintText: '예: 오른쪽 앞발 약간 절뚝임'),
+                            decoration: InputDecoration(
+                              labelText: context.l10n.memo,
+                              hintText: context.l10n.animalNoteHint,
+                            ),
                           ),
                         ],
                       ),
@@ -208,20 +226,20 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                 children: [
                   Expanded(
                     child: PrimaryButton(
-                      label: '출하·폐사',
+                      label: context.l10n.removeAnimalAction,
                       icon: Icons.logout_rounded,
                       filled: false,
                       onTap: () async {
                         final removed = await showRemoveAnimalSheet(context, a);
                         if (!removed || !context.mounted) return;
-                        showMessage(context, '${a.name}을(를) 목록에서 뺐습니다. 이력에 남아 있습니다.');
+                        showMessage(context, context.l10n.animalRemoved(a.name));
                         Navigator.of(context).pop();
                       },
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: PrimaryButton(label: '저장', icon: Icons.check_rounded, onTap: _save),
+                    child: PrimaryButton(label: context.l10n.save, icon: Icons.check_rounded, onTap: _save),
                   ),
                 ],
               ),

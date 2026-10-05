@@ -69,7 +69,7 @@ void main() {
     final storage = MemoryStorage('{not json');
     final store = await FarmStore.load(storage, clock: clock);
     expect(storage.copiesLabeled('corrupt'), ['{not json']);
-    expect(store.loadNotice, isNotNull);
+    expect(store.recoveredFromCorruptData, isTrue);
     expect(store.totalAnimals, 48);
   });
 
@@ -77,7 +77,7 @@ void main() {
     final storage = MemoryStorage(jsonEncode({'schemaVersion': 99}));
     final store = await FarmStore.load(storage, clock: clock);
     expect(storage.copiesLabeled('corrupt'), hasLength(1));
-    expect(store.loadNotice, isNotNull);
+    expect(store.recoveredFromCorruptData, isTrue);
   });
 
   test('v1 저장본은 최신 형식으로 마이그레이션하고 원본을 따로 보관한다', () async {
@@ -89,7 +89,7 @@ void main() {
     final raw = jsonEncode(v1);
     final storage = MemoryStorage(raw);
     final store = await FarmStore.load(storage, clock: clock);
-    expect(store.loadNotice, isNull);
+    expect(store.recoveredFromCorruptData, isFalse);
     expect(store.totalAnimals, 48);
     expect(store.state.animalEvents, isEmpty);
     expect(storage.copiesLabeled('pre_migration_v1'), [raw]);
@@ -112,7 +112,7 @@ void main() {
     while (store.state.tankStoredL >= store.fieldById('orchard')!.litersPerWatering) {
       await store.waterField('orchard');
     }
-    expect(() => store.waterField('orchard'), throwsStateError);
+    expect(() => store.waterField('orchard'), throwsA(isA<InsufficientWaterException>()));
   });
 
   test('스마트 관수는 곧 물이 필요한 밭에만 물을 주고, 보충하면 가득 찬다', () async {
@@ -217,7 +217,8 @@ void main() {
       );
       expect(goat.tag, expected);
       expect(goat.name, '흰둥이');
-      expect(goat.breed, '미상');
+      // 빈 품종은 그대로 두고 화면에서 "품종 미상"으로 표시한다.
+      expect(goat.breed, isEmpty);
       expect(store.countOf(AnimalKind.goat), 5);
       expect(store.state.animalEvents.first.type, AnimalEventType.added);
       expect(store.nextTag(AnimalKind.goat), isNot(expected));
@@ -302,8 +303,9 @@ void main() {
     });
 
     test('형식이 다른 파일은 이유와 함께 거부한다', () {
-      expect(() => FarmStore.parseBackup('not json'), throwsA(isA<FormatException>()));
-      expect(() => FarmStore.parseBackup('{"format":"other"}'), throwsA(isA<FormatException>()));
+      Matcher problem(BackupProblem p) => throwsA(isA<BackupException>().having((e) => e.problem, 'problem', p));
+      expect(() => FarmStore.parseBackup('not json'), problem(BackupProblem.notJson));
+      expect(() => FarmStore.parseBackup('{"format":"other"}'), problem(BackupProblem.notBackup));
       expect(
         () => FarmStore.parseBackup(
           jsonEncode({
@@ -311,7 +313,7 @@ void main() {
             'state': {'schemaVersion': 99},
           }),
         ),
-        throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('더 새로운'))),
+        problem(BackupProblem.newerVersion),
       );
       expect(
         () => FarmStore.parseBackup(
@@ -320,7 +322,7 @@ void main() {
             'state': {'schemaVersion': 3},
           }),
         ),
-        throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('손상'))),
+        problem(BackupProblem.damaged),
       );
     });
 
@@ -365,7 +367,6 @@ void main() {
       final (store, _) = await fresh();
       final bella = store.animalById('cow-0')!;
       expect(store.careFor(bella).map((c) => c.id), ['c3', 'c1']);
-      expect(store.careTargetLabel(store.pendingCare.firstWhere((c) => c.id == 'c1')), '소 전체');
     });
 
     test('가축을 출하하면 그 개체만의 남은 일정은 사라진다', () async {
@@ -412,5 +413,24 @@ void main() {
       expect(reopened.lastBackupAt, isNotNull);
       expect(reopened.shouldRemindBackup, isFalse);
     });
+  });
+
+  test('기기 언어가 영어면 예시 농장도 영어로 만든다', () async {
+    final store = await FarmStore.load(MemoryStorage(), clock: clock, english: true);
+    expect(store.state.profile.name, 'Green Valley Farm');
+    expect(store.animalById('cow-0')!.name, 'Bella');
+    expect(store.state.fields.first.cropName, 'Tomato');
+    await store.resetToDemo(english: false);
+    expect(store.state.profile.name, '초록골 농장');
+  });
+
+  test('언어 설정은 기기별 값으로 저장되고 다시 열어도 유지된다', () async {
+    final storage = MemoryStorage();
+    final store = await FarmStore.load(storage, clock: clock);
+    expect(store.localeOverride, isNull);
+    await store.setLocaleOverride('en');
+    expect((await FarmStore.load(storage, clock: clock)).localeOverride, 'en');
+    await store.setLocaleOverride(null);
+    expect((await FarmStore.load(storage, clock: clock)).localeOverride, isNull);
   });
 }

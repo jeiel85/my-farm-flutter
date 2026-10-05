@@ -6,6 +6,7 @@ import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import '../../data/weather.dart';
 import 'backup_actions.dart';
+import '../../l10n/l10n.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -55,8 +56,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String? _range(String? v, double min, double max) {
     final n = double.tryParse((v ?? '').replaceAll(',', '.').trim());
-    if (n == null) return '숫자를 입력하세요';
-    if (n < min || n > max) return '$min ~ $max 사이로 입력하세요';
+    if (n == null) return context.l10n.enterNumber;
+    if (n < min || n > max) return context.l10n.numberRange('$min', '$max');
     return null;
   }
 
@@ -77,30 +78,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _dirty = false);
     FocusScope.of(context).unfocus();
     WeatherScope.read(context).ensureLoaded(next.latitude, next.longitude, force: true);
-    showMessage(context, '농장 정보를 저장했습니다.');
+    showMessage(context, context.l10n.farmSaved);
   }
 
   Future<void> _reset() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('예시 농장으로 초기화'),
-        content: const Text('지금까지 기록한 작물·가축·수확·재고·할 일이 모두 지워지고 예시 데이터로 바뀝니다. 되돌릴 수 없습니다.'),
+        title: Text(context.l10n.resetTitle),
+        content: Text(context.l10n.resetBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('초기화', style: TextStyle(color: AppColors.red)),
+            child: Text(context.l10n.reset, style: const TextStyle(color: AppColors.red)),
           ),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     final store = FarmScope.read(context);
-    await store.resetToDemo();
+    await store.resetToDemo(english: Localizations.localeOf(context).languageCode != 'ko');
     _load(store.state.profile);
     setState(() => _dirty = false);
-    if (mounted) showMessage(context, '예시 농장으로 초기화했습니다.');
+    if (mounted) showMessage(context, context.l10n.resetDone);
   }
 
   Widget _field(
@@ -114,7 +115,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     child: TextFormField(
       controller: _c[key],
       keyboardType: number ? const TextInputType.numberWithOptions(decimal: true, signed: true) : TextInputType.text,
-      validator: validator ?? (v) => (v ?? '').trim().isEmpty ? '비워 둘 수 없습니다' : null,
+      validator: validator ?? (v) => (v ?? '').trim().isEmpty ? context.l10n.cannotBeEmpty : null,
       decoration: InputDecoration(labelText: label, suffixText: suffix),
     ),
   );
@@ -129,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
           children: [
-            rise(const Text('프로필', style: AppText.title), 0),
+            rise(Text(context.l10n.profileTitle, style: AppText.title), 0),
             const SizedBox(height: 14),
             rise(
               AppCard(
@@ -158,41 +159,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               1,
             ),
-            const SectionTitle('농장 정보'),
+            SectionTitle(context.l10n.farmInfo),
             rise(
               AppCard(
                 child: Column(
                   children: [
-                    _field('name', '농장 이름'),
-                    _field('area', '면적', suffix: 'ha', number: true, validator: (v) => _range(v, 0.01, 100000)),
-                    _field('location', '지역 이름'),
+                    _field('name', context.l10n.farmName),
+                    _field(
+                      'area',
+                      context.l10n.area,
+                      suffix: 'ha',
+                      number: true,
+                      validator: (v) => _range(v, 0.01, 100000),
+                    ),
+                    _field('location', context.l10n.locationName),
                     Row(
                       children: [
-                        Expanded(child: _field('lat', '위도', number: true, validator: (v) => _range(v, -90, 90))),
+                        Expanded(
+                          child: _field(
+                            'lat',
+                            context.l10n.latitude,
+                            number: true,
+                            validator: (v) => _range(v, -90, 90),
+                          ),
+                        ),
                         const SizedBox(width: 10),
-                        Expanded(child: _field('lon', '경도', number: true, validator: (v) => _range(v, -180, 180))),
+                        Expanded(
+                          child: _field(
+                            'lon',
+                            context.l10n.longitude,
+                            number: true,
+                            validator: (v) => _range(v, -180, 180),
+                          ),
+                        ),
                       ],
                     ),
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
-                      child: Text('위도·경도는 날씨 조회에만 쓰이며 기기 밖으로는 날씨 서버에만 전송됩니다.', style: AppText.tiny),
+                      child: Text(context.l10n.locationPrivacy, style: AppText.tiny),
                     ),
                   ],
                 ),
               ),
               2,
             ),
-            const SectionTitle('생산 목표'),
+            SectionTitle(context.l10n.productionGoals),
             rise(
               AppCard(
                 child: Row(
                   children: [
                     Expanded(
-                      child: _field('eggs', '하루 달걀', suffix: '개', number: true, validator: (v) => _range(v, 1, 100000)),
+                      child: _field(
+                        'eggs',
+                        context.l10n.dailyEggs,
+                        suffix: context.l10n.unitEggs,
+                        number: true,
+                        validator: (v) => _range(v, 1, 100000),
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _field('milk', '하루 우유', suffix: 'L', number: true, validator: (v) => _range(v, 1, 100000)),
+                      child: _field(
+                        'milk',
+                        context.l10n.dailyMilk,
+                        suffix: 'L',
+                        number: true,
+                        validator: (v) => _range(v, 1, 100000),
+                      ),
                     ),
                   ],
                 ),
@@ -203,23 +236,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
             AnimatedOpacity(
               duration: const Duration(milliseconds: 200),
               opacity: _dirty ? 1 : 0.5,
-              child: PrimaryButton(label: '저장', icon: Icons.check_rounded, onTap: _dirty ? _save : null),
+              child: PrimaryButton(label: context.l10n.save, icon: Icons.check_rounded, onTap: _dirty ? _save : null),
             ),
-            const SectionTitle('데이터'),
+            SectionTitle(context.l10n.language),
+            rise(
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(value: 'system', label: Text(context.l10n.languageSystem)),
+                  // 언어 이름은 그 언어로 적는다(바꾸려는 사람이 읽을 수 있게).
+                  const ButtonSegment(value: 'ko', label: Text('한국어')),
+                  const ButtonSegment(value: 'en', label: Text('English')),
+                ],
+                selected: {store.localeOverride ?? 'system'},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => store.setLocaleOverride(s.first == 'system' ? null : s.first),
+                style: SegmentedButton.styleFrom(
+                  selectedBackgroundColor: AppColors.primary,
+                  selectedForegroundColor: Colors.white,
+                  backgroundColor: AppColors.surface,
+                  side: BorderSide.none,
+                ),
+              ),
+              4,
+            ),
+            SectionTitle(context.l10n.dataSection),
             rise(
               AppCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '모든 기록은 이 기기에만 저장되어 앱을 삭제하면 함께 지워집니다. 백업 파일을 내보내 두면 다른 기기나 PC·웹 버전에서도 복원할 수 있어요.',
-                      style: AppText.caption,
-                    ),
+                    Text(context.l10n.dataExplain, style: AppText.caption),
                     const SizedBox(height: 8),
                     Text(
                       store.lastBackupAt == null
-                          ? '마지막 백업: 아직 없음'
-                          : '마지막 백업: ${relativeTime(store.lastBackupAt!, store.now)}',
+                          ? context.l10n.lastBackupNever
+                          : context.l10n.lastBackupAt(context.l10n.relative(store.lastBackupAt!, store.now)),
                       style: AppText.caption.copyWith(fontWeight: FontWeight.w700, color: AppColors.text),
                     ),
                     const SizedBox(height: 12),
@@ -227,7 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Expanded(
                           child: PrimaryButton(
-                            label: '백업 내보내기',
+                            label: context.l10n.exportBackup,
                             icon: Icons.upload_file_rounded,
                             onTap: () => exportBackupFile(context),
                           ),
@@ -235,7 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: PrimaryButton(
-                            label: '복원',
+                            label: context.l10n.restore,
                             icon: Icons.restore_rounded,
                             filled: false,
                             onTap: () async {
@@ -249,14 +300,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    PrimaryButton(label: '예시 농장으로 초기화', icon: Icons.restart_alt_rounded, filled: false, onTap: _reset),
+                    PrimaryButton(
+                      label: context.l10n.resetTitle,
+                      icon: Icons.restart_alt_rounded,
+                      filled: false,
+                      onTap: _reset,
+                    ),
                   ],
                 ),
               ),
               4,
             ),
             const SizedBox(height: 18),
-            const Center(child: Text('날씨 데이터: Open-Meteo.com (CC BY 4.0)', style: AppText.tiny)),
+            Center(child: Text(context.l10n.weatherCredit, style: AppText.tiny)),
           ],
         ),
       ),

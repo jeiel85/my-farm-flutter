@@ -141,10 +141,10 @@ class FarmState {
   static Map<String, Object?> migrate(Map<String, Object?> raw) {
     final version = raw['schemaVersion'];
     if (version is! int || version < 1) {
-      throw FormatException('저장 형식 버전을 알 수 없습니다: $version');
+      throw UnsupportedSchemaException(version, newer: false);
     }
     if (version > schemaVersion) {
-      throw FormatException('더 새로운 앱에서 만든 데이터입니다(형식 $version). 앱을 업데이트한 뒤 다시 시도하세요.');
+      throw UnsupportedSchemaException(version, newer: true);
     }
     final j = Map<String, Object?>.of(raw);
     if (version < 2) {
@@ -160,4 +160,15 @@ class FarmState {
     }
     return j;
   }
+}
+
+/// 읽을 수 없는 저장 형식 버전. [newer]면 더 새로운 앱에서 만든 데이터다.
+class UnsupportedSchemaException implements Exception {
+  const UnsupportedSchemaException(this.version, {required this.newer});
+
+  final Object? version;
+  final bool newer;
+
+  @override
+  String toString() => 'UnsupportedSchemaException(version: $version, newer: $newer)';
 }

@@ -39,17 +39,19 @@ class WeatherReport {
   int get todayRainChance => daily.isEmpty ? 0 : daily.first.rainChance;
 }
 
-/// WMO 날씨 코드를 한국어 설명과 아이콘으로 바꾼다.
-(String, IconData) describeWeather(int code) => switch (code) {
-  0 => ('맑음', Icons.wb_sunny_rounded),
-  1 || 2 => ('구름 조금', Icons.wb_cloudy_outlined),
-  3 => ('흐림', Icons.cloud_rounded),
-  45 || 48 => ('안개', Icons.foggy),
-  51 || 53 || 55 || 56 || 57 => ('이슬비', Icons.grain_rounded),
-  61 || 63 || 65 || 66 || 67 || 80 || 81 || 82 => ('비', Icons.umbrella_rounded),
-  71 || 73 || 75 || 77 || 85 || 86 => ('눈', Icons.ac_unit_rounded),
-  95 || 96 || 99 => ('뇌우', Icons.thunderstorm_rounded),
-  _ => ('알 수 없음', Icons.help_outline_rounded),
+enum WeatherCondition { clear, partlyCloudy, cloudy, fog, drizzle, rain, snow, thunder, unknown }
+
+/// WMO 날씨 코드를 상태와 아이콘으로 바꾼다(문구는 l10n에서).
+(WeatherCondition, IconData) describeWeather(int code) => switch (code) {
+  0 => (WeatherCondition.clear, Icons.wb_sunny_rounded),
+  1 || 2 => (WeatherCondition.partlyCloudy, Icons.wb_cloudy_outlined),
+  3 => (WeatherCondition.cloudy, Icons.cloud_rounded),
+  45 || 48 => (WeatherCondition.fog, Icons.foggy),
+  51 || 53 || 55 || 56 || 57 => (WeatherCondition.drizzle, Icons.grain_rounded),
+  61 || 63 || 65 || 66 || 67 || 80 || 81 || 82 => (WeatherCondition.rain, Icons.umbrella_rounded),
+  71 || 73 || 75 || 77 || 85 || 86 => (WeatherCondition.snow, Icons.ac_unit_rounded),
+  95 || 96 || 99 => (WeatherCondition.thunder, Icons.thunderstorm_rounded),
+  _ => (WeatherCondition.unknown, Icons.help_outline_rounded),
 };
 
 /// Open-Meteo(무료, API 키 없음)에서 현재 날씨와 5일 예보를 가져온다.
@@ -69,14 +71,14 @@ class WeatherService {
     });
     final res = await _client.get(uri).timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) {
-      throw WeatherException('날씨 서버 응답 오류 (${res.statusCode})');
+      throw WeatherException(WeatherProblem.server, statusCode: res.statusCode);
     }
     try {
       return parse(jsonDecode(res.body) as Map<String, Object?>, DateTime.now());
-    } on FormatException catch (e) {
-      throw WeatherException('날씨 데이터를 해석하지 못했습니다: ${e.message}');
+    } on FormatException {
+      throw const WeatherException(WeatherProblem.badData);
     } on TypeError {
-      throw const WeatherException('날씨 데이터 형식이 예상과 다릅니다.');
+      throw const WeatherException(WeatherProblem.badData);
     }
   }
 
@@ -109,11 +111,14 @@ class WeatherService {
   }
 }
 
+enum WeatherProblem { server, badData, network }
+
 class WeatherException implements Exception {
-  const WeatherException(this.message);
-  final String message;
+  const WeatherException(this.problem, {this.statusCode});
+  final WeatherProblem problem;
+  final int? statusCode;
   @override
-  String toString() => message;
+  String toString() => 'WeatherException($problem, $statusCode)';
 }
 
 /// 앱 전역에서 날씨를 한 번만 받아 공유한다. 15분 동안은 캐시를 쓴다.
@@ -122,7 +127,7 @@ class WeatherController extends ChangeNotifier {
 
   final WeatherService _service;
   WeatherReport? report;
-  String? error;
+  WeatherException? error;
   bool loading = false;
   (double, double)? _loadedFor;
 
@@ -140,7 +145,7 @@ class WeatherController extends ChangeNotifier {
       report = await _service.fetch(lat, lon);
       _loadedFor = (lat, lon);
     } catch (e) {
-      error = e is WeatherException ? e.message : '날씨를 불러오지 못했습니다. 네트워크를 확인하세요.';
+      error = e is WeatherException ? e : const WeatherException(WeatherProblem.network);
     } finally {
       loading = false;
       notifyListeners();
