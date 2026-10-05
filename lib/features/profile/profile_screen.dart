@@ -5,6 +5,7 @@ import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import '../../data/weather.dart';
+import 'backup_actions.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -210,8 +211,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('모든 기록은 이 기기에만 저장됩니다. 앱을 삭제하면 함께 지워집니다.', style: AppText.caption),
+                    const Text(
+                      '모든 기록은 이 기기에만 저장되어 앱을 삭제하면 함께 지워집니다. 백업 파일을 내보내 두면 다른 기기나 PC·웹 버전에서도 복원할 수 있어요.',
+                      style: AppText.caption,
+                    ),
                     const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PrimaryButton(
+                            label: '백업 내보내기',
+                            icon: Icons.upload_file_rounded,
+                            onTap: () => exportBackupFile(context),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: PrimaryButton(
+                            label: '복원',
+                            icon: Icons.restore_rounded,
+                            filled: false,
+                            onTap: () async {
+                              await importBackupFile(context);
+                              if (!context.mounted) return;
+                              _load(FarmScope.read(context).state.profile);
+                              setState(() => _dirty = false);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
                     PrimaryButton(label: '예시 농장으로 초기화', icon: Icons.restart_alt_rounded, filled: false, onTap: _reset),
                   ],
                 ),

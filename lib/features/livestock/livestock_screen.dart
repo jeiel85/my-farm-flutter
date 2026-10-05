@@ -7,6 +7,7 @@ import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import 'animal_detail_screen.dart';
+import 'animal_sheets.dart';
 
 class LivestockScreen extends StatefulWidget {
   const LivestockScreen({super.key});
@@ -30,7 +31,24 @@ class _LivestockScreenState extends State<LivestockScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            PageHeader(title: '가축 관리', subtitle: store.state.profile.name),
+            PageHeader(
+              title: '가축 관리',
+              subtitle: store.state.profile.name,
+              trailing: Pressable(
+                onTap: () async {
+                  final added = await showAddAnimalSheet(context, _kind);
+                  if (added == null || !context.mounted) return;
+                  setState(() => _kind = added.kind);
+                  showMessage(context, '${added.name}(${added.tag})을(를) 입식했습니다.');
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                  child: const Icon(Icons.add_rounded, size: 22, color: Colors.white),
+                ),
+              ),
+            ),
             Expanded(
               child: CustomScrollView(
                 slivers: [
@@ -130,12 +148,28 @@ class _LivestockScreenState extends State<LivestockScreen> {
                       ],
                     ),
                   ),
+                  if (animals.isEmpty)
+                    const SliverPadding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      sliver: SliverToBoxAdapter(
+                        child: AppCard(child: Text('이 종류의 가축이 없습니다. 오른쪽 위 + 로 입식하세요.', style: AppText.caption)),
+                      ),
+                    ),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList.separated(
                       itemCount: animals.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, i) => rise(_AnimalTile(animal: animals[i]), i.clamp(0, 8)),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                    sliver: SliverList.list(
+                      children: [
+                        const SectionTitle('입식·출하 이력', subtitle: '최근 10건'),
+                        AnimalHistoryCard(events: store.state.animalEvents),
+                      ],
                     ),
                   ),
                 ],
@@ -240,9 +274,12 @@ class _FeedingCard extends StatelessWidget {
               for (var i = 0; i < slots.length; i++) ...[
                 Expanded(
                   child: Pressable(
-                    onTap: () {
+                    onTap: () async {
                       HapticFeedback.lightImpact();
-                      FarmScope.read(context).toggleFeeding(i);
+                      final shortages = await FarmScope.read(context).toggleFeeding(i);
+                      if (shortages.isNotEmpty && context.mounted) {
+                        showMessage(context, '재고가 모자라 남은 만큼만 차감했습니다: ${shortages.join(', ')}');
+                      }
                     },
                     child: Column(
                       children: [

@@ -199,6 +199,7 @@ FarmState buildDemoFarm(DateTime now) {
     ),
     fields: fields,
     animals: animals,
+    animalEvents: const [],
     feedingSlots: const [
       FeedingSlot(hour: 6, minute: 0, label: '건초·사일리지'),
       FeedingSlot(hour: 12, minute: 0, label: '곡물 사료'),
@@ -207,6 +208,8 @@ FarmState buildDemoFarm(DateTime now) {
     feedingDone: {
       todayKey: [if (now.hour >= 6) 0, if (now.hour >= 12) 1],
     },
+    // 예시 데이터의 오늘 급이 완료분은 재고 차감 기록이 없으므로 체크를 풀어도 재고가 늘지 않는다.
+    feedingUsage: const {},
     tankCapacityL: 10000,
     tankStoredL: 8200,
     waterLogs: waterLogs,

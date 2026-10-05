@@ -447,3 +447,54 @@ class FarmTask {
 
 String dateKeyOf(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+enum AnimalEventType {
+  added('입식'),
+  sold('출하'),
+  died('폐사'),
+  other('기타 제외');
+
+  const AnimalEventType(this.label);
+  final String label;
+}
+
+/// 가축 입식·출하·폐사 이력. 개체가 목록에서 빠져도 기록은 남는다.
+class AnimalEvent {
+  const AnimalEvent({
+    required this.id,
+    required this.type,
+    required this.kind,
+    required this.tag,
+    required this.name,
+    required this.date,
+    required this.note,
+  });
+
+  final String id;
+  final AnimalEventType type;
+  final AnimalKind kind;
+  final String tag;
+  final String name;
+  final DateTime date;
+  final String note;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'type': type.name,
+    'kind': kind.name,
+    'tag': tag,
+    'name': name,
+    'date': date.toIso8601String(),
+    'note': note,
+  };
+
+  factory AnimalEvent.fromJson(Map<String, Object?> j) => AnimalEvent(
+    id: j['id'] as String,
+    type: _enumByName(AnimalEventType.values, j['type'], AnimalEventType.other),
+    kind: _enumByName(AnimalKind.values, j['kind'], AnimalKind.cow),
+    tag: j['tag'] as String,
+    name: j['name'] as String,
+    date: _date(j['date']),
+    note: j['note'] as String? ?? '',
+  );
+}

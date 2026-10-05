@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'app_shell.dart';
@@ -37,6 +38,9 @@ class MyFarmApp extends StatelessWidget {
         title: '마이팜',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
+        locale: const Locale('ko'),
+        supportedLocales: const [Locale('ko'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         builder: (context, child) => PhoneWidthFrame(child: child!),
         home: const AppShell(),
       ),

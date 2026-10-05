@@ -65,6 +65,13 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('오늘의 급이'), findsOneWidget);
     expect(find.text('우리 소'), findsOneWidget);
+
+    // 입식 시트가 열린다.
+    await tester.tap(find.byIcon(Icons.add_rounded).first);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('가축 입식'), findsOneWidget);
+    expect(find.textContaining('COW-'), findsWidgets);
     expect(find.textContaining('18마리'), findsOneWidget);
     await _unmount(tester);
   });

@@ -26,7 +26,10 @@ class InventoryScreen extends StatelessWidget {
                 children: [
                   for (final cat in InventoryCategory.values) ...[
                     if (store.state.inventory.any((i) => i.category == cat)) ...[
-                      SectionTitle(cat.label),
+                      SectionTitle(
+                        cat.label,
+                        subtitle: cat == InventoryCategory.feed ? '급이를 완료할 때마다 하루 사용량 ÷ 급이 횟수만큼 자동으로 빠집니다' : null,
+                      ),
                       for (final item in store.state.inventory.where((i) => i.category == cat))
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),

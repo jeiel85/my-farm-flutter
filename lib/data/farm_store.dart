@@ -12,11 +12,13 @@ abstract class FarmStorage {
   Future<String?> read();
   Future<void> write(String json);
 
-  /// 읽을 수 없는 저장본을 지우지 않고 따로 보관한다.
-  Future<void> keepCorrupt(String raw);
+  /// 덮어쓰거나 읽을 수 없게 된 저장본을 지우지 않고 [label]을 붙여 따로 보관한다
+  /// (손상본, 마이그레이션 전 원본, 백업 복원 전 데이터).
+  Future<void> keepCopy(String raw, String label);
 }
 
 class PrefsFarmStorage implements FarmStorage {
+  /// 키 이름의 v1은 최초 키라는 뜻이며 저장 형식 버전과 무관하다. 바꾸면 기존 데이터를 못 읽는다.
   static const _key = 'farm_state_v1';
 
   @override
@@ -29,9 +31,9 @@ class PrefsFarmStorage implements FarmStorage {
   }
 
   @override
-  Future<void> keepCorrupt(String raw) async {
+  Future<void> keepCopy(String raw, String label) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('${_key}_corrupt_${DateTime.now().millisecondsSinceEpoch}', raw);
+    await prefs.setString('${_key}_${label}_${DateTime.now().millisecondsSinceEpoch}', raw);
   }
 }
 
@@ -47,11 +49,19 @@ class FarmStore extends ChangeNotifier {
       return store;
     }
     try {
-      final state = FarmState.fromJson((jsonDecode(raw) as Map).cast<String, Object?>());
-      return FarmStore._(storage, state, now, null);
+      final json = (jsonDecode(raw) as Map).cast<String, Object?>();
+      final state = FarmState.fromJson(json);
+      final store = FarmStore._(storage, state, now, null);
+      final version = json['schemaVersion'];
+      if (version != FarmState.schemaVersion) {
+        // 이전 형식이면 원본을 남겨 두고 새 형식으로 다시 저장한다.
+        await storage.keepCopy(raw, 'pre_migration_v$version');
+        await store._persist();
+      }
+      return store;
     } catch (e) {
       debugPrint('저장된 농장 데이터를 읽지 못함: $e');
-      await storage.keepCorrupt(raw);
+      await storage.keepCopy(raw, 'corrupt');
       final store = FarmStore._(
         storage,
         buildDemoFarm(now()),
@@ -127,6 +137,93 @@ class FarmStore extends ChangeNotifier {
   Future<void> updateAnimal(Animal updated) =>
       _commit(_state.copyWith(animals: [for (final a in _state.animals) a.id == updated.id ? updated : a]));
 
+  /// 종류별 다음 개체 번호표. 현재 개체와 이력에 쓰인 번호 중 가장 큰 값 다음 번호.
+  String nextTag(AnimalKind kind) {
+    var max = 0;
+    final tags = [
+      for (final a in _state.animals)
+        if (a.kind == kind) a.tag,
+      for (final e in _state.animalEvents)
+        if (e.kind == kind) e.tag,
+    ];
+    for (final tag in tags) {
+      final n = int.tryParse(tag.split('-').last) ?? 0;
+      if (n > max) max = n;
+    }
+    return '${kind.tagPrefix}-${(max + 1).toString().padLeft(3, '0')}';
+  }
+
+  /// 새 가축을 들인다(입식 이력도 함께 남긴다).
+  Future<Animal> addAnimal({
+    required AnimalKind kind,
+    required String name,
+    required String breed,
+    required DateTime birthDate,
+    required double weightKg,
+    int health = 90,
+    String note = '',
+  }) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) throw ArgumentError('이름을 입력하세요.');
+    if (weightKg <= 0) throw ArgumentError('체중은 0보다 커야 합니다.');
+    final at = now;
+    final animal = Animal(
+      id: '${kind.name}-${at.microsecondsSinceEpoch}',
+      kind: kind,
+      tag: nextTag(kind),
+      name: trimmed,
+      breed: breed.trim().isEmpty ? '미상' : breed.trim(),
+      birthDate: birthDate,
+      health: health.clamp(0, 100),
+      weightKg: weightKg,
+      lastCheckup: null,
+      note: note.trim(),
+    );
+    await _commit(
+      _state.copyWith(
+        animals: [..._state.animals, animal],
+        animalEvents: [
+          AnimalEvent(
+            id: 'e${at.microsecondsSinceEpoch}',
+            type: AnimalEventType.added,
+            kind: kind,
+            tag: animal.tag,
+            name: animal.name,
+            date: at,
+            note: note.trim(),
+          ),
+          ..._state.animalEvents,
+        ],
+      ),
+    );
+    return animal;
+  }
+
+  /// 출하·폐사 등으로 목록에서 뺀다. 개체 정보는 이력으로 남는다.
+  Future<void> removeAnimal(String id, {required AnimalEventType type, String note = ''}) {
+    if (type == AnimalEventType.added) throw ArgumentError('입식은 제외 사유가 아닙니다.');
+    final animal = animalById(id);
+    if (animal == null) throw StateError('가축을 찾을 수 없습니다.');
+    final at = now;
+    return _commit(
+      _state.copyWith(
+        animals: _state.animals.where((a) => a.id != id).toList(),
+        animalEvents: [
+          AnimalEvent(
+            id: 'e${at.microsecondsSinceEpoch}',
+            type: type,
+            kind: animal.kind,
+            tag: animal.tag,
+            name: animal.name,
+            date: at,
+            note: note.trim(),
+          ),
+          ..._state.animalEvents,
+        ],
+      ),
+    );
+  }
+
   // ---------- 급이 ----------
 
   Set<int> get feedingDoneToday => {...?_state.feedingDone[todayKey]};
@@ -140,17 +237,64 @@ class FarmStore extends ChangeNotifier {
     return null;
   }
 
-  Future<void> toggleFeeding(int slot) {
+  /// 급이 완료를 토글한다.
+  ///
+  /// 완료로 바꾸면 하루 소비량이 있는 사료마다 `하루 사용량 ÷ 하루 급이 횟수`만큼 재고에서 빼고,
+  /// 실제로 뺀 양을 기록해 둔다(재고가 모자라면 남은 만큼만 뺀다).
+  /// 완료를 취소하면 기록해 둔 양만큼 되돌린다.
+  /// 반환값은 모자랐던 사료 이름 목록이다.
+  Future<List<String>> toggleFeeding(int slot) async {
+    final key = todayKey;
     final done = feedingDoneToday;
-    done.contains(slot) ? done.remove(slot) : done.add(slot);
-    // 오늘 기록만 남기고 오래된 기록은 30일까지만 유지한다.
+    final todayUsage = {...?_state.feedingUsage[key]};
+    var inventory = _state.inventory;
+    final shortages = <String>[];
+
+    if (done.contains(slot)) {
+      done.remove(slot);
+      final used = todayUsage.remove(slot) ?? const <String, double>{};
+      inventory = [
+        for (final i in inventory) used.containsKey(i.id) ? i.copyWith(quantity: i.quantity + used[i.id]!) : i,
+      ];
+    } else {
+      done.add(slot);
+      final perDay = _state.feedingSlots.isEmpty ? 1 : _state.feedingSlots.length;
+      final used = <String, double>{};
+      final next = <InventoryItem>[];
+      for (final i in inventory) {
+        if (i.category != InventoryCategory.feed || i.dailyUse <= 0) {
+          next.add(i);
+          continue;
+        }
+        final want = i.dailyUse / perDay;
+        final take = want <= i.quantity ? want : i.quantity;
+        if (take < want) shortages.add(i.name);
+        if (take > 0) used[i.id] = take;
+        next.add(i.copyWith(quantity: i.quantity - take));
+      }
+      inventory = next;
+      todayUsage[slot] = used;
+    }
+
+    // 급이 기록은 30일까지만 유지한다.
     final cutoff = dateKeyOf(now.subtract(const Duration(days: 30)));
-    final map = {
-      for (final e in _state.feedingDone.entries)
-        if (e.key.compareTo(cutoff) >= 0) e.key: e.value,
-      todayKey: (done.toList()..sort()),
-    };
-    return _commit(_state.copyWith(feedingDone: map));
+    bool keep(String day) => day.compareTo(cutoff) >= 0;
+    await _commit(
+      _state.copyWith(
+        feedingDone: {
+          for (final e in _state.feedingDone.entries)
+            if (keep(e.key)) e.key: e.value,
+          key: (done.toList()..sort()),
+        },
+        feedingUsage: {
+          for (final e in _state.feedingUsage.entries)
+            if (keep(e.key)) e.key: e.value,
+          key: todayUsage,
+        },
+        inventory: inventory,
+      ),
+    );
+    return shortages;
   }
 
   /// 사료 재고로 버틸 수 있는 일수(하루 소비량이 있는 사료 기준).
@@ -404,6 +548,50 @@ class FarmStore extends ChangeNotifier {
   Future<void> updateProfile(FarmProfile profile) => _commit(_state.copyWith(profile: profile));
 
   Future<void> resetToDemo() => _commit(buildDemoFarm(now));
+
+  // ---------- 백업 ----------
+
+  static const backupFormat = 'my-farm-backup';
+
+  /// 현재 데이터를 백업 파일 내용(JSON 문자열)으로 만든다.
+  String exportBackup() =>
+      const JsonEncoder.withIndent('  ')
+          .convert({'format': backupFormat, 'exportedAt': now.toIso8601String(), 'state': _state.toJson()});
+
+  /// 백업 파일 내용을 검사해 복원할 상태를 돌려준다. 형식이 맞지 않으면 [FormatException].
+  static BackupContents parseBackup(String text) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(text);
+    } on FormatException {
+      throw const FormatException('JSON 파일이 아닙니다.');
+    }
+    if (decoded is! Map || decoded['format'] != backupFormat || decoded['state'] is! Map) {
+      throw const FormatException('마이팜 백업 파일이 아닙니다.');
+    }
+    final FarmState state;
+    try {
+      state = FarmState.fromJson((decoded['state'] as Map).cast<String, Object?>());
+    } on FormatException {
+      rethrow;
+    } catch (_) {
+      throw const FormatException('백업 파일 내용이 손상되었습니다.');
+    }
+    return BackupContents(state: state, exportedAt: DateTime.tryParse('${decoded['exportedAt']}'));
+  }
+
+  /// 백업으로 덮어쓴다. 덮어쓰기 전 데이터는 지우지 않고 따로 보관한다.
+  Future<void> restoreBackup(FarmState restored) async {
+    await _storage.keepCopy(jsonEncode(_state.toJson()), 'before_restore');
+    await _commit(restored);
+  }
+}
+
+class BackupContents {
+  const BackupContents({required this.state, required this.exportedAt});
+
+  final FarmState state;
+  final DateTime? exportedAt;
 }
 
 /// 위젯 트리에 [FarmStore]를 내려주고 변경 시 다시 그린다.

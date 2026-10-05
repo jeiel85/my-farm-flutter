@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
+import 'animal_sheets.dart';
 
 final _date = DateFormat('yyyy년 M월 d일', 'ko');
 
@@ -193,7 +194,27 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-              child: PrimaryButton(label: '저장', icon: Icons.check_rounded, onTap: _save),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: PrimaryButton(
+                      label: '출하·폐사',
+                      icon: Icons.logout_rounded,
+                      filled: false,
+                      onTap: () async {
+                        final removed = await showRemoveAnimalSheet(context, a);
+                        if (!removed || !context.mounted) return;
+                        showMessage(context, '${a.name}을(를) 목록에서 뺐습니다. 이력에 남아 있습니다.');
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: PrimaryButton(label: '저장', icon: Icons.check_rounded, onTap: _save),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

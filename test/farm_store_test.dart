@@ -10,7 +10,14 @@ class MemoryStorage implements FarmStorage {
   MemoryStorage([this.value]);
 
   String? value;
-  final corrupt = <String>[];
+
+  /// keepCopy로 따로 보관된 (라벨, 내용) 목록.
+  final copies = <(String, String)>[];
+
+  List<String> copiesLabeled(String label) => [
+    for (final (l, raw) in copies)
+      if (l == label) raw,
+  ];
   bool failWrites = false;
 
   @override
@@ -23,7 +30,7 @@ class MemoryStorage implements FarmStorage {
   }
 
   @override
-  Future<void> keepCorrupt(String raw) async => corrupt.add(raw);
+  Future<void> keepCopy(String raw, String label) async => copies.add((label, raw));
 }
 
 void main() {
@@ -53,16 +60,31 @@ void main() {
   test('손상된 저장본은 지우지 않고 보관한 뒤 예시 농장으로 시작한다', () async {
     final storage = MemoryStorage('{not json');
     final store = await FarmStore.load(storage, clock: clock);
-    expect(storage.corrupt, ['{not json']);
+    expect(storage.copiesLabeled('corrupt'), ['{not json']);
     expect(store.loadNotice, isNotNull);
     expect(store.totalAnimals, 48);
   });
 
-  test('지원하지 않는 버전도 손상본으로 취급한다', () async {
+  test('더 새로운 형식은 읽지 않고 보관한 뒤 예시 농장으로 시작한다', () async {
     final storage = MemoryStorage(jsonEncode({'schemaVersion': 99}));
     final store = await FarmStore.load(storage, clock: clock);
-    expect(storage.corrupt, hasLength(1));
+    expect(storage.copiesLabeled('corrupt'), hasLength(1));
     expect(store.loadNotice, isNotNull);
+  });
+
+  test('v1 저장본은 v2로 마이그레이션하고 원본을 따로 보관한다', () async {
+    final v1 = buildDemoFarm(now).toJson()
+      ..remove('animalEvents')
+      ..remove('feedingUsage')
+      ..['schemaVersion'] = 1;
+    final raw = jsonEncode(v1);
+    final storage = MemoryStorage(raw);
+    final store = await FarmStore.load(storage, clock: clock);
+    expect(store.loadNotice, isNull);
+    expect(store.totalAnimals, 48);
+    expect(store.state.animalEvents, isEmpty);
+    expect(storage.copiesLabeled('pre_migration_v1'), [raw]);
+    expect((jsonDecode(storage.value!) as Map)['schemaVersion'], FarmState.schemaVersion);
   });
 
   test('물을 주면 물탱크가 줄고 마지막 관수 시각이 바뀐다', () async {
@@ -171,5 +193,136 @@ void main() {
     expect(field.daysToHarvest(now), 30);
     expect(field.growthAt(now.add(const Duration(days: 90))), 1);
     expect(field.daysToHarvest(now.add(const Duration(days: 90))), 0);
+  });
+
+  group('가축 입식·제외', () {
+    test('새 가축은 다음 번호표를 받고 입식 이력이 남는다', () async {
+      final (store, _) = await fresh();
+      final expected = store.nextTag(AnimalKind.goat);
+      final goat = await store.addAnimal(
+        kind: AnimalKind.goat,
+        name: ' 흰둥이 ',
+        breed: '',
+        birthDate: DateTime(2026, 3, 1),
+        weightKg: 31.5,
+      );
+      expect(goat.tag, expected);
+      expect(goat.name, '흰둥이');
+      expect(goat.breed, '미상');
+      expect(store.countOf(AnimalKind.goat), 5);
+      expect(store.state.animalEvents.first.type, AnimalEventType.added);
+      expect(store.nextTag(AnimalKind.goat), isNot(expected));
+    });
+
+    test('이름이 비었거나 체중이 0 이하면 거부한다', () async {
+      final (store, _) = await fresh();
+      expect(
+        () => store.addAnimal(kind: AnimalKind.cow, name: ' ', breed: '', birthDate: now, weightKg: 100),
+        throwsArgumentError,
+      );
+      expect(
+        () => store.addAnimal(kind: AnimalKind.cow, name: '소', breed: '', birthDate: now, weightKg: 0),
+        throwsArgumentError,
+      );
+    });
+
+    test('출하하면 목록에서 빠지고 이력이 남으며, 번호표는 다시 쓰지 않는다', () async {
+      final (store, _) = await fresh();
+      final last = store
+          .animalsOf(AnimalKind.sheep)
+          .reduce((a, b) => int.parse(a.tag.split('-').last) > int.parse(b.tag.split('-').last) ? a : b);
+      final before = store.nextTag(AnimalKind.sheep);
+      await store.removeAnimal(last.id, type: AnimalEventType.sold, note: '시장 출하');
+      expect(store.animalById(last.id), isNull);
+      expect(store.state.animalEvents.first.tag, last.tag);
+      expect(store.state.animalEvents.first.note, '시장 출하');
+      expect(store.nextTag(AnimalKind.sheep), before);
+    });
+  });
+
+  group('급이와 사료 재고', () {
+    double qty(FarmStore s, String id) => s.state.inventory.firstWhere((i) => i.id == id).quantity;
+
+    test('급이를 완료하면 하루 사용량 ÷ 급이 횟수만큼 빠지고, 취소하면 되돌아온다', () async {
+      final (store, _) = await fresh();
+      final hay = qty(store, 'hay');
+      final shortages = await store.toggleFeeding(2);
+      expect(shortages, isEmpty);
+      expect(qty(store, 'hay'), closeTo(hay - 200 / 3, 1e-9));
+      await store.toggleFeeding(2);
+      expect(qty(store, 'hay'), closeTo(hay, 1e-9));
+    });
+
+    test('재고가 모자라면 남은 만큼만 빼고 모자란 사료를 알려 준다', () async {
+      final (store, _) = await fresh();
+      await store.adjustInventory('layer', -(qty(store, 'layer') - 0.5));
+      final shortages = await store.toggleFeeding(2);
+      expect(shortages, ['산란계 사료']);
+      expect(qty(store, 'layer'), 0);
+      await store.toggleFeeding(2);
+      expect(qty(store, 'layer'), closeTo(0.5, 1e-9));
+    });
+
+    test('차감 기록이 없는 완료(예시 데이터)는 취소해도 재고가 늘지 않는다', () async {
+      final (store, _) = await fresh();
+      final hay = qty(store, 'hay');
+      expect(store.feedingDoneToday, contains(0));
+      await store.toggleFeeding(0);
+      expect(qty(store, 'hay'), hay);
+    });
+  });
+
+  group('백업', () {
+    test('내보낸 백업을 다시 읽으면 같은 상태가 된다', () async {
+      final (store, _) = await fresh();
+      await store.addTask('백업 확인');
+      final text = store.exportBackup();
+      final contents = FarmStore.parseBackup(text);
+      expect(jsonEncode(contents.state.toJson()), jsonEncode(store.state.toJson()));
+      expect(contents.exportedAt, now);
+    });
+
+    test('복원하면 덮어쓰기 전 데이터를 따로 보관한다', () async {
+      final (store, storage) = await fresh();
+      final backup = FarmStore.parseBackup(store.exportBackup());
+      await store.addTask('복원 전에만 있던 일');
+      final before = storage.value;
+      await store.restoreBackup(backup.state);
+      expect(storage.copiesLabeled('before_restore'), [before]);
+      expect(store.tasksToday.any((t) => t.title == '복원 전에만 있던 일'), isFalse);
+    });
+
+    test('형식이 다른 파일은 이유와 함께 거부한다', () {
+      expect(() => FarmStore.parseBackup('not json'), throwsA(isA<FormatException>()));
+      expect(() => FarmStore.parseBackup('{"format":"other"}'), throwsA(isA<FormatException>()));
+      expect(
+        () => FarmStore.parseBackup(
+          jsonEncode({
+            'format': FarmStore.backupFormat,
+            'state': {'schemaVersion': 99},
+          }),
+        ),
+        throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('더 새로운'))),
+      );
+      expect(
+        () => FarmStore.parseBackup(
+          jsonEncode({
+            'format': FarmStore.backupFormat,
+            'state': {'schemaVersion': 2},
+          }),
+        ),
+        throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('손상'))),
+      );
+    });
+
+    test('v1 형식 백업도 복원할 수 있다', () {
+      final v1 = buildDemoFarm(now).toJson()
+        ..remove('animalEvents')
+        ..remove('feedingUsage')
+        ..['schemaVersion'] = 1;
+      final contents = FarmStore.parseBackup(jsonEncode({'format': FarmStore.backupFormat, 'state': v1}));
+      expect(contents.state.animals, hasLength(48));
+      expect(contents.exportedAt, isNull);
+    });
   });
 }
