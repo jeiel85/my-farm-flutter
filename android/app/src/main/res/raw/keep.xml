@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 알림 아이콘은 코드에서 이름 문자열로만 참조하므로 리소스 축소에서 지워지지 않게 남긴다. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/ic_stat_farm" />

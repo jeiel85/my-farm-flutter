@@ -8,6 +8,8 @@ import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import '../../data/weather.dart';
 import '../update/update_widgets.dart';
+import '../reminders/reminder_settings_card.dart';
+import '../reminders/reminders.dart';
 import 'backup_actions.dart';
 import '../../l10n/l10n.dart';
 
@@ -343,6 +345,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               4,
             ),
+            if (ReminderScope.of(context) case final reminders?) ...[
+              SectionTitle(context.l10n.remindersSection),
+              rise(ReminderSettingsCard(reminders: reminders), 5),
+            ],
             if (UpdateScope.of(context) case final update?) ...[
               SectionTitle(context.l10n.appUpdate),
               rise(UpdateSettingsCard(update: update, now: store.now), 5),

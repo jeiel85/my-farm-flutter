@@ -9,6 +9,7 @@ import 'core/theme.dart';
 import 'data/app_update.dart';
 import 'data/farm_store.dart';
 import 'data/weather.dart';
+import 'features/reminders/reminders.dart';
 import 'l10n/l10n.dart';
 
 Future<void> main() async {
@@ -28,25 +29,38 @@ Future<void> main() async {
   final update = appUpdateSupported
       ? UpdateController(storage: storage, platform: MethodChannelUpdatePlatform())
       : null;
+  final reminders = remindersSupported
+      ? ReminderController(
+          store: store,
+          platform: LocalNotificationsPlatform(),
+          storage: storage,
+          localizations: () => reminderLocalizations(store),
+        )
+      : null;
   runApp(
     MyFarmApp(
       store: store,
       weather: WeatherController(WeatherService(), cache: storage),
       update: update,
+      reminders: reminders,
     ),
   );
-  // 첫 화면을 막지 않도록 앱을 띄운 뒤 확인한다.
+  // 첫 화면을 막지 않도록 앱을 띄운 뒤 확인한다. 알림은 앱을 열 때마다 앞으로의 예약을 다시 맞춘다.
   unawaited(update?.init());
+  unawaited(reminders?.init());
 }
 
 class MyFarmApp extends StatelessWidget {
-  const MyFarmApp({super.key, required this.store, required this.weather, this.update});
+  const MyFarmApp({super.key, required this.store, required this.weather, this.update, this.reminders});
 
   final FarmStore store;
   final WeatherController weather;
 
   /// 앱 안 업데이트를 쓰지 않는 플랫폼(웹·Windows)에서는 null.
   final UpdateController? update;
+
+  /// 휴대폰 알림을 쓰지 않는 플랫폼(웹·Windows)에서는 null.
+  final ReminderController? reminders;
 
   @override
   Widget build(BuildContext context) => FarmScope(
@@ -55,18 +69,21 @@ class MyFarmApp extends StatelessWidget {
       controller: weather,
       child: UpdateScope(
         controller: update,
-        child: ValueListenableBuilder<String?>(
-          valueListenable: store.locale,
-          builder: (context, localeCode, _) => MaterialApp(
-            onGenerateTitle: (context) => context.l10n.appTitle,
-            debugShowCheckedModeBanner: false,
-            theme: buildTheme(),
-            locale: localeCode == null ? null : Locale(localeCode),
-            // 한국어·영어가 아닌 기기에서는 영어로 보여 준다(첫 항목이 기본값).
-            supportedLocales: AppLocalizations.supportedLocales.reversed.toList(),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            builder: (context, child) => PhoneWidthFrame(child: child!),
-            home: const AppShell(),
+        child: ReminderScope(
+          controller: reminders,
+          child: ValueListenableBuilder<String?>(
+            valueListenable: store.locale,
+            builder: (context, localeCode, _) => MaterialApp(
+              onGenerateTitle: (context) => context.l10n.appTitle,
+              debugShowCheckedModeBanner: false,
+              theme: buildTheme(),
+              locale: localeCode == null ? null : Locale(localeCode),
+              // 한국어·영어가 아닌 기기에서는 영어로 보여 준다(첫 항목이 기본값).
+              supportedLocales: AppLocalizations.supportedLocales.reversed.toList(),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              builder: (context, child) => PhoneWidthFrame(child: child!),
+              home: const AppShell(),
+            ),
           ),
         ),
       ),
