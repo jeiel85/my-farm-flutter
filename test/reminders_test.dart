@@ -36,7 +36,7 @@ class FakeReminderPlatform implements ReminderPlatform {
   }
 
   @override
-  Future<void> cancelAll() async => scheduled = [];
+  Future<void> cancelScheduled() async => scheduled = [];
 }
 
 void main() {
@@ -125,6 +125,18 @@ void main() {
       for (var i = 1; i < plan.length; i++) {
         expect(plan[i - 1].at.isAfter(plan[i].at), isFalse);
       }
+    });
+
+    test('알림 id는 내용(종류·시각·대상)으로 정해져 다시 계산해도 같고, 서로 겹치지 않는다', () {
+      final first = planReminders(buildDemoFarm(now), now, on);
+      final again = planReminders(buildDemoFarm(now), now, on);
+      final ids = [for (final r in first) reminderId(r)];
+      expect([for (final r in again) reminderId(r)], ids);
+      expect(ids.toSet(), hasLength(ids.length));
+      expect(ids.every((id) => id >= 0 && id <= 0x7fffffff), isTrue);
+      // 같은 시각이라도 대상이 다르면 다른 id다.
+      final at = DateTime(2026, 10, 6, 7);
+      expect(reminderId(WateringReminder(at, const ['토마토'])), isNot(reminderId(WateringReminder(at, const ['딸기']))));
     });
 
     test('설정은 JSON으로 오가고, 읽을 수 없으면 꺼진 기본값이다', () {

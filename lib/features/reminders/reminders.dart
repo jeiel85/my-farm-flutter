@@ -46,9 +46,11 @@ abstract class ReminderPlatform {
   /// 지금 알림이 허용되어 있는지(사용자가 나중에 설정에서 끌 수 있다).
   Future<bool> permitted();
 
+  /// 예약해 둔 알림을 [notices]로 바꾼다. 이미 화면·알림 센터에 떠 있는 알림은 건드리지 않는다.
   Future<void> replaceAll(List<ReminderNotice> notices);
 
-  Future<void> cancelAll();
+  /// 예약만 모두 취소한다(떠 있는 알림은 남긴다).
+  Future<void> cancelScheduled();
 }
 
 class LocalNotificationsPlatform implements ReminderPlatform {
@@ -95,7 +97,7 @@ class LocalNotificationsPlatform implements ReminderPlatform {
 
   @override
   Future<void> replaceAll(List<ReminderNotice> notices) async {
-    await _plugin.cancelAll();
+    await cancelScheduled();
     // 계산한 뒤 예약하기까지 사이에 지나간 시각은 건너뛴다(플러그인이 지난 시각 예약을 거부한다).
     final soonest = DateTime.now().add(const Duration(seconds: 5));
     for (final n in notices.where((n) => n.at.isAfter(soonest))) {
@@ -118,8 +120,19 @@ class LocalNotificationsPlatform implements ReminderPlatform {
     }
   }
 
+  /// 플러그인의 cancelAll은 떠 있는 알림(Android 알림 창, Windows 알림 센터)까지 지워서 쓰지 않는다.
+  /// 앱을 열거나 기록을 고칠 때마다 다시 예약하므로, 그때마다 아직 처리하지 않은 알림이 사라지게 된다.
   @override
-  Future<void> cancelAll() => _plugin.cancelAll();
+  Future<void> cancelScheduled() async {
+    if (Platform.isAndroid) {
+      await _android?.cancelAllPendingNotifications();
+      return;
+    }
+    // Windows는 cancelAllPendingNotifications가 없다. 예약 목록의 id마다 지운다(패키지가 아닌 앱이면 예약만 지운다).
+    for (final pending in await _plugin.pendingNotificationRequests()) {
+      await _plugin.cancel(id: pending.id);
+    }
+  }
 }
 
 /// 설정을 기기별 meta에 두고, 농장 기록이 바뀔 때마다 앞으로의 알림을 다시 예약한다.
@@ -206,7 +219,7 @@ class ReminderController extends ChangeNotifier {
     _pending?.cancel();
     try {
       if (!settings.enabled) {
-        await platform.cancelAll();
+        await platform.cancelScheduled();
         scheduledCount = 0;
         nextAt = null;
         permissionMissing = false;
@@ -214,7 +227,7 @@ class ReminderController extends ChangeNotifier {
         permissionMissing = !await platform.permitted();
         final plan = planReminders(store.state, store.now, settings);
         final l = localizations();
-        await platform.replaceAll([for (final (i, r) in plan.indexed) _notice(i + 1, r, l)]);
+        await platform.replaceAll([for (final r in plan) _notice(r, l)]);
         scheduledCount = plan.length;
         nextAt = plan.firstOrNull?.at;
       }
@@ -226,7 +239,7 @@ class ReminderController extends ChangeNotifier {
     notifyListeners();
   }
 
-  ReminderNotice _notice(int id, PlannedReminder r, AppLocalizations l) {
+  ReminderNotice _notice(PlannedReminder r, AppLocalizations l) {
     final (title, body) = switch (r) {
       WateringReminder(:final crops) => (l.notifWateringTitle, l.notifWateringBody(crops.join(', '))),
       FeedingReminder(:final slot) => (l.alertFeedingTitle(slot.timeLabel, slot.label), l.notifFeedingBody),
@@ -236,7 +249,7 @@ class ReminderController extends ChangeNotifier {
       ),
     };
     return ReminderNotice(
-      id: id,
+      id: reminderId(r),
       kind: r.kind,
       at: r.at,
       title: title,
@@ -255,6 +268,23 @@ class ReminderController extends ChangeNotifier {
     store.removeListener(_onStoreChanged);
     super.dispose();
   }
+}
+
+/// 같은 알림(종류·시각·대상)이면 다시 예약해도 같은 id가 되도록 내용으로 정한다(FNV-1a 32비트, 양수).
+///
+/// 순번을 쓰면 다시 예약할 때마다 번호가 밀려, 예약한 알림이 떠 있는 다른 알림을 같은 id로 덮어쓰게 된다.
+/// `Object.hash`는 실행마다 값이 달라 쓰지 않는다.
+int reminderId(PlannedReminder r) {
+  final key = switch (r) {
+    WateringReminder(:final crops) => 'w|${crops.join(',')}',
+    FeedingReminder(:final slot) => 'f|${slot.timeLabel}|${slot.label}',
+    CareReminder(:final item) => 'c|${item.id}',
+  };
+  var h = 0x811c9dc5;
+  for (final unit in utf8.encode('$key|${r.at.toIso8601String()}')) {
+    h = ((h ^ unit) * 0x01000193) & 0xffffffff;
+  }
+  return h & 0x7fffffff;
 }
 
 /// 알림 문구 언어. 앱 화면과 같은 규칙(직접 고른 언어 → 기기 언어, 한국어가 아니면 영어)을 따른다.
