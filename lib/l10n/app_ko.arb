@@ -1246,5 +1246,61 @@
         "type": "String"
       }
     }
-  }
+  },
+  "remindersSection": "알림",
+  "remindersToggle": "알림 받기",
+  "remindersHint": "켜면 물주기·급이·백신 일정 시각에 알림을 보내요. 앱을 닫아 두어도 와요. 기록이 바뀌거나 앱을 열 때마다 앞으로 일주일 치를 다시 잡아요.",
+  "remindersWatering": "물주기",
+  "remindersFeeding": "급이",
+  "remindersCare": "백신·진료 일정",
+  "remindersQuietHours": "밤 9시~아침 7시에 돌아오는 물주기는 아침 7시에 알려 줘요.",
+  "remindersPermissionDenied": "알림 권한이 없어 켜지 못했어요. 휴대폰 설정 > 앱 > 마이팜 > 알림에서 허용해 주세요.",
+  "remindersPermissionOff": "휴대폰 설정에서 알림이 꺼져 있어 알림이 오지 않아요.",
+  "remindersScheduled": "알림 {count}개 예약됨 · 다음 {when}",
+  "@remindersScheduled": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "remindersNoneScheduled": "앞으로 예약된 알림이 없어요.",
+  "remindersFailed": "알림을 예약하지 못했어요: {error}",
+  "@remindersFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "notifWateringTitle": "물 줄 시간이에요",
+  "notifWateringBody": "{crops} 밭에 물을 주세요.",
+  "@notifWateringBody": {
+    "placeholders": {
+      "crops": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFeedingBody": "시간이 됐어요. 끝나면 앱에서 체크해 주세요.",
+  "notifCareTitle": "오늘 {title}",
+  "@notifCareTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "notifCareBody": "{target} · 끝나면 가축 관리에서 완료 체크해 주세요.",
+  "@notifCareBody": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "remindersAndroidDelay": "Android가 배터리를 아끼려고 알림을 최대 1시간까지 늦게 보낼 수 있어요."
 }

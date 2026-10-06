@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 상태 표시줄 알림 아이콘(새싹). Android는 알파 채널만 쓰므로 단색으로 그린다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11,21V13.6C8.2,13.4 5.6,11.8 4.6,8.2C4.4,7.5 4.3,6.7 4.3,6C8.1,6 10.6,8 11.6,11.1C12.5,7.7 15.2,5 19.7,5C19.7,5.8 19.6,6.6 19.4,7.4C18.3,11.4 15.5,13.3 13,13.6V21Z" />
+</vector>
