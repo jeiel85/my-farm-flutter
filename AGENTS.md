@@ -25,7 +25,7 @@ Backlog Document: BACKLOG.md
 Decision Log: README.md (기술 선택 절)
 Harness Document: N/A (마스터 템플릿 저장소 참고)
 Release Detail Document: N/A
-Mobile Release Document: N/A (스토어 배포 없음)
+Mobile Release Document: docs/play-store/README.md (Play 패키지명 등록·등록정보 자료. 스토어 배포는 아직 없음)
 GitHub AUP Document: N/A
 Collaboration Detail Document: N/A
 Version Files: pubspec.yaml (version), CHANGELOG.md

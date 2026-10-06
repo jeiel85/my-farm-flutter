@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>마이팜 개인정보처리방침 · My Farm Privacy Policy</title>
+  <meta name="theme-color" content="#2D4A63">
+  <style>
+    :root { --bg: #F1EDE4; --surface: #FFFDF9; --text: #1F2429; --muted: #6F757C; --primary: #2D4A63; --line: #E3DED3; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #14171A; --surface: #1C2125; --text: #E8ECEF; --muted: #9AA2A9; --primary: #9DB8D3; --line: #2F363C; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+    h1 { color: var(--primary); font-size: 28px; margin: 0 0 4px; }
+    h2 { font-size: 19px; margin: 32px 0 8px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; margin: 18px 0; }
+    .muted { color: var(--muted); font-size: 14px; }
+    a { color: var(--primary); }
+    ul { padding-left: 20px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>마이팜 개인정보처리방침</h1>
+  <p class="muted">시행일 2026년 10월 6일 · 앱: 마이팜(My Farm, com.jeiel85.myfarm)</p>
+
+  <div class="card">
+    <h2>요약</h2>
+    <ul>
+      <li>마이팜은 계정·로그인이 없고, 개발자 서버로 아무 정보도 보내지 않습니다.</li>
+      <li>모든 농장 기록(작물·가축·물·수확·재고·장부·일정)은 기기 안에만 저장됩니다.</li>
+      <li>광고·분석·추적 SDK를 쓰지 않습니다.</li>
+    </ul>
+  </div>
+
+  <h2>1. 기기 안에 저장하는 정보</h2>
+  <p>사용자가 입력한 농장 정보와 기록은 기기(웹 데모는 브라우저)의 앱 저장소에만 저장됩니다. 사용자가 직접 백업 파일(JSON)이나 장부 CSV를 내보낼 때만 사용자가 고른 위치에 파일이 만들어집니다. 앱을 삭제하면 기기 안의 기록도 함께 지워집니다.</p>
+
+  <h2>2. 외부로 보내는 정보</h2>
+  <ul>
+    <li><b>날씨 조회(Open-Meteo)</b>: 프로필에 입력한 농장 위치의 위도·경도를 <a href="https://open-meteo.com/">Open-Meteo</a>에 보내 날씨를 받습니다. 기기의 위치 권한은 쓰지 않으며, 다른 식별 정보는 함께 보내지 않습니다. Open-Meteo는 요청한 IP 주소를 볼 수 있습니다.</li>
+    <li><b>앱 업데이트 확인(선택, Android)</b>: 사용자가 켰을 때만 GitHub 릴리스에서 업데이트 정보 파일을 받습니다. 요청에 식별자를 붙이지 않으며, GitHub는 요청한 IP 주소를 볼 수 있습니다.</li>
+  </ul>
+
+  <h2>3. 권한</h2>
+  <ul>
+    <li><b>인터넷</b>: 날씨 조회와 (켰을 때) 업데이트 확인.</li>
+    <li><b>알림</b>(Android 13 이상, 사용자가 알림을 켰을 때): 물주기·급이·백신 일정 알림. 알림은 기기 안에서만 예약합니다.</li>
+    <li><b>진동</b>: 알림을 보낼 때 기기 설정에 따라 진동합니다.</li>
+    <li><b>부팅 완료 수신</b>: 재부팅 뒤 예약한 알림을 다시 겁니다.</li>
+    <li><b>앱 설치 요청</b>(Android): 사용자가 업데이트를 고르면 내려받은 APK를 시스템 설치 화면으로 넘깁니다.</li>
+  </ul>
+
+  <h2>4. 제3자 제공·판매</h2>
+  <p>개발자는 사용자 정보를 수집하지 않으므로 제3자에게 제공하거나 판매하지 않습니다.</p>
+
+  <h2>5. 아동</h2>
+  <p>마이팜은 아동을 대상으로 하지 않으며, 아동의 개인정보를 수집하지 않습니다.</p>
+
+  <h2>6. 문의</h2>
+  <p>저장소 이슈로 문의할 수 있습니다: <a href="https://github.com/jeiel85/my-farm-flutter/issues">github.com/jeiel85/my-farm-flutter/issues</a></p>
+
+  <hr style="border: 0; border-top: 1px solid var(--line); margin: 40px 0;">
+
+  <h1 lang="en">My Farm Privacy Policy</h1>
+  <p class="muted" lang="en">Effective October 6, 2026 · App: My Farm (com.jeiel85.myfarm)</p>
+  <div class="card" lang="en">
+    <ul>
+      <li>My Farm has no accounts and sends nothing to the developer's servers. All farm records stay on your device (or your browser for the web demo). No ads, analytics or tracking SDKs.</li>
+      <li><b>Weather</b>: the latitude and longitude you enter for your farm are sent to <a href="https://open-meteo.com/">Open-Meteo</a> to fetch the forecast. The device location permission is not used.</li>
+      <li><b>Update check</b> (optional, Android): when you turn it on, the app downloads an update manifest from GitHub Releases without any identifier. GitHub and Open-Meteo can see the requesting IP address.</li>
+      <li><b>Permissions</b>: internet; notifications (Android 13+, only if you enable reminders; scheduled on the device); vibrate (for reminders, per device settings); boot completed (to restore scheduled reminders); request install packages (to hand a downloaded update to the system installer).</li>
+      <li>The developer does not collect, share or sell personal data. The app is not directed at children.</li>
+      <li>Contact: <a href="https://github.com/jeiel85/my-farm-flutter/issues">GitHub issues</a>.</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>

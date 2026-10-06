@@ -159,6 +159,7 @@ Windows에서 Pub 캐시(C:)와 프로젝트(D:)의 드라이브가 다르면 Ko
 
 - 하드닝 후보: [#1 Hardening candidates: v1.0.0](https://github.com/jeiel85/my-farm-flutter/issues/1) (데이터 백업, 영어 UI, 접근성 등)
 - 농장 요소 아이디어: [BACKLOG.md](BACKLOG.md) (가축 출하 기록, 백신 알림, 병해충 기록, 매출 장부 …)
+- Google Play 패키지명 등록·등록정보 자료: [docs/play-store](docs/play-store/README.md) · [개인정보처리방침](https://jeiel85.github.io/my-farm-flutter/privacy.html)
 - 변경 이력: [CHANGELOG.md](CHANGELOG.md)
 
 ## 📄 라이선스
