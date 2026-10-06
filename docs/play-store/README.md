@@ -77,8 +77,8 @@ apksigner verify --print-certs build/app/outputs/flutter-apk/app-release.apk
 ■ 날씨와 작업 조언
 농장 위치의 5일 예보와 비·폭염·서리·강풍 조언. 연결이 끊겨도 마지막 날씨를 보여 줘요.
 
-■ 기기 안에만 저장
-계정·광고·분석 SDK가 없고, 기록은 기기 안에만 저장돼요. 백업 파일로 내보내고 복원할 수 있어요.
+■ 기기 안에 저장
+계정·광고·분석 SDK가 없고, 기록은 개발자 서버로 보내지 않고 기기 안에 저장돼요. 백업 파일로 내보내고 복원할 수 있어요.
 ```
 
 **English**
@@ -96,7 +96,7 @@ My Farm shows your whole farm on a single map.
 • Income & expense ledger — record sales and costs, see monthly profit, add the sale amount while recording a harvest or sale, and export CSV for spreadsheets.
 • Reminders — optional notifications for watering, feeding and care schedules.
 • Weather & advice — a 5-day forecast for your farm with tips for rain, heat, frost and wind; the last forecast stays available offline.
-• On-device only — no accounts, ads or analytics. Back up and restore your records as a file.
+• On your device — no accounts, ads or analytics; nothing is sent to the developer. Back up and restore your records as a file.
 ```
 
 ### 기타 입력값
@@ -113,4 +113,4 @@ My Farm shows your whole farm on a single map.
 
 - 개발자에게 전송·수집하는 데이터: 없음.
 - 날씨 조회 때 사용자가 입력한 농장 위도·경도를 앱이 Open-Meteo로 직접 보낸다. Play 기준으로 "대략적인 위치를 수집(앱 기능 목적, 공유 아님)"으로 신고하는 것이 보수적이다. 기기 위치 권한은 쓰지 않는다.
-- 전송 중 암호화: 예(HTTPS). 데이터 삭제 요청: 기록이 기기에만 있으므로 앱 삭제·초기화로 지워진다.
+- 전송 중 암호화: 예(HTTPS). 데이터 삭제: 기록은 기기에 있어 앱 삭제·초기화로 지워진다. 단 Android 시스템 백업(사용자 Google 계정, `allowBackup` 기본값)에 들어갈 수 있고, 이는 Play 데이터 보안의 개발자 수집에 해당하지 않는다(개발자 접근 불가).

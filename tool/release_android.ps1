@@ -39,6 +39,14 @@ if (-not $SkipBuild) {
 $builtApk = Join-Path $root 'build/app/outputs/flutter-apk/app-release.apk'
 if (-not (Test-Path $builtApk)) { throw "APK가 없습니다: $builtApk" }
 
+# Play 패키지명 소유 증명용 스니펫(tool/play_ownership_apk.ps1)이 든 APK는 배포하지 않는다.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($builtApk)
+try {
+  $proof = $zip.Entries | Where-Object { $_.FullName -like 'assets/adi-*' } | Select-Object -First 1
+} finally { $zip.Dispose() }
+if ($proof) { throw "소유 증명용 파일($($proof.FullName))이 든 APK입니다. -SkipBuild 없이 다시 빌드하세요." }
+
 # 최신 build-tools의 aapt2로 APK 안의 실제 값을 읽는다.
 $sdk = @($env:ANDROID_HOME, $env:ANDROID_SDK_ROOT, (Join-Path $env:LOCALAPPDATA 'Android/Sdk')) |
   Where-Object { $_ -and (Test-Path (Join-Path $_ 'build-tools')) } | Select-Object -First 1

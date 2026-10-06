@@ -349,7 +349,7 @@
   "dailyEggs": "Eggs per day",
   "dailyMilk": "Milk per day",
   "dataSection": "Data",
-  "dataExplain": "Everything is stored only on this device and is deleted with the app. Export a backup to restore it on another device or the desktop and web versions.",
+  "dataExplain": "Your records are stored on this device and never sent to the developer. They're deleted with the app, but if Android system backup is on they may be restored from your Google account backup. Export a backup to restore it on another device or the desktop and web versions.",
   "lastBackupNever": "Last backup: never",
   "lastBackupAt": "Last backup: {when}",
   "exportBackup": "Export backup",
