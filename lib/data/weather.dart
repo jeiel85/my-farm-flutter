@@ -194,15 +194,26 @@ class WeatherController extends ChangeNotifier {
   (double, double)? _loadedFor;
   bool _cacheChecked = false;
 
+  /// 지금 받는 중인 위치.
+  (double, double)? _loadingFor;
+
+  /// 받는 중에 들어온 다른 위치(또는 강제 새로고침) 요청. 끝나면 이어서 실행한다.
+  /// 재시도로 몇 초 걸리는 동안 프로필에서 위치를 바꾸면, 이전 위치 결과가 새 위치처럼 남지 않게 한다.
+  (double, double, bool)? _queued;
+
   bool _isFresh(double lat, double lon) =>
       report != null &&
       _loadedFor == (lat, lon) &&
       _clock().difference(report!.fetchedAt) < const Duration(minutes: 15);
 
   Future<void> ensureLoaded(double lat, double lon, {bool force = false}) async {
-    if (loading) return;
+    if (loading) {
+      if (_loadingFor != (lat, lon) || force) _queued = (lat, lon, force || (_queued?.$3 ?? false));
+      return;
+    }
     if (_cacheChecked && _isFresh(lat, lon) && !force) return;
     loading = true;
+    _loadingFor = (lat, lon);
     error = null;
     notifyListeners();
     try {
@@ -223,7 +234,12 @@ class WeatherController extends ChangeNotifier {
       error = const WeatherException(WeatherProblem.network);
     } finally {
       loading = false;
+      _loadingFor = null;
       notifyListeners();
+    }
+    if (_queued case (final qLat, final qLon, final qForce)) {
+      _queued = null;
+      await ensureLoaded(qLat, qLon, force: qForce);
     }
   }
 
@@ -247,7 +263,11 @@ class WeatherController extends ChangeNotifier {
       final fetchedAt = DateTime.parse(j['fetchedAt'] as String);
       final now = _clock();
       if (now.difference(fetchedAt) > cacheMaxAge || fetchedAt.isAfter(now)) return;
-      final cached = WeatherService.parse((j['json'] as Map).cast<String, Object?>(), fetchedAt).fromDay(now);
+      final json = (j['json'] as Map).cast<String, Object?>();
+      // 예보 날짜는 농장 현지 날짜(timezone=auto)라, 지난 날을 자를 때도 농장 시간대의 오늘을 쓴다.
+      final offset = json['utc_offset_seconds'];
+      final farmNow = offset is num ? now.toUtc().add(Duration(seconds: offset.toInt())) : now;
+      final cached = WeatherService.parse(json, fetchedAt).fromDay(farmNow);
       if (cached == null) return;
       report = cached;
       _loadedFor = (lat, lon);

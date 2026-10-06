@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -109,6 +110,40 @@ void main() {
       expect(c.error?.problem, WeatherProblem.network);
       expect(c.report?.fetchedAt, now);
       expect([for (final d in c.report!.daily) d.date], [DateTime(2026, 10, 6)]);
+    });
+
+    test('보관본의 지난 날은 기기가 아니라 농장 시간대의 오늘로 자른다', () async {
+      final storage = MemoryStorage();
+      // 농장은 UTC+5라 이미 10월 6일 새벽인데, 기기 시각(UTC 10월 5일 20시)은 시간대에 따라 아직 5일일 수 있다.
+      final farm = {..._sample, 'utc_offset_seconds': 5 * 3600};
+      final (online, _) = server([http.Response(jsonEncode(farm), 200)]);
+      await WeatherController(online, cache: storage, clock: () => now).ensureLoaded(37, 127);
+      final deviceNow = DateTime.utc(2026, 10, 5, 20).toLocal();
+      final (offline, _) = server([]);
+      final c = WeatherController(offline, cache: storage, clock: () => deviceNow, wait: (_) async {});
+      await c.ensureLoaded(37, 127);
+      expect([for (final d in c.report!.daily) d.date], [DateTime(2026, 10, 6)]);
+    });
+
+    test('받는 중에 위치가 바뀌면 끝난 뒤 새 위치로 다시 받는다', () async {
+      final calls = <String>[];
+      final gate = Completer<void>();
+      final service = WeatherService(
+        client: MockClient((req) async {
+          calls.add(req.url.queryParameters['latitude']!);
+          if (calls.length == 1) await gate.future;
+          return ok();
+        }),
+      );
+      final c = WeatherController(service, clock: () => now);
+      final first = c.ensureLoaded(37, 127);
+      await Future<void>.delayed(Duration.zero);
+      final second = c.ensureLoaded(35, 129);
+      gate.complete();
+      await first;
+      await second;
+      expect(calls, ['37.0000', '35.0000']);
+      expect(c.loading, isFalse);
     });
 
     test('15분이 지나지 않은 보관본이면 다시 받지 않는다', () async {
