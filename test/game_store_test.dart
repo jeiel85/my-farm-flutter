@@ -40,6 +40,38 @@ void main() {
     expect(storage.meta[GameStore.managementArchiveKey], legacy);
   });
 
+  test('관리 앱 기록이 다시 들어와도(2.0 → 1.7 → 2.0) 처음 보관한 원본은 덮어쓰지 않는다', () async {
+    final original = jsonEncode({
+      'schemaVersion': 4,
+      'profile': {'name': '초록골 농장'},
+    });
+    final storage = MemoryStorage(original);
+    await load(storage);
+    // 1.7로 낮추면 그 앱이 예시 농장(v4)을 새로 저장한다.
+    final demo = jsonEncode({
+      'schemaVersion': 4,
+      'profile': {'name': '예시 농장'},
+    });
+    storage.value = demo;
+    final store = await load(storage);
+    expect(store.migratedFromManagement, isTrue);
+    expect(storage.meta[GameStore.managementArchiveKey], original);
+    expect(storage.copiesLabeled('management_again'), [demo]);
+  });
+
+  test('시각은 UTC로 저장해 시간대가 바뀌어도 같은 순간으로 읽고, 시간대 없는 이전 저장본도 읽는다', () async {
+    final storage = MemoryStorage();
+    final store = await load(storage);
+    final saved = (jsonDecode(storage.value!) as Map).cast<String, Object?>();
+    expect(saved['simTime'], endsWith('Z'));
+    final back = GameState.fromJson(saved);
+    expect(back.simTime.isUtc, isFalse);
+    expect(back.simTime.isAtSameMomentAs(store.state.simTime), isTrue);
+
+    final local = GameState.fromJson({...saved, 'simTime': '2026-10-06T09:00:00.000'});
+    expect(local.simTime, DateTime(2026, 10, 6, 9));
+  });
+
   test('읽을 수 없거나 더 새로운 저장본은 보관본으로 남기고 새 게임으로 시작한다', () async {
     final broken = MemoryStorage('{oops');
     final s1 = await load(broken);

@@ -109,14 +109,14 @@ class GameLogEntry {
   final String subject;
 
   Map<String, Object?> toJson() => {
-    'at': at.toIso8601String(),
+    'at': at.toUtc().toIso8601String(),
     'kind': kind.name,
     'amount': amount,
     'subject': subject,
   };
 
   factory GameLogEntry.fromJson(Map<String, Object?> j) => GameLogEntry(
-    at: DateTime.parse(j['at'] as String),
+    at: DateTime.parse(j['at'] as String).toLocal(),
     kind: _enum(LogKind.values, j['kind']),
     amount: j['amount'] as int,
     subject: j['subject'] as String,
@@ -205,7 +205,8 @@ class GameState {
   Map<String, Object?> toJson() => {
     'schemaVersion': schemaVersion,
     'farmName': farmName,
-    'simTime': simTime.toIso8601String(),
+    // 시간대 없는 현지 시각으로 적으면 앱을 닫은 동안 시간대를 바꿨을 때 다른 순간으로 읽힌다. UTC로 적고 현지 시각으로 읽는다.
+    'simTime': simTime.toUtc().toIso8601String(),
     'coins': coins,
     'xp': xp,
     'barn': {for (final e in barn.entries) e.key.name: e.value},
@@ -220,13 +221,14 @@ class GameState {
   };
 
   /// 다른 버전은 읽지 않는다. 관리 앱 시절(v1~v4) 저장본은 [GameStore]가 따로 보관하고 새 게임을 만든다.
+  /// 전환 방법·실패 시 동작·되돌리기는 docs/save-format-v5.md.
   factory GameState.fromJson(Map<String, Object?> j) {
     final version = j['schemaVersion'];
     if (version != schemaVersion) throw UnsupportedGameSchema(version);
     Map<String, Object?> map(String key) => (j[key] as Map).cast<String, Object?>();
     return GameState(
       farmName: j['farmName'] as String,
-      simTime: DateTime.parse(j['simTime'] as String),
+      simTime: DateTime.parse(j['simTime'] as String).toLocal(),
       coins: j['coins'] as int,
       xp: j['xp'] as int,
       barn: {for (final e in map('barn').entries) _enum(ItemId.values, e.key): e.value as int},

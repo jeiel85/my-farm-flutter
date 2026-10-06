@@ -31,7 +31,13 @@ class GameStore extends ChangeNotifier {
         } on UnsupportedGameSchema catch (e) {
           if (!e.legacy) rethrow;
           // 관리 앱 기록은 게임 수치로 바꿀 의미 있는 방법이 없다. 지우지 않고 보관하고 농장 이름만 잇는다.
-          await storage.writeMeta(managementArchiveKey, raw);
+          // 처음 보관한 원본은 덮어쓰지 않는다. 2.0 → 1.7로 낮췄다가 다시 올리면 1.7이 새로 만든 기록이 또 들어오는데,
+          // 그때 원본을 잃지 않도록 두 번째부터는 일반 보관본으로 남긴다.
+          if (await storage.readMeta(managementArchiveKey) == null) {
+            await storage.writeMeta(managementArchiveKey, raw);
+          } else {
+            await storage.keepCopy(raw, 'management_again');
+          }
           final profile = json['profile'];
           final name = profile is Map && profile['name'] is String ? profile['name'] as String : defaultFarmName;
           state = GameEngine.newGame(now(), farmName: name.trim().isEmpty ? defaultFarmName : name);
