@@ -285,6 +285,29 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('창 폭이 넓은 배치와 휴대폰 배치를 오가도 프로필의 저장 전 입력이 남는다', (tester) async {
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.reset);
+    await pumpApp(tester, size: const Size(1440, 900));
+    await tester.tap(find.text('프로필').last);
+    await tester.pump(const Duration(seconds: 1));
+    final name = find.widgetWithText(TextFormField, '농장 이름');
+    await tester.enterText(name, '바뀐 농장');
+    await tester.pump();
+
+    for (final size in const [Size(400, 860), Size(1440, 900), Size(1440, 320)]) {
+      tester.view.physicalSize = size;
+      await tester.binding.setSurfaceSize(size);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('바뀐 농장'), findsOneWidget, reason: '$size');
+      expect(tester.takeException(), isNull, reason: '$size');
+    }
+    await _unmount(tester);
+  });
+
   testWidgets('영어로 바꾸면 화면과 예시 데이터가 영어로 나온다', (tester) async {
     await pumpApp(tester, locale: 'en');
     expect(find.text("Today's tasks"), findsOneWidget);

@@ -80,19 +80,17 @@ class _AppShellState extends State<AppShell> {
       ],
     );
     // 넓은 화면(PC·태블릿 가로)은 아래 탭 대신 왼쪽 메뉴를 둔다.
-    if (isWide(context)) {
-      return Scaffold(
-        body: Row(
-          children: [
-            _SideBar(current: _tab, onSelect: _select),
-            Expanded(child: content),
-          ],
-        ),
-      );
-    }
+    // 창 폭이 900을 넘나들어도 트리 모양(Row → 키 있는 Expanded)을 그대로 둬야 탭 화면 상태
+    // (프로필의 저장 전 입력, 고른 구역, 스크롤 위치)가 다시 만들어지지 않는다.
+    final wide = isWide(context);
     return Scaffold(
-      body: content,
-      bottomNavigationBar: _BottomBar(current: _tab, onSelect: _select),
+      body: Row(
+        children: [
+          if (wide) _SideBar(current: _tab, onSelect: _select),
+          Expanded(key: const ValueKey('content'), child: content),
+        ],
+      ),
+      bottomNavigationBar: wide ? null : _BottomBar(current: _tab, onSelect: _select),
     );
   }
 }
@@ -112,7 +110,8 @@ class _SideBar extends StatelessWidget {
     ),
     child: SafeArea(
       right: false,
-      child: Padding(
+      // 창 높이가 낮아도 넘치지 않게 스크롤한다.
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(14, 20, 14, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
