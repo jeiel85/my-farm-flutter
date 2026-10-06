@@ -210,7 +210,7 @@ class _Current extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(28),
         gradient: const LinearGradient(
-          colors: [Color(0xFF3B8ED8), Color(0xFF2A6CB3)],
+          colors: [AppColors.blue, AppColors.blueDeep],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

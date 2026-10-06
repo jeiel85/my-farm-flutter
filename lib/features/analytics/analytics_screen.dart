@@ -95,7 +95,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
                 _Summary(
                   icon: Icons.local_drink_rounded,
-                  color: const Color(0xFF8A7BD8),
+                  color: AppColors.plum,
                   label: context.l10n.avgDailyMilk,
                   value: avgMilk == null ? context.l10n.noRecords : '${avgMilk.toStringAsFixed(1)}L',
                 ),
@@ -181,7 +181,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   for (final (i, p) in production.indexed)
                     p.$2 == null ? FlSpot.nullSpot : FlSpot(i.toDouble(), p.$2!.milkL),
                 ],
-                const Color(0xFF8A7BD8),
+                AppColors.plum,
                 target: profile.dailyMilkTargetL,
                 labels: [for (final p in production) p.$1],
               ),

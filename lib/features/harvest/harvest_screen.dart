@@ -58,7 +58,7 @@ class HarvestScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(colors: [Color(0xFFE8963A), Color(0xFFD9772A)]),
+                    gradient: const LinearGradient(colors: [AppColors.orangeLight, AppColors.orange]),
                   ),
                   child: Row(
                     children: [

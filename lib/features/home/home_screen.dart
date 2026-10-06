@@ -428,7 +428,7 @@ class _WeatherCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: const LinearGradient(
-            colors: [Color(0xFF2B6A3C), Color(0xFF1F4D2C)],
+            colors: [AppColors.primaryLight, AppColors.primary],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

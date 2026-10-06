@@ -284,7 +284,7 @@ class _FeedingCard extends StatelessWidget {
             children: [
               const IconBubble(
                 size: 30,
-                color: Color(0xFFFCF1D2),
+                color: AppTints.ochre,
                 child: Icon(Icons.schedule_rounded, size: 16, color: AppColors.orange),
               ),
               const SizedBox(width: 10),
@@ -423,7 +423,7 @@ class _KindCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: active ? AppColors.primary : Colors.transparent, width: 2),
         boxShadow: active
-            ? const [BoxShadow(color: Color(0x221F4D2C), blurRadius: 14, offset: Offset(0, 6))]
+            ? const [BoxShadow(color: Color(0x222D4A63), blurRadius: 14, offset: Offset(0, 6))]
             : const [],
       ),
       child: Column(

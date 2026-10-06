@@ -166,7 +166,7 @@ class _MonthSummary extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(colors: [Color(0xFF2E6B3F), AppColors.primary]),
+        gradient: const LinearGradient(colors: [AppColors.primaryLight, AppColors.primary]),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
