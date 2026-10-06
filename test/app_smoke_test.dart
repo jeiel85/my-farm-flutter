@@ -1,111 +1,155 @@
-import 'dart:io';
-import 'dart:ui' show Tristate;
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:intl/intl.dart';
 import 'package:my_farm/data/app_update.dart';
-import 'package:my_farm/data/farm_store.dart';
-import 'package:my_farm/data/models.dart';
-import 'package:my_farm/data/weather.dart';
+import 'package:my_farm/game/defs.dart';
+import 'package:my_farm/game/game_store.dart';
 import 'package:my_farm/main.dart';
 
 import 'app_update_test.dart' show FakePlatform, MetaStorage;
-import 'farm_store_test.dart' show MemoryStorage;
+import 'support/memory_storage.dart';
 
 void main() {
   setUpAll(() => initializeDateFormatting('ko'));
 
-  Future<FarmStore> pumpApp(
+  late DateTime now;
+  setUp(() => now = DateTime(2026, 10, 5, 14, 30));
+
+  Future<GameStore> pumpApp(
     WidgetTester tester, {
     String locale = 'ko',
     UpdateController? update,
+    MemoryStorage? storage,
     Size size = const Size(400, 900),
   }) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     // 테스트 환경의 기기 언어와 상관없이 화면 언어를 고정한다.
-    final storage = MemoryStorage()..meta['locale'] = locale;
-    final store = await FarmStore.load(storage, clock: () => DateTime(2026, 10, 5, 14, 30), english: locale == 'en');
-    final weather = WeatherController(
-      WeatherService(
-        client: MockClient(
-          (_) async => http.Response(
-            jsonEncode({
-              'current': {'temperature_2m': 24.0, 'relative_humidity_2m': 50, 'weather_code': 0, 'wind_speed_10m': 5.0},
-              'daily': {
-                'time': ['2026-10-05'],
-                'weather_code': [0],
-                'temperature_2m_max': [25.0],
-                'temperature_2m_min': [14.0],
-                'precipitation_probability_max': [0],
-              },
-            }),
-            200,
-          ),
-        ),
-      ),
+    final store = await GameStore.load(
+      (storage ?? MemoryStorage())..meta['locale'] = locale,
+      clock: () => now,
+      defaultFarmName: locale == 'ko' ? '햇살 농장' : 'Sunny Farm',
     );
-    await tester.pumpWidget(MyFarmApp(store: store, weather: weather, update: update));
+    await tester.pumpWidget(MyFarmApp(store: store, update: update));
     await tester.pump(const Duration(seconds: 2));
     return store;
   }
 
-  testWidgets('홈에서 시작해 농장 탭의 구역을 고르면 상세 카드가 바뀐다', (tester) async {
-    await pumpApp(tester);
-    expect(find.text('오늘 할 일'), findsOneWidget);
-    expect(find.textContaining('24°'), findsOneWidget);
-
-    await tester.tap(find.text('농장'));
+  /// 매초 시계가 돌도록 [d]만큼 시간을 흘린다.
+  Future<void> wait(WidgetTester tester, Duration d) async {
+    now = now.add(d);
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('구역을 눌러 둘러보세요'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
+  }
 
-    final chips = find.byWidgetPredicate((w) => w is ListView && w.scrollDirection == Axis.horizontal);
-    await tester.dragUntilVisible(find.text('가축 구역'), chips, const Offset(-150, 0));
-    await tester.tap(find.text('가축 구역'));
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('가축 관리 열기'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('가축 관리 열기'));
+  Future<void> tapAndSettle(WidgetTester tester, Finder f) async {
+    await tester.ensureVisible(f);
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('가축 관리 열기'));
-    // 첫 프레임에서 라우트 전환이 시작되므로 한 번 더 그린 뒤 시간을 흘린다.
+    await tester.tap(f);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('오늘의 급이'), findsOneWidget);
-    expect(find.text('백신·진료 일정'), findsOneWidget);
-    // 일정 카드가 생겨 가축 목록 제목은 첫 화면 아래에 있다.
-    await tester.scrollUntilVisible(find.text('우리 소'), 300, scrollable: find.byType(Scrollable).last);
-    expect(find.text('우리 소'), findsOneWidget);
+  }
 
-    // 입식 시트가 열린다.
-    await tester.tap(find.byIcon(Icons.add_rounded).first);
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('가축 입식'), findsOneWidget);
-    expect(find.textContaining('COW-'), findsWidgets);
-    expect(find.textContaining('18마리'), findsOneWidget);
+  testWidgets('새 농장: 달걀을 줍고, 상추가 다 자라면 수확해 창고에서 판다', (tester) async {
+    final store = await pumpApp(tester);
+    expect(find.text('햇살 농장'), findsOneWidget);
+    expect(find.text('할 일'), findsOneWidget);
+    expect(find.text('닭 생산물 1개 모으기'), findsOneWidget);
+
+    await tapAndSettle(tester, find.text('달걀 줍기'));
+    expect(find.text('달걀 1개 모았어요'), findsOneWidget);
+    expect(store.state.countOf(ItemId.egg), 1);
+
+    // 1분 뒤 상추가 다 자란다.
+    await wait(tester, const Duration(minutes: 1));
+    expect(find.text('밭 1 상추 수확'), findsOneWidget);
+    await tapAndSettle(tester, find.text('수확').last);
+    expect(find.text('상추 수확!'), findsOneWidget);
+
+    await tapAndSettle(tester, find.text('창고').last);
+    expect(find.text('상추 × ${GameDefs.crops[CropId.lettuce]!.yieldCount}'), findsOneWidget);
+    expect(find.text('달걀 × 1'), findsOneWidget);
+    final coins = store.state.coins;
+    await tapAndSettle(tester, find.text('모두 팔기'));
+    await tapAndSettle(tester, find.descendant(of: find.byType(AlertDialog), matching: find.text('모두 팔기')));
+    expect(store.state.coins, greaterThan(coins));
+    expect(store.state.barnUsed, 0);
+
+    await tapAndSettle(tester, find.text('기록').last);
+    expect(find.text('상추 판매'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 
-  testWidgets('분석·수확·프로필 탭이 오류 없이 그려진다', (tester) async {
+  testWidgets('창고·기록·설정 탭이 오류 없이 그려진다', (tester) async {
     await pumpApp(tester);
-    for (final tab in ['분석', '수확', '프로필']) {
+    for (final tab in ['창고', '기록', '설정']) {
       await tester.tap(find.text(tab).last);
       await tester.pump(const Duration(seconds: 1));
-      expect(tester.takeException(), isNull);
+      expect(tester.takeException(), isNull, reason: tab);
     }
     expect(find.text('농장 정보'), findsOneWidget);
     await _unmount(tester);
   });
 
-  testWidgets('새 버전이 있으면 홈 알림에서 안내 시트를 열고, 프로필에 업데이트 설정이 나온다', (tester) async {
-    final now = DateTime(2026, 10, 5, 14, 30);
+  testWidgets('스크린리더로 지도 구역을 읽고, 고르면 구역 시트가 열린다', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpApp(tester);
+    FinderBase<SemanticsNode> inMap(Pattern label) =>
+        find.semantics.descendant(of: find.semantics.byLabel('농장 지도'), matching: find.semantics.byLabel(label));
+
+    expect(inMap('밭 1, 상추 자라는 중'), findsOne);
+    expect(inMap('밭 2, 잠김 (레벨 2)'), findsOne);
+    expect(inMap('가축 우리'), findsOne);
+
+    tester.semantics.tap(inMap('밭 2, 잠김 (레벨 2)'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('레벨 2 필요'), findsOneWidget);
+    await tester.tapAt(const Offset(200, 40)); // 시트 밖을 눌러 닫는다
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    tester.semantics.tap(inMap('가축 우리'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('병아리 들이기 · 🪙30'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    semantics.dispose();
+    await _unmount(tester);
+  });
+
+  testWidgets('오래 비웠다 돌아오면 그동안 일어난 일을 알려 준다', (tester) async {
+    await pumpApp(tester);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    now = now.add(const Duration(hours: 1));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('1시간 동안 이런 일이 있었어요'), findsOneWidget);
+    expect(find.text('밭 1곳의 작물이 다 자랐어요'), findsOneWidget);
+    await tapAndSettle(tester, find.text('확인'));
+    expect(find.byType(AlertDialog), findsNothing);
+    await _unmount(tester);
+  });
+
+  testWidgets('관리 앱(1.x) 기록이 있으면 보관했다고 알린다', (tester) async {
+    final legacy = jsonEncode({
+      'schemaVersion': 4,
+      'profile': {'name': '초록골 농장'},
+    });
+    await pumpApp(tester, storage: MemoryStorage(legacy));
+    expect(find.textContaining('방치형 농장 게임으로 바뀌었어요'), findsOneWidget);
+    expect(find.text('초록골 농장'), findsOneWidget);
+    await _unmount(tester);
+  });
+
+  testWidgets('새 버전이 있으면 농장 화면에서 안내 시트를 열고, 설정에 업데이트 설정이 나온다', (tester) async {
     final storage = MetaStorage()
       ..meta['update_enabled'] = 'true'
       ..meta['update_checked_at'] = now.toIso8601String()
@@ -127,178 +171,56 @@ void main() {
     // 캐시 폴더 정리가 실제 파일 시스템을 쓰므로 가짜 시간 밖에서 초기화한다.
     await tester.runAsync(update.init);
     await pumpApp(tester, update: update);
-    final vertical = find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).first;
 
-    await tester.scrollUntilVisible(find.text('새 버전 9.9.0 사용 가능'), 200, scrollable: vertical);
-    await tester.tap(find.text('새 버전 9.9.0 사용 가능'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
+    await tapAndSettle(tester, find.text('새 버전 9.9.0 사용 가능'));
     expect(find.text('내려받을 크기 52.0MB. 업데이트해도 농장 기록은 그대로 남아요.'), findsOneWidget);
-    // 홈의 백업 알림에도 '나중에'가 있으므로 시트 안의 버튼을 누른다.
-    await tester.tap(find.descendant(of: find.byType(BottomSheet), matching: find.text('나중에')));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-
+    await tapAndSettle(tester, find.descendant(of: find.byType(BottomSheet), matching: find.text('나중에')));
     expect(find.byType(BottomSheet), findsNothing);
-    await tester.tap(find.text('프로필').last);
-    await tester.pump(const Duration(seconds: 1));
-    await tester.scrollUntilVisible(find.text('새 버전 자동 확인'), 300, scrollable: vertical);
+
+    await tapAndSettle(tester, find.text('설정').last);
+    await tester.scrollUntilVisible(
+      find.text('새 버전 자동 확인'),
+      300,
+      scrollable: find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).first,
+    );
     expect(find.text('설치된 버전 1.6.0'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 
-  testWidgets('분석에서 장부를 열어 비용을 적으면 목록과 합계에 나온다', (tester) async {
-    final store = await pumpApp(tester);
-    await tester.tap(find.text('분석').last);
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('매출·비용'), findsOneWidget);
-
-    await tester.tap(find.text('장부 열기'));
-    await tester.pumpAndSettle();
-    expect(find.text('매출·비용 장부'), findsOneWidget);
-    expect(find.text('2026년 10월'), findsOneWidget);
-
-    await tester.tap(find.text('매출·비용 기록'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.descendant(of: find.byType(SegmentedButton<bool>), matching: find.text('비용')));
-    await tester.pump();
-    await tester.tap(find.text('진료·약품'));
-    await tester.enterText(find.byType(TextField).first, '0');
-    await tester.tap(find.text('기록하기'));
-    await tester.pump();
-    expect(find.text('0보다 큰 숫자로 입력하세요.'), findsOneWidget);
-
-    final before = store.state.ledger.length;
-    await tester.enterText(find.byType(TextField).first, '45,000');
-    await tester.enterText(find.byType(TextField).last, '송아지 설사약');
-    await tester.tap(find.text('기록하기'));
-    await tester.pumpAndSettle();
-    expect(store.state.ledger, hasLength(before + 1));
-    final added = store.state.ledger.last;
-    expect((added.category, added.amount, added.note), (LedgerCategory.vet, 45000.0, '송아지 설사약'));
-    expect(find.text('장부에 기록했어요.'), findsOneWidget);
-    expect(find.text('송아지 설사약'), findsOneWidget);
-    expect(find.text('-₩45,000'), findsOneWidget);
-    // 순이익은 요약 카드에만 나오고, 방금 적은 비용이 빠진 값이어야 한다.
-    final (income, expense) = store.ledgerTotals(DateTime(2026, 10), DateTime(2026, 11));
-    expect(expense, greaterThanOrEqualTo(45000));
-    final won = NumberFormat.simpleCurrency(locale: 'ko', name: 'KRW');
-    expect(find.text(won.format(income - expense)), findsOneWidget);
-
-    // 기록을 누르면 같은 값이 채워진 수정 시트가 열리고, 고치면 같은 기록이 바뀐다.
-    await tester.tap(find.text('송아지 설사약'));
-    await tester.pumpAndSettle();
-    expect(find.text('장부 기록 고치기'), findsOneWidget);
-    expect(find.widgetWithText(TextField, '45000'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).first, '52000');
-    await tester.tap(find.text('기록하기'));
-    await tester.pumpAndSettle();
-    expect(store.state.ledger, hasLength(before + 1));
-    expect(store.state.ledger.last.id, added.id);
-    expect(store.state.ledger.last.amount, 52000);
-    expect(find.text('장부 기록을 고쳤어요.'), findsOneWidget);
-    expect(find.text('-₩52,000'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    await _unmount(tester);
-  });
-
-  testWidgets('수확할 때 판매 금액을 적으면 장부에 작물 매출로 함께 남는다', (tester) async {
-    final store = await pumpApp(tester);
-    await tester.tap(find.text('수확').last);
-    await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('수확 기록하기'));
-    await tester.pumpAndSettle();
-    final before = store.state.ledger.length;
-    await tester.enterText(find.widgetWithText(TextField, '수확량'), '12');
-    await tester.enterText(find.widgetWithText(TextField, '판매 금액 (선택)'), '96,000');
-    await tester.tap(find.text('기록하기'));
-    await tester.pumpAndSettle();
-    expect(store.state.ledger, hasLength(before + 1));
-    final sale = store.state.ledger.last;
-    expect((sale.category, sale.amount), (LedgerCategory.crops, 96000.0));
-    expect(sale.note, endsWith('12kg 수확'));
-    expect(find.text('수확과 판매 금액을 기록했습니다.'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    await _unmount(tester);
-  });
-
-  testWidgets('스크린리더로 지도 구역을 읽고 고를 수 있다', (tester) async {
-    final semantics = tester.ensureSemantics();
-    await pumpApp(tester);
-    await tester.tap(find.text('농장'));
-    // 탭 전환 애니메이션이 끝나 이전 화면이 빠질 때까지 프레임을 넘긴다.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump(const Duration(milliseconds: 500));
-    // 구역 칩도 같은 이름이라 지도 안에서만 찾는다.
-    FinderBase<SemanticsNode> inMap(Pattern label) =>
-        find.semantics.descendant(of: find.semantics.byLabel('농장 지도'), matching: find.semantics.byLabel(label));
-    bool selected(Pattern label) =>
-        inMap(label).evaluate().single.getSemanticsData().flagsCollection.isSelected == Tristate.isTrue;
-
-    expect(inMap('토마토 밭'), findsOne);
-    expect(inMap('채소 밭, 물 줄 때가 됐어요'), findsOne);
-    expect(selected('토마토 밭'), isFalse);
-    tester.semantics.tap(inMap('토마토 밭'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(selected('토마토 밭'), isTrue);
-    expect(find.text('토마토 밭'), findsWidgets);
-    semantics.dispose();
-    await _unmount(tester);
-  });
-
-  testWidgets('넓은 화면(PC)에서는 옆 메뉴와 두 열 배치로 모든 탭과 상세 화면이 오류 없이 그려진다', (tester) async {
+  testWidgets('넓은 화면(PC)에서는 옆 메뉴와 두 열 배치로 모든 탭이 오류 없이 그려진다', (tester) async {
     // MediaQuery는 테스트 뷰 크기를 따르므로 뷰도 PC 창 크기로 맞춘다.
     tester.view
       ..devicePixelRatio = 1
       ..physicalSize = const Size(1440, 900);
     addTearDown(tester.view.reset);
     await pumpApp(tester, size: const Size(1440, 900));
-    // 아래 탭 대신 옆 메뉴가 있고, 앱 이름이 메뉴 위에 보인다.
     expect(find.text('마이팜'), findsOneWidget);
     // 옆 메뉴는 화면 위에서 아래까지 꽉 찬다(내용 높이로 줄어 가운데에 뜨지 않는다).
     final sideBar = find.byWidgetPredicate((w) => w.runtimeType.toString() == '_SideBar');
     expect(tester.getTopLeft(sideBar).dy, 0);
     expect(tester.getSize(sideBar).height, 900);
-    expect(find.text('오늘 할 일'), findsOneWidget);
-    expect(find.text('오늘 확인할 것'), findsOneWidget);
-    // 홈은 두 열이다: 오늘 할 일(왼쪽)과 확인할 것(오른쪽)이 나란히 있다.
-    expect(tester.getTopLeft(find.text('오늘 확인할 것')).dx, greaterThan(tester.getTopLeft(find.text('오늘 할 일')).dx + 300));
-    for (final tab in ['농장', '분석', '수확', '프로필', '홈']) {
+    // 농장은 두 열이다: 지도(왼쪽)와 할 일(오른쪽)이 나란히 있다.
+    final map = find.bySemanticsLabel('농장 지도');
+    expect(tester.getTopLeft(find.text('할 일')).dx, greaterThan(tester.getTopRight(map).dx));
+    for (final tab in ['창고', '기록', '설정', '농장']) {
       await tester.tap(find.text(tab).last);
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       expect(tester.takeException(), isNull, reason: tab);
     }
-    // 수확 기록 버튼은 넓은 화면에서 떠 있지 않고 요약 아래에 있다.
-    await tester.tap(find.text('수확').last);
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('수확 기록하기'), findsOneWidget);
-
-    // 상세 화면(장부)도 두 열로 그려진다.
-    await tester.tap(find.text('분석').last);
-    await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.text('장부 열기'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('매출·비용 장부'), findsOneWidget);
-    expect(find.text('매출·비용 기록'), findsOneWidget);
-    expect(tester.takeException(), isNull);
     await _unmount(tester);
   });
 
-  testWidgets('창 폭이 넓은 배치와 휴대폰 배치를 오가도 프로필의 저장 전 입력이 남는다', (tester) async {
+  testWidgets('창 폭이 넓은 배치와 휴대폰 배치를 오가도 설정의 저장 전 입력이 남는다', (tester) async {
     tester.view
       ..devicePixelRatio = 1
       ..physicalSize = const Size(1440, 900);
     addTearDown(tester.view.reset);
     await pumpApp(tester, size: const Size(1440, 900));
-    await tester.tap(find.text('프로필').last);
+    await tester.tap(find.text('설정').last);
     await tester.pump(const Duration(seconds: 1));
-    final name = find.widgetWithText(TextFormField, '농장 이름');
-    await tester.enterText(name, '바뀐 농장');
+    await tester.enterText(find.widgetWithText(TextField, '농장 이름'), '바뀐 농장');
     await tester.pump();
 
     for (final size in const [Size(400, 860), Size(1440, 900), Size(1440, 320)]) {
@@ -312,29 +234,23 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('영어로 바꾸면 화면과 예시 데이터가 영어로 나온다', (tester) async {
+  testWidgets('영어로 바꾸면 화면이 영어로 나온다', (tester) async {
     await pumpApp(tester, locale: 'en');
-    expect(find.text("Today's tasks"), findsOneWidget);
-    expect(find.text('Prune tomato suckers'), findsOneWidget);
-    expect(find.textContaining('°'), findsWidgets);
-
-    await tester.tap(find.text('Farm'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Tap a zone to explore'), findsOneWidget);
-
-    for (final tab in ['Analytics', 'Harvest', 'Profile']) {
+    expect(find.text('Sunny Farm'), findsOneWidget);
+    expect(find.text('To do'), findsOneWidget);
+    expect(find.text('Collect eggs'), findsOneWidget);
+    for (final tab in ['Barn', 'Records', 'Settings']) {
       await tester.tap(find.text(tab).last);
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
-      expect(tester.takeException(), isNull);
+      expect(tester.takeException(), isNull, reason: tab);
     }
     expect(find.text('Farm details'), findsOneWidget);
     await _unmount(tester);
   });
 }
 
-/// flutter_animate의 지연 타이머가 남지 않도록 트리를 내리고 시간을 흘려보낸다.
+/// 화면 애니메이션의 지연 타이머가 남지 않도록 트리를 내리고 시간을 흘려보낸다.
 Future<void> _unmount(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox());
   await tester.pump(const Duration(seconds: 2));

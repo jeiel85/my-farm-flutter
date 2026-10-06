@@ -7,12 +7,12 @@ import 'package:intl/intl.dart';
 
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
-import '../../data/farm_store.dart';
+import '../../game/game_store.dart';
 import '../../l10n/l10n.dart';
 
 /// 현재 데이터를 JSON 백업 파일로 저장한다(웹은 내려받기).
 Future<void> exportBackupFile(BuildContext context) async {
-  final store = FarmScope.read(context);
+  final store = GameScope.read(context);
   final bytes = Uint8List.fromList(utf8.encode(store.exportBackup()));
   final name = 'myfarm-backup-${DateFormat('yyyyMMdd-HHmm').format(store.now)}.json';
   try {
@@ -37,6 +37,31 @@ Future<void> exportBackupFile(BuildContext context) async {
   }
 }
 
+/// 보관해 둔 관리 앱(1.7.x) 기록을 1.7.x 앱에서 복원할 수 있는 파일로 저장한다.
+Future<void> exportManagementArchiveFile(BuildContext context) async {
+  final store = GameScope.read(context);
+  final text = await store.exportManagementArchive();
+  if (!context.mounted || text == null) return;
+  final name = 'myfarm-management-archive-${DateFormat('yyyyMMdd-HHmm').format(store.now)}.json';
+  try {
+    final uri = await FilePicker.saveFile(
+      fileName: name,
+      bytes: Uint8List.fromList(utf8.encode(text)),
+      mimeType: 'application/json',
+      dialogTitle: context.l10n.saveBackupDialog,
+      type: FileType.custom,
+      allowedExtensions: const ['json'],
+    );
+    if (!context.mounted) return;
+    showMessage(
+      context,
+      uri == null ? context.l10n.backupCancelled : context.l10n.backupSaved(savedFileName(uri, name)),
+    );
+  } catch (e) {
+    if (context.mounted) showMessage(context, context.l10n.backupFailed('$e'));
+  }
+}
+
 /// 백업 파일을 골라 내용을 확인받은 뒤 복원한다.
 Future<void> importBackupFile(BuildContext context) async {
   final PlatformFile? file;
@@ -54,7 +79,7 @@ Future<void> importBackupFile(BuildContext context) async {
 
   final BackupContents contents;
   try {
-    contents = FarmStore.parseBackup(await file.xFile.readAsString());
+    contents = GameStore.parseBackup(await file.xFile.readAsString());
   } on BackupException catch (e) {
     if (!context.mounted) return;
     final l = context.l10n;
@@ -63,6 +88,7 @@ Future<void> importBackupFile(BuildContext context) async {
       BackupProblem.notBackup => l.backupNotOurs,
       BackupProblem.damaged => l.backupDamaged,
       BackupProblem.newerVersion => l.backupNewer,
+      BackupProblem.managementApp => l.backupManagementApp,
     };
     showMessage(context, l.restoreRejected(reason));
     return;
@@ -83,7 +109,7 @@ Future<void> importBackupFile(BuildContext context) async {
         children: [
           Text(file!.name, style: AppText.caption),
           const SizedBox(height: 10),
-          Text(context.l10n.restoreSummary(s.profile.name, s.animals.length, s.harvests.length, s.tasks.length)),
+          Text(context.l10n.restoreGameSummary(s.farmName, s.level, s.coins, s.animals.length)),
           if (contents.exportedAt != null)
             Text(
               context.l10n.backupMadeAt(DateFormat.yMd(context.localeName).add_Hm().format(contents.exportedAt!)),
@@ -100,7 +126,7 @@ Future<void> importBackupFile(BuildContext context) async {
     ),
   );
   if (ok != true || !context.mounted) return;
-  await FarmScope.read(context).restoreBackup(s);
+  await GameScope.read(context).restoreBackup(s);
   if (context.mounted) showMessage(context, context.l10n.restored);
 }
 

@@ -1,93 +1,29 @@
 {
   "@@locale": "ko",
   "appTitle": "마이팜",
-  "tabHome": "홈",
   "tabFarm": "농장",
-  "tabAnalytics": "분석",
-  "tabHarvest": "수확",
-  "tabProfile": "프로필",
-  "zoneShortHouse": "농가",
-  "zoneShortTomato": "토마토",
-  "zoneShortVegetable": "채소",
-  "zoneShortCorn": "옥수수",
-  "zoneShortAnimals": "가축",
-  "zoneShortWater": "물탱크",
+  "zoneShortHouse": "집",
+  "zoneShortTomato": "밭 2",
+  "zoneShortVegetable": "밭 1",
+  "zoneShortCorn": "밭 3",
+  "zoneShortAnimals": "우리",
+  "zoneShortWater": "물",
   "zoneShortStorage": "창고",
   "zoneShortGreenhouse": "온실",
   "zoneShortOrchard": "과수원",
-  "zoneHouse": "농가 주택",
-  "zoneTomato": "토마토 밭",
-  "zoneVegetable": "채소 밭",
-  "zoneCorn": "옥수수 밭",
-  "zoneAnimals": "가축 구역",
+  "zoneHouse": "농가",
+  "zoneTomato": "밭 2",
+  "zoneVegetable": "밭 1",
+  "zoneCorn": "밭 3",
+  "zoneAnimals": "가축 우리",
   "zoneWater": "물탱크",
   "zoneStorage": "창고",
   "zoneGreenhouse": "온실",
-  "zoneOrchard": "과수원·양봉",
+  "zoneOrchard": "과수원",
   "kindCow": "소",
   "kindChicken": "닭",
   "kindSheep": "양",
   "kindGoat": "염소",
-  "kindCowOne": "소",
-  "kindChickenOne": "닭",
-  "kindSheepOne": "양",
-  "kindGoatOne": "염소",
-  "animalCount": "{count}마리",
-  "@animalCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "wholeKind": "{kind} 전체",
-  "@wholeKind": {
-    "placeholders": {
-      "kind": {
-        "type": "String"
-      }
-    }
-  },
-  "statusExcellent": "아주 좋음",
-  "statusGood": "좋음",
-  "statusAttention": "관리 필요",
-  "invFeed": "사료",
-  "invSeed": "종자",
-  "invFertilizer": "비료",
-  "invSupply": "자재",
-  "eventAdded": "입식",
-  "eventSold": "출하",
-  "eventDied": "폐사",
-  "eventOther": "기타 제외",
-  "careVaccine": "백신",
-  "careCheckup": "검진",
-  "careDeworm": "구충",
-  "careOther": "기타",
-  "wxClear": "맑음",
-  "wxPartlyCloudy": "구름 조금",
-  "wxCloudy": "흐림",
-  "wxFog": "안개",
-  "wxDrizzle": "이슬비",
-  "wxRain": "비",
-  "wxSnow": "눈",
-  "wxThunder": "뇌우",
-  "wxUnknown": "알 수 없음",
-  "ageMonths": "{months}개월",
-  "@ageMonths": {
-    "placeholders": {
-      "months": {
-        "type": "int"
-      }
-    }
-  },
-  "ageYears": "{years}살",
-  "@ageYears": {
-    "placeholders": {
-      "years": {
-        "type": "String"
-      }
-    }
-  },
   "timeNow": "지금",
   "spanMinutes": "{n}분",
   "@spanMinutes": {
@@ -132,30 +68,8 @@
   "cancel": "취소",
   "delete": "삭제",
   "save": "저장",
-  "retry": "다시 시도",
   "later": "나중에",
   "add": "추가",
-  "done": "완료",
-  "optionalMemo": "메모 (선택)",
-  "memo": "메모",
-  "unitKg": "kg",
-  "unitL": "L",
-  "unitEggs": "개",
-  "mustBePositive": "0보다 큰 숫자로 입력하세요.",
-  "mustBeNonNegative": "0 이상의 숫자로 입력하세요.",
-  "cannotBeEmpty": "비워 둘 수 없습니다",
-  "enterNumber": "숫자를 입력하세요",
-  "numberRange": "{min} ~ {max} 사이로 입력하세요",
-  "@numberRange": {
-    "placeholders": {
-      "min": {
-        "type": "String"
-      },
-      "max": {
-        "type": "String"
-      }
-    }
-  },
   "recoveredNotice": "저장된 데이터를 읽지 못해 예시 농장으로 시작했습니다. 이전 데이터는 별도로 보관했습니다.",
   "saveFailed": "변경 내용을 저장하지 못했습니다: {error}",
   "@saveFailed": {
@@ -165,242 +79,10 @@
       }
     }
   },
-  "analyticsTitle": "분석",
-  "periodDays": "{n}일",
-  "@periodDays": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "harvestAmount": "수확량",
-  "waterUse": "물 사용",
-  "avgDailyEggs": "하루 평균 달걀",
-  "avgDailyMilk": "하루 평균 우유",
-  "noRecords": "기록 없음",
-  "eggsValue": "{value}개",
-  "@eggsValue": {
-    "placeholders": {
-      "value": {
-        "type": "String"
-      }
-    }
-  },
-  "eggProduction": "달걀 생산",
-  "milkProduction": "우유 생산",
-  "eggTargetLine": "점선은 하루 목표 {n}개",
-  "@eggTargetLine": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "milkTargetLine": "점선은 하루 목표 {n}L",
-  "@milkTargetLine": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "dailyWaterUse": "일별 물 사용량",
-  "harvestByCrop": "작물별 누적 수확",
-  "noHarvestRecords": "수확 기록이 없습니다.",
-  "wateredField": "{crop}에 물을 {liters}L 줬습니다.",
-  "@wateredField": {
-    "placeholders": {
-      "crop": {
-        "type": "String"
-      },
-      "liters": {
-        "type": "int"
-      }
-    }
-  },
-  "tankTooLow": "물탱크 잔량({liters}L)이 부족합니다. 먼저 물을 보충하세요.",
-  "@tankTooLow": {
-    "placeholders": {
-      "liters": {
-        "type": "int"
-      }
-    }
-  },
-  "nothingToWater": "2시간 안에 물을 줄 밭이 없습니다.",
-  "wateredFields": "밭 {n}곳에 물을 줬습니다.",
-  "@wateredFields": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "wateredFieldsSkipped": "밭 {watered}곳에 물을 줬고, 물탱크가 부족해 {skipped}곳은 건너뛰었습니다.",
-  "@wateredFieldsSkipped": {
-    "placeholders": {
-      "watered": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      }
-    }
-  },
-  "harvestAmountError": "수확량을 0보다 큰 숫자로 입력하세요.",
-  "recordHarvest": "수확 기록",
-  "replantToday": "수확을 마치고 오늘 다시 심기",
-  "replantHint": "생육률이 0%부터 다시 계산됩니다.",
-  "saveRecord": "기록하기",
-  "harvestSaved": "수확을 기록했습니다.",
-  "fieldNotFound": "밭을 찾을 수 없습니다.",
-  "readyToHarvest": "수확할 수 있어요",
-  "daysToHarvest": "수확까지 {n}일",
-  "@daysToHarvest": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "harvestReady": "수확 가능",
-  "plantedOn": "파종일",
-  "harvestDue": "수확 예정",
-  "totalHarvest": "누적 수확",
-  "cropCondition": "작물 상태",
-  "cropConditionHint": "현장에서 본 상태를 골라 두세요",
-  "watering": "물주기",
-  "lastLabel": "마지막",
-  "nextLabel": "다음",
-  "neededNow": "지금 필요",
-  "perTimeAndInterval": "1회·주기",
-  "litersEveryHours": "{liters}L·{hours}h",
-  "@litersEveryHours": {
-    "placeholders": {
-      "liters": {
-        "type": "int"
-      },
-      "hours": {
-        "type": "int"
-      }
-    }
-  },
-  "recentHarvests": "최근 수확",
-  "noHarvestYet": "아직 수확 기록이 없습니다.",
-  "waterAction": "물 주기",
-  "wateringLog": "{crop} 관수",
-  "@wateringLog": {
-    "placeholders": {
-      "crop": {
-        "type": "String"
-      }
-    }
-  },
-  "smartWateringLog": "{crop} 스마트 관수",
-  "@smartWateringLog": {
-    "placeholders": {
-      "crop": {
-        "type": "String"
-      }
-    }
-  },
-  "tankRefillLog": "물탱크 보충",
-  "myCrops": "내 작물",
-  "byHarvestDate": "수확이 가까운 순",
-  "needsWater": "물 필요",
-  "myFarm": "내 농장",
-  "allZones": "전체",
-  "explore": "둘러보기",
-  "tapZoneToZoom": "구역을 누르면 확대됩니다",
-  "tapAgainForAll": "{zone} · 다시 누르면 전체 보기",
-  "@tapAgainForAll": {
-    "placeholders": {
-      "zone": {
-        "type": "String"
-      }
-    }
-  },
-  "tapZoneToExplore": "구역을 눌러 둘러보세요",
-  "farmSummary": "{zones}개 구역 · 작물 {crops}종 · 가축 {animals}마리",
-  "@farmSummary": {
-    "placeholders": {
-      "zones": {
-        "type": "int"
-      },
-      "crops": {
-        "type": "int"
-      },
-      "animals": {
-        "type": "int"
-      }
-    }
-  },
-  "animalsLabel": "동물",
-  "healthLabel": "건강",
-  "nextFeeding": "다음 급이",
-  "doneToday": "오늘 완료",
-  "openLivestock": "가축 관리 열기",
+  "noRecords": "아직 기록이 없어요.",
   "level": "수위",
   "stored": "저장량",
-  "usedToday": "오늘 사용",
-  "refill": "물 보충",
-  "tankRefilled": "물탱크를 가득 채웠습니다.",
-  "smartWatering": "스마트 관수",
-  "items": "품목",
-  "shortLabel": "부족",
-  "feedLabel": "사료",
-  "countItems": "{n}개",
-  "@countItems": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "daysOfStock": "{n}일분",
-  "@daysOfStock": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "manageInventory": "재고 관리",
-  "area": "면적",
-  "location": "위치",
-  "tasksLeft": "남은 일",
-  "viewTodayTasks": "오늘 할 일 보기",
-  "cropName": "작물: {crop}",
-  "@cropName": {
-    "placeholders": {
-      "crop": {
-        "type": "String"
-      }
-    }
-  },
-  "growth": "생육",
-  "statusLabel": "상태",
-  "nextWatering": "다음 물주기",
-  "untilHarvest": "수확까지",
-  "daysValue": "{n}일",
-  "@daysValue": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "viewCrop": "작물 보기",
   "loading": "불러오는 중",
-  "cropsGrowing": "{n}종 재배 중",
-  "@cropsGrowing": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "livestock": "가축",
   "nextAt": "다음 {time}",
   "@nextAt": {
     "placeholders": {
@@ -409,498 +91,11 @@
       }
     }
   },
-  "weather": "날씨",
-  "loadFailed": "불러오기 실패",
-  "inventory": "재고",
-  "allStocked": "모두 충분",
-  "lowCount": "부족 {n}개",
-  "@lowCount": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "harvestRecords": "수확 기록",
-  "alertsCount": "{n}건",
-  "@alertsCount": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "recordsCount": "{n}건",
-  "@recordsCount": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "harvestTitle": "수확",
-  "thisMonthHarvest": "이번 달 수확",
-  "harvestTotals": "누적 {kg}kg · {n}건",
-  "@harvestTotals": {
-    "placeholders": {
-      "kg": {
-        "type": "String"
-      },
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "recordHarvestAction": "수확 기록하기",
-  "deleteHarvestTitle": "수확 기록 삭제",
-  "deleteHarvestBody": "{date} {crop} {kg}kg 기록을 삭제할까요?\n삭제하면 되돌릴 수 없습니다.",
-  "@deleteHarvestBody": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      },
-      "crop": {
-        "type": "String"
-      },
-      "kg": {
-        "type": "String"
-      }
-    }
-  },
-  "greetingDawn": "고요한 새벽이에요",
-  "greetingMorning": "좋은 아침이에요",
-  "greetingAfternoon": "오후도 힘내세요",
-  "greetingEvening": "오늘도 수고했어요",
-  "greetingNight": "편안한 밤 보내세요",
-  "avgGrowth": "평균 생육",
-  "herdHealth": "가축 건강",
-  "waterTank": "물탱크",
-  "toCheckToday": "오늘 확인할 것",
-  "allGood": "모두 순조로워요",
-  "todayTasks": "오늘 할 일",
-  "alertWaterTitle": "{crop} 물주기",
-  "@alertWaterTitle": {
-    "placeholders": {
-      "crop": {
-        "type": "String"
-      }
-    }
-  },
-  "alertWaterSubtitle": "{since}부터 필요 · {liters}L",
-  "@alertWaterSubtitle": {
-    "placeholders": {
-      "since": {
-        "type": "String"
-      },
-      "liters": {
-        "type": "int"
-      }
-    }
-  },
-  "alertHarvestTitle": "{crop} 수확 가능",
-  "@alertHarvestTitle": {
-    "placeholders": {
-      "crop": {
-        "type": "String"
-      }
-    }
-  },
-  "alertHarvestSubtitle": "수확을 기록하고 다시 심을 수 있어요",
-  "alertFeedingTitle": "{time} {label}",
-  "@alertFeedingTitle": {
-    "placeholders": {
-      "time": {
-        "type": "String"
-      },
-      "label": {
-        "type": "String"
-      }
-    }
-  },
-  "alertFeedingSubtitle": "시간이 지났어요. 끝났다면 체크해 주세요",
-  "alertCareTitle": "가축 {n}마리 관리 필요",
-  "@alertCareTitle": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "alertCareSubtitle": "건강 점수 80 미만",
-  "alertTankTitle": "물탱크 {n}%",
-  "@alertTankTitle": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "alertTankSubtitle": "물을 보충해 주세요",
-  "alertScheduleSubtitle": "{target} · 가축 관리에서 완료 체크",
-  "@alertScheduleSubtitle": {
-    "placeholders": {
-      "target": {
-        "type": "String"
-      }
-    }
-  },
-  "alertBackupTitle": "백업할 때가 됐어요",
-  "alertBackupNever": "아직 백업 파일을 만든 적이 없어요",
-  "alertBackupLast": "마지막 백업 {when}",
-  "@alertBackupLast": {
-    "placeholders": {
-      "when": {
-        "type": "String"
-      }
-    }
-  },
-  "alertLowStockTitle": "재고 부족 {n}개",
-  "@alertLowStockTitle": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "weatherSummary": "{location} · 강수확률 {rain}% · 바람 {wind}km/h",
-  "@weatherSummary": {
-    "placeholders": {
-      "location": {
-        "type": "String"
-      },
-      "rain": {
-        "type": "int"
-      },
-      "wind": {
-        "type": "int"
-      }
-    }
-  },
-  "noTasks": "오늘 할 일이 없습니다. 아래에 추가해 보세요.",
-  "addTask": "할 일 추가",
-  "overdue": "지난 일",
-  "weatherError": "날씨를 불러오지 못했습니다. 네트워크를 확인하세요.",
-  "weatherServerError": "날씨 서버 응답 오류 ({code})",
-  "@weatherServerError": {
-    "placeholders": {
-      "code": {
-        "type": "int"
-      }
-    }
-  },
-  "weatherDataError": "날씨 데이터를 해석하지 못했습니다.",
-  "inventoryHint": "눌러서 입고·사용 기록",
-  "feedAutoDeduct": "급이를 완료할 때마다 하루 사용량 ÷ 급이 횟수만큼 자동으로 빠집니다",
-  "noForecast": "소비 예측 없음",
-  "dailyUseLeft": "하루 {use}{unit} 사용 · 약 {days}일분",
-  "@dailyUseLeft": {
-    "placeholders": {
-      "use": {
-        "type": "String"
-      },
-      "unit": {
-        "type": "String"
-      },
-      "days": {
-        "type": "int"
-      }
-    }
-  },
-  "threshold": "기준 {amount}{unit}",
-  "@threshold": {
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      },
-      "unit": {
-        "type": "String"
-      }
-    }
-  },
-  "cannotUseMore": "현재 재고({amount}{unit})보다 많이 쓸 수 없습니다.",
-  "@cannotUseMore": {
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      },
-      "unit": {
-        "type": "String"
-      }
-    }
-  },
-  "currentStock": "현재 {amount} {unit}",
-  "@currentStock": {
-    "placeholders": {
-      "amount": {
-        "type": "String"
-      },
-      "unit": {
-        "type": "String"
-      }
-    }
-  },
-  "quantity": "수량",
-  "useStock": "사용",
-  "addStock": "입고",
-  "weightError": "체중을 0보다 큰 숫자로 입력하세요.",
-  "animalSaved": "{name} 정보를 저장했습니다.",
-  "@animalSaved": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "animalNotFound": "가축을 찾을 수 없습니다.",
-  "ageLabel": "나이",
-  "bornOn": "태어난 날",
-  "lastCheckup": "마지막 검진",
-  "noCareForAnimal": "이 개체에 해당하는 일정이 없습니다.",
-  "healthScore": "건강 점수",
-  "healthScoreHint": "검진 결과를 0~100으로 기록합니다",
-  "healthGreat": "아주 좋음",
-  "healthWatch": "관찰 필요",
-  "healthTreat": "치료 필요",
-  "checkedToday": "오늘 검진함으로 기록",
-  "previousCheckup": "이전 검진: {date}",
-  "@previousCheckup": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
   "records": "기록",
-  "weight": "체중",
-  "animalNoteHint": "예: 오른쪽 앞발 약간 절뚝임",
-  "removeAnimalAction": "출하·폐사",
-  "animalRemoved": "{name}을(를) 목록에서 뺐습니다. 이력에 남아 있습니다.",
-  "@animalRemoved": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "unknownBreed": "품종 미상",
   "nameError": "이름을 입력하세요.",
-  "addAnimalTitle": "가축 입식",
-  "tagAssigned": "번호표는 {tag}로 자동 부여됩니다.",
-  "@tagAssigned": {
-    "placeholders": {
-      "tag": {
-        "type": "String"
-      }
-    }
-  },
   "name": "이름",
-  "breedOptional": "품종 (선택)",
-  "breedHint": "예: 한우, 레그혼",
-  "addAnimalAction": "입식하기",
-  "removeAnimalTitle": "{name} 목록에서 빼기",
-  "@removeAnimalTitle": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "removeAnimalHint": "개체 정보는 입식·출하 이력에 남습니다.",
-  "removeNoteHint": "예: 출하처, 원인",
-  "confirmRemoval": "{reason} 처리",
-  "@confirmRemoval": {
-    "placeholders": {
-      "reason": {
-        "type": "String"
-      }
-    }
-  },
-  "noHistory": "아직 입식·출하 기록이 없습니다.",
-  "historyLine": "{kind} {name} · {tag}",
-  "@historyLine": {
-    "placeholders": {
-      "kind": {
-        "type": "String"
-      },
-      "name": {
-        "type": "String"
-      },
-      "tag": {
-        "type": "String"
-      }
-    }
-  },
-  "dueOverdue": "{n}일 지남",
-  "@dueOverdue": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "dueToday": "오늘",
-  "dueTomorrow": "내일",
-  "dueIn": "D-{n}",
-  "@dueIn": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "noSchedules": "예정된 일정이 없습니다.",
-  "careSchedules": "백신·진료 일정",
-  "careDone": "{title} 완료를 기록했습니다.",
-  "@careDone": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      }
-    }
-  },
-  "careDoneNext": "{title} 완료. 다음 일정은 {date}입니다.",
-  "@careDoneNext": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      },
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "deleteSchedule": "일정 삭제",
-  "deleteScheduleBody": "{title}({date}) 일정을 삭제할까요?",
-  "@deleteScheduleBody": {
-    "placeholders": {
-      "title": {
-        "type": "String"
-      },
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "everyMonths": "{n}개월마다",
-  "@everyMonths": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "scheduleNameError": "일정 이름을 입력하세요.",
-  "addScheduleTitle": "백신·진료 일정 추가",
-  "target": "대상",
-  "type": "종류",
-  "scheduleName": "일정 이름",
-  "scheduleNameHint": "예: 구제역 백신",
   "date": "날짜",
-  "repeat": "반복",
-  "once": "한 번만",
-  "addSchedule": "일정 추가",
-  "removedAnimal": "{kind}(제외됨)",
-  "@removedAnimal": {
-    "placeholders": {
-      "kind": {
-        "type": "String"
-      }
-    }
-  },
-  "livestockTitle": "가축 관리",
-  "animalAdded": "{name}({tag})을(를) 입식했습니다.",
-  "@animalAdded": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      },
-      "tag": {
-        "type": "String"
-      }
-    }
-  },
-  "allAnimals": "전체 가축",
-  "animalsUnit": "마리",
-  "allHealthy": "모두 건강",
-  "needCareCount": "{n}마리 관리 필요",
-  "@needCareCount": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "healthy": "아주 좋음",
-  "checkUp": "살펴보기",
-  "daysOfFeed": "{n}일분 재고",
-  "@daysOfFeed": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "production": "생산",
-  "recordToday": "오늘 기록하기 ›",
-  "vsTarget": "목표 대비",
-  "kinds": "종류",
-  "kindsHint": "눌러서 그 무리를 봅니다",
-  "ourHerd": "우리 {kind}",
-  "@ourHerd": {
-    "placeholders": {
-      "kind": {
-        "type": "String"
-      }
-    }
-  },
-  "herdSubtitle": "{count} · 눌러서 자세히 보기",
-  "@herdSubtitle": {
-    "placeholders": {
-      "count": {
-        "type": "String"
-      }
-    }
-  },
-  "noAnimalsOfKind": "이 종류의 가축이 없습니다. 오른쪽 위 + 로 입식하세요.",
-  "animalHistory": "입식·출하 이력",
-  "recent10": "최근 10건",
-  "todayProduction": "오늘 생산량",
-  "productionTargets": "목표: 달걀 {eggs}개 · 우유 {milk}L",
-  "@productionTargets": {
-    "placeholders": {
-      "eggs": {
-        "type": "int"
-      },
-      "milk": {
-        "type": "int"
-      }
-    }
-  },
-  "eggs": "달걀",
   "milk": "우유",
-  "todayFeeding": "오늘의 급이",
-  "doneOf": "{done}/{total} 완료",
-  "@doneOf": {
-    "placeholders": {
-      "done": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "feedShortage": "재고가 모자라 남은 만큼만 차감했습니다: {items}",
-  "@feedShortage": {
-    "placeholders": {
-      "items": {
-        "type": "String"
-      }
-    }
-  },
-  "feedDone": "완료",
-  "feedLate": "지남",
-  "feedPlanned": "예정",
   "saveBackupDialog": "백업 파일 저장",
   "backupCancelled": "백업 저장을 취소했습니다.",
   "backupSaved": "백업을 저장했습니다: {file}",
@@ -949,23 +144,6 @@
     }
   },
   "restoreTitle": "백업에서 복원",
-  "restoreSummary": "{farm} · 가축 {animals}마리 · 수확 기록 {harvests}건 · 할 일 {tasks}개",
-  "@restoreSummary": {
-    "placeholders": {
-      "farm": {
-        "type": "String"
-      },
-      "animals": {
-        "type": "int"
-      },
-      "harvests": {
-        "type": "int"
-      },
-      "tasks": {
-        "type": "int"
-      }
-    }
-  },
   "backupMadeAt": "만든 시각: {when}",
   "@backupMadeAt": {
     "placeholders": {
@@ -977,23 +155,9 @@
   "restoreWarning": "지금 데이터는 이 백업으로 바뀝니다. 바뀌기 전 데이터는 앱 안에 따로 보관됩니다.",
   "restore": "복원",
   "restored": "백업에서 복원했습니다.",
-  "farmSaved": "농장 정보를 저장했습니다.",
-  "resetTitle": "예시 농장으로 초기화",
-  "resetBody": "지금까지 기록한 작물·가축·수확·재고·할 일이 모두 지워지고 예시 데이터로 바뀝니다. 되돌릴 수 없습니다.",
-  "reset": "초기화",
-  "resetDone": "예시 농장으로 초기화했습니다.",
-  "profileTitle": "프로필",
   "farmInfo": "농장 정보",
   "farmName": "농장 이름",
-  "locationName": "지역 이름",
-  "latitude": "위도",
-  "longitude": "경도",
-  "locationPrivacy": "위도·경도는 날씨 조회에만 쓰이며 기기 밖으로는 날씨 서버에만 전송됩니다.",
-  "productionGoals": "생산 목표",
-  "dailyEggs": "하루 달걀",
-  "dailyMilk": "하루 우유",
   "dataSection": "데이터",
-  "dataExplain": "기록은 이 기기에 저장되고 개발자에게 보내지 않아요. 앱을 삭제하면 지워지지만, Android 시스템 백업이 켜져 있으면 Google 계정 백업에서 복원될 수 있어요. 백업 파일을 내보내 두면 다른 기기나 PC·웹 버전에서도 복원할 수 있어요.",
   "lastBackupNever": "마지막 백업: 아직 없음",
   "lastBackupAt": "마지막 백업: {when}",
   "@lastBackupAt": {
@@ -1004,55 +168,10 @@
     }
   },
   "exportBackup": "백업 내보내기",
-  "weatherCredit": "날씨 데이터: Open-Meteo.com (CC BY 4.0)",
   "language": "언어",
   "languageSystem": "기기 설정",
-  "adviceRain": "오늘 비 올 확률이 {n}%예요. 노지 밭 관수는 미뤄도 좋아요.",
-  "@adviceRain": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "adviceHeat": "한낮 기온이 30°C를 넘어요. 가축 그늘과 물통을 확인하고 온실 환기를 늘리세요.",
-  "adviceFrost": "최저 기온이 {n}°C예요. 서리 피해에 대비해 보온을 해 주세요.",
-  "@adviceFrost": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "adviceWind": "바람이 강해요({n}km/h). 온실 비닐과 지주대를 점검하세요.",
-  "@adviceWind": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "adviceGood": "밭일하기 좋은 날씨예요.",
-  "farmAdvice": "농장 조언",
-  "forecast5": "5일 예보",
-  "weatherUpdated": "날씨 데이터: Open-Meteo.com (CC BY 4.0) · {time} 갱신",
-  "@weatherUpdated": {
-    "placeholders": {
-      "time": {
-        "type": "String"
-      }
-    }
-  },
   "humidity": "습도 {n}%",
   "@humidity": {
-    "placeholders": {
-      "n": {
-        "type": "int"
-      }
-    }
-  },
-  "wind": "바람 {n}km/h",
-  "@wind": {
     "placeholders": {
       "n": {
         "type": "int"
@@ -1067,60 +186,8 @@
       }
     }
   },
-  "ledgerSection": "매출·비용",
-  "ledgerTitle": "매출·비용 장부",
-  "ledgerCurrencyNote": "{code} 기준 · 통화는 프로필에서 바꿀 수 있어요",
-  "@ledgerCurrencyNote": {
-    "placeholders": {
-      "code": {
-        "type": "String"
-      }
-    }
-  },
-  "openLedger": "장부 열기",
   "income": "매출",
   "expense": "비용",
-  "netProfit": "순이익",
-  "lastSixMonths": "최근 6개월",
-  "byCategory": "분류별",
-  "noLedgerThisMonth": "이 달에 적은 매출·비용이 없어요.",
-  "noLedgerInPeriod": "이 기간에 적은 매출·비용이 없어요.",
-  "previousMonth": "이전 달",
-  "nextMonth": "다음 달",
-  "addLedgerEntry": "매출·비용 기록",
-  "ledgerAmount": "금액",
-  "ledgerAmountTooLarge": "금액이 너무 커요. 자릿수를 확인하세요.",
-  "ledgerSaved": "장부에 기록했어요.",
-  "deleteLedgerTitle": "장부 기록 삭제",
-  "deleteLedgerBody": "{date} {category} {amount} 기록을 삭제할까요?\n삭제하면 되돌릴 수 없습니다.",
-  "@deleteLedgerBody": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      },
-      "category": {
-        "type": "String"
-      },
-      "amount": {
-        "type": "String"
-      }
-    }
-  },
-  "ledgerCrops": "작물 판매",
-  "ledgerLivestock": "가축 출하",
-  "ledgerProducts": "우유·달걀",
-  "ledgerSubsidy": "보조금",
-  "ledgerOtherIncome": "기타 매출",
-  "ledgerFeed": "사료",
-  "ledgerSeeds": "종자·모종",
-  "ledgerFertilizer": "비료·농약",
-  "ledgerEquipment": "농기계·자재",
-  "ledgerLabor": "인건비",
-  "ledgerUtilities": "전기·수도·연료",
-  "ledgerVet": "진료·약품",
-  "ledgerOtherExpense": "기타 비용",
-  "currency": "통화",
-  "currencyHint": "장부 금액의 단위예요. 바꿔도 이미 적은 금액은 환산되지 않아요.",
   "appUpdate": "앱 업데이트",
   "updateAutoCheck": "새 버전 자동 확인",
   "updateAutoCheckHint": "켜면 하루 한 번 GitHub 릴리스에서 새 버전을 확인해요. 내려받은 파일은 SHA-256으로 확인한 뒤 Android 설치 화면으로 넘겨요.",
@@ -1151,7 +218,6 @@
       }
     }
   },
-  "updateAvailableSubtitle": "눌러서 내려받고 설치하기",
   "updateSheetBody": "내려받을 크기 {size}MB. 업데이트해도 농장 기록은 그대로 남아요.",
   "@updateSheetBody": {
     "placeholders": {
@@ -1169,91 +235,11 @@
   "updateFailed": "내려받지 못했거나 파일 확인에 실패했어요.",
   "updateRetry": "다시 시도",
   "updateOpenInBrowser": "브라우저에서 받기",
-  "editLedgerEntry": "장부 기록 고치기",
-  "ledgerUpdated": "장부 기록을 고쳤어요.",
-  "saleAmountOptional": "판매 금액 (선택)",
-  "saleAmountHint": "적으면 장부에 매출로 함께 기록돼요.",
-  "harvestSaleNote": "{crop} {kg}kg 수확",
-  "@harvestSaleNote": {
-    "placeholders": {
-      "crop": {
-        "type": "String"
-      },
-      "kg": {
-        "type": "String"
-      }
-    }
-  },
-  "animalSaleNote": "{kind} {name}({tag}) 출하",
-  "@animalSaleNote": {
-    "placeholders": {
-      "kind": {
-        "type": "String"
-      },
-      "name": {
-        "type": "String"
-      },
-      "tag": {
-        "type": "String"
-      }
-    }
-  },
-  "harvestSavedWithSale": "수확과 판매 금액을 기록했습니다.",
-  "animalSoldWithSale": "{name}의 출하와 판매 금액을 기록했습니다.",
-  "@animalSoldWithSale": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "exportLedgerCsv": "CSV로 내보내기",
-  "saveLedgerCsvDialog": "장부 CSV 저장",
-  "ledgerCsvEmpty": "내보낼 장부 기록이 없어요.",
-  "ledgerCsvCancelled": "내보내기를 취소했어요.",
-  "ledgerCsvSaved": "장부를 저장했어요: {file}",
-  "@ledgerCsvSaved": {
-    "placeholders": {
-      "file": {
-        "type": "String"
-      }
-    }
-  },
-  "ledgerCsvFailed": "장부를 저장하지 못했어요: {error}",
-  "@ledgerCsvFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
-  "csvType": "구분",
-  "csvCategory": "분류",
-  "csvNote": "메모",
-  "weatherOffline": "연결하지 못해 {when}에 받은 날씨를 보여 줘요.",
-  "@weatherOffline": {
-    "placeholders": {
-      "when": {
-        "type": "String"
-      }
-    }
-  },
   "farmMap": "농장 지도",
-  "mapZoneNeedsWater": "{zone}, 물 줄 때가 됐어요",
-  "@mapZoneNeedsWater": {
-    "placeholders": {
-      "zone": {
-        "type": "String"
-      }
-    }
-  },
   "remindersSection": "알림",
   "remindersToggle": "알림 받기",
-  "remindersHint": "켜면 물주기·급이·백신 일정 시각에 알림을 보내요. 앱을 닫아 두어도 와요. 기록이 바뀌거나 앱을 열 때마다 앞으로 일주일 치를 다시 잡아요.",
-  "remindersWatering": "물주기",
-  "remindersFeeding": "급이",
-  "remindersCare": "백신·진료 일정",
-  "remindersQuietHours": "밤 9시~아침 7시에 돌아오는 물주기는 아침 7시에 알려 줘요.",
+  "remindersHint": "켜면 작물이 다 자랄 때, 생산물이 가득 찰 때, 사료가 떨어질 때 알려 줘요. 앱을 닫아 두어도 와요.",
+  "remindersQuietHours": "밤 9시~아침 7시에 일어난 일은 아침 7시에 알려 줘요.",
   "remindersPermissionDenied": "알림 권한이 없어 켜지 못했어요. 휴대폰 설정 > 앱 > 마이팜 > 알림에서 허용해 주세요.",
   "remindersPermissionOff": "휴대폰 설정에서 알림이 꺼져 있어 알림이 오지 않아요.",
   "remindersScheduled": "알림 {count}개 예약됨 · 다음 {when}",
@@ -1276,31 +262,720 @@
       }
     }
   },
-  "notifWateringTitle": "물 줄 시간이에요",
-  "notifWateringBody": "{crops} 밭에 물을 주세요.",
-  "@notifWateringBody": {
+  "remindersAndroidDelay": "Android가 배터리를 아끼려고 알림을 최대 1시간까지 늦게 보낼 수 있어요.",
+  "defaultFarmName": "햇살 농장",
+  "tabBarn": "창고",
+  "tabRecords": "기록",
+  "tabSettings": "설정",
+  "migratedNotice": "마이팜이 방치형 농장 게임으로 바뀌었어요. 이전 관리 기록은 보관해 두었고 설정에서 내보낼 수 있어요.",
+  "ok": "확인",
+  "coins": "코인",
+  "barn": "창고",
+  "feed": "사료",
+  "water": "물",
+  "levelLabel": "레벨 {level}",
+  "@levelLabel": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "levelProgress": "{current} / {need} XP",
+  "@levelProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      }
+    }
+  },
+  "levelShort": "Lv {level}",
+  "@levelShort": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "levelWord": "레벨",
+  "xpWord": "경험치",
+  "todoTitle": "할 일",
+  "todoCount": "{count}가지",
+  "@todoCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoNothing": "지금은 할 일이 없어요. 농장이 알아서 자라는 중이에요.",
+  "todoHarvest": "{zone} {crop} 수확",
+  "@todoHarvest": {
+    "placeholders": {
+      "crop": {
+        "type": "String"
+      },
+      "zone": {
+        "type": "String"
+      }
+    }
+  },
+  "todoHarvestHint": "{count}개 거둬요",
+  "@todoHarvestHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoCollect": "{species} 생산물 {count}개 모으기",
+  "@todoCollect": {
+    "placeholders": {
+      "species": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoBarnFull": "창고가 가득 찼어요",
+  "todoBarnFullHint": "팔아서 자리를 만들어야 수확하고 모을 수 있어요.",
+  "todoFeedEmpty": "사료가 떨어졌어요",
+  "todoFeedLow": "사료가 {feed}만 남았어요",
+  "@todoFeedLow": {
+    "placeholders": {
+      "feed": {
+        "type": "int"
+      }
+    }
+  },
+  "todoFeedHint": "동물은 사료가 있어야 자라고 생산해요.",
+  "todoPlant": "빈 밭: {zone}",
+  "@todoPlant": {
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      }
+    }
+  },
+  "todoUnlock": "열 수 있어요: {zone}",
+  "@todoUnlock": {
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      }
+    }
+  },
+  "harvest": "수확",
+  "harvested": "{crop} 수확!",
+  "@harvested": {
+    "placeholders": {
+      "crop": {
+        "type": "String"
+      }
+    }
+  },
+  "collected": "{item} {count}개 모았어요",
+  "@collected": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "openBarn": "창고 열기",
+  "buyFeed": "사료 사기",
+  "feedBought": "사료 {amount} 샀어요",
+  "@feedBought": {
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      }
+    }
+  },
+  "plant": "심기",
+  "unlock": "열기",
+  "unlockCost": "비용 🪙{coins}",
+  "@unlockCost": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "lockedZoneHint": "아직 잠긴 구역이에요.",
+  "needLevel": "레벨 {level} 필요",
+  "@needLevel": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "needCoins": "🪙{coins} 필요",
+  "@needCoins": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "unlockFor": "🪙{coins}에 열기",
+  "@unlockFor": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "unlocked": "{zone} 열림!",
+  "@unlocked": {
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      }
+    }
+  },
+  "cropReady": "다 자랐어요! 수확하세요",
+  "cropWaitingWater": "물을 기다려요 (물 {liters}L 필요)",
+  "@cropWaitingWater": {
+    "placeholders": {
+      "liters": {
+        "type": "int"
+      }
+    }
+  },
+  "cropRemaining": "{duration} 남음",
+  "@cropRemaining": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "cropYield": "수확하면 {crop} {count}개 · 🪙{value}어치",
+  "@cropYield": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "crop": {
+        "type": "String"
+      },
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "perennialHint": "한 번 심으면 수확 뒤 {duration}마다 다시 열려요(그때마다 물이 필요해요).",
+  "@perennialHint": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "pickCrop": "심을 작물을 고르세요",
+  "cropSummary": "{duration} · 물 {liters}L · 🪙{value}",
+  "@cropSummary": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      },
+      "liters": {
+        "type": "int"
+      },
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "planted": "{crop} 심기 완료",
+  "@planted": {
+    "placeholders": {
+      "crop": {
+        "type": "String"
+      }
+    }
+  },
+  "penSpace": "우리 자리",
+  "buyFeedShort": "사료 · 🪙{cost}",
+  "@buyFeedShort": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "feedHint": "동물은 시간마다 사료를 먹어요. 떨어지면 성장과 생산이 멈춰요.",
+  "sellAnimalTitle": "{species} 한 마리를 출하할까요?",
+  "@sellAnimalTitle": {
+    "placeholders": {
+      "species": {
+        "type": "String"
+      }
+    }
+  },
+  "sellAnimalBody": "🪙{coins}에 출하해요. 모아 둔 생산물은 창고로 옮겨요. 되돌릴 수 없어요.",
+  "@sellAnimalBody": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "sellAnimal": "출하",
+  "animalSold": "출하했어요 +🪙{coins}",
+  "@animalSold": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "unlocksAt": "레벨 {level}에 열려요",
+  "@unlocksAt": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "speciesSummary": "{count}마리 · {every}마다 {item}",
+  "@speciesSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "item": {
+        "type": "String"
+      },
+      "every": {
+        "type": "String"
+      }
+    }
+  },
+  "animalBought": "새 식구가 왔어요: {young}",
+  "@animalBought": {
+    "placeholders": {
+      "young": {
+        "type": "String"
+      }
+    }
+  },
+  "buyYoung": "{young} 들이기 · 🪙{cost}",
+  "@buyYoung": {
+    "placeholders": {
+      "young": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "noAnimalsYet": "아직 동물이 없어요.",
+  "breedingHint": "어른 두 마리가 있으면 {duration}마다 새끼가 태어나요(우리에 자리가 있을 때).",
+  "@breedingHint": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "adultStatus": "{emoji} {stored}/{cap} 모임",
+  "@adultStatus": {
+    "placeholders": {
+      "emoji": {
+        "type": "String"
+      },
+      "stored": {
+        "type": "int"
+      },
+      "cap": {
+        "type": "int"
+      }
+    }
+  },
+  "youngStatus": "{young} · {duration} 뒤 다 자라요",
+  "@youngStatus": {
+    "placeholders": {
+      "young": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "sellAnimalShort": "출하 🪙{coins}",
+  "@sellAnimalShort": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "tankHint": "물은 1분에 {liters}L씩 저절로 차요. 작물을 심을 때 써요.",
+  "@tankHint": {
+    "placeholders": {
+      "liters": {
+        "type": "int"
+      }
+    }
+  },
+  "tankFullIn": "{duration} 뒤 가득 차요",
+  "@tankFullIn": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "nextUnlocks": "다음에 열 구역",
+  "allUnlocked": "모든 구역을 열었어요!",
+  "barnTabHint": "수확물과 생산물은 창고에 모여요. 창고 탭에서 팔 수 있어요.",
+  "barnTitle": "창고",
+  "barnCapacity": "창고 {used}/{cap}",
+  "@barnCapacity": {
+    "placeholders": {
+      "used": {
+        "type": "int"
+      },
+      "cap": {
+        "type": "int"
+      }
+    }
+  },
+  "feedTitle": "사료",
+  "buyFeedFor": "사료 {amount} 사기 · 🪙{cost}",
+  "@buyFeedFor": {
+    "placeholders": {
+      "amount": {
+        "type": "int"
+      },
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "cornToFeed": "옥수수 {corn}개 → 사료 {feed}",
+  "@cornToFeed": {
+    "placeholders": {
+      "corn": {
+        "type": "int"
+      },
+      "feed": {
+        "type": "int"
+      }
+    }
+  },
+  "cornConverted": "옥수수로 사료를 만들었어요",
+  "marketTitle": "시장",
+  "barnEmpty": "창고가 비었어요. 수확하고 생산물을 모아 보세요.",
+  "itemCount": "{item} × {count}",
+  "@itemCount": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "unitPrice": "개당 🪙{price}",
+  "@unitPrice": {
+    "placeholders": {
+      "price": {
+        "type": "int"
+      }
+    }
+  },
+  "sellOne": "1개 팔기",
+  "sellAll": "모두 팔기",
+  "sellAllTitle": "모두 팔까요?",
+  "sellAllBody": "창고의 물건 {count}개를 🪙{total}에 팔까요?",
+  "@sellAllBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "soldFor": "+🪙{coins} 벌었어요",
+  "@soldFor": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "recordsTitle": "기록",
+  "todayIncome": "오늘 수입",
+  "todayExpense": "오늘 지출",
+  "todayNet": "오늘 순익",
+  "last7Days": "최근 7일",
+  "recentRecords": "최근 기록",
+  "logSale": "{item} 판매",
+  "@logSale": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "logSlaughter": "{species} 출하",
+  "@logSlaughter": {
+    "placeholders": {
+      "species": {
+        "type": "String"
+      }
+    }
+  },
+  "logSeed": "{crop} 심기",
+  "@logSeed": {
+    "placeholders": {
+      "crop": {
+        "type": "String"
+      }
+    }
+  },
+  "logAnimal": "{species} 들임",
+  "@logAnimal": {
+    "placeholders": {
+      "species": {
+        "type": "String"
+      }
+    }
+  },
+  "logFeed": "사료 구매",
+  "logUnlock": "구역 열기",
+  "settingsTitle": "설정",
+  "saved": "저장했어요",
+  "restart": "처음부터 다시",
+  "restartTitle": "처음부터 다시 할까요?",
+  "restartBody": "지금 게임은 지우지 않고 보관본으로 남겨요. 레벨·코인·동물이 처음 상태로 돌아가요.",
+  "restarted": "새 농장을 시작했어요",
+  "gameDataExplain": "게임은 이 기기에만 저장돼요. 기기를 바꾸기 전에 백업 파일로 내보내세요.",
+  "archiveExplain": "1.x 관리 앱 기록을 보관해 두었어요. 백업 파일로 내보내면 1.7 앱에서 다시 열 수 있어요.",
+  "exportArchive": "관리 앱 기록 내보내기",
+  "creditLine": "마이팜 · 작은 농장을 천천히 키우는 방치형 게임",
+  "backupManagementApp": "1.x 관리 앱 백업이에요. 게임에서는 열 수 없어요. 1.7 앱에서 복원하세요.",
+  "restoreGameSummary": "{name} · 레벨 {level} · 🪙{coins} · 동물 {animals}마리",
+  "@restoreGameSummary": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      },
+      "coins": {
+        "type": "int"
+      },
+      "animals": {
+        "type": "int"
+      }
+    }
+  },
+  "awayTitle": "{duration} 동안 이런 일이 있었어요",
+  "@awayTitle": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "awayCropsReady": "밭 {count}곳의 작물이 다 자랐어요",
+  "@awayCropsReady": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awayProduced": "{item} {count}개가 생겼어요",
+  "@awayProduced": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awayBorn": "{young} {count}마리가 태어났어요",
+  "@awayBorn": {
+    "placeholders": {
+      "young": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awayFeedRanOut": "사료가 떨어져 동물들이 기다리고 있어요",
+  "awayCapped": "농장은 최대 {duration}까지만 혼자 돌아가요.",
+  "@awayCapped": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "mapZoneLocked": "{zone}, 잠김 (레벨 {level})",
+  "@mapZoneLocked": {
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "mapZoneReady": "{zone}, {crop} 수확 가능",
+  "@mapZoneReady": {
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      },
+      "crop": {
+        "type": "String"
+      }
+    }
+  },
+  "mapZoneGrowing": "{zone}, {crop} 자라는 중",
+  "@mapZoneGrowing": {
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      },
+      "crop": {
+        "type": "String"
+      }
+    }
+  },
+  "remindersHarvest": "수확 시기",
+  "remindersAnimals": "생산물 가득",
+  "remindersFeed": "사료 바닥",
+  "notifHarvestTitle": "작물이 다 자랐어요",
+  "notifHarvestBody": "수확할 때예요: {crops}",
+  "@notifHarvestBody": {
     "placeholders": {
       "crops": {
         "type": "String"
       }
     }
   },
-  "notifFeedingBody": "시간이 됐어요. 끝나면 앱에서 체크해 주세요.",
-  "notifCareTitle": "오늘 {title}",
-  "@notifCareTitle": {
+  "notifAnimalsTitle": "{species}: 생산물이 가득 찼어요",
+  "@notifAnimalsTitle": {
     "placeholders": {
-      "title": {
+      "species": {
         "type": "String"
       }
     }
   },
-  "notifCareBody": "{target} · 끝나면 가축 관리에서 완료 체크해 주세요.",
-  "@notifCareBody": {
+  "notifAnimalsBody": "{item} 보관함이 가득 차 생산이 멈췄어요. 모아 주세요.",
+  "@notifAnimalsBody": {
     "placeholders": {
-      "target": {
+      "item": {
         "type": "String"
       }
     }
   },
-  "remindersAndroidDelay": "Android가 배터리를 아끼려고 알림을 최대 1시간까지 늦게 보낼 수 있어요."
+  "notifFeedTitle": "사료가 떨어졌어요",
+  "notifFeedBody": "사료가 없으면 동물들이 자라지도, 생산하지도 않아요.",
+  "youngChicken": "병아리",
+  "youngGoat": "새끼 염소",
+  "youngSheep": "새끼 양",
+  "youngCow": "송아지",
+  "itemLettuce": "상추",
+  "itemCarrot": "당근",
+  "itemTomato": "토마토",
+  "itemCorn": "옥수수",
+  "itemStrawberry": "딸기",
+  "itemApple": "사과",
+  "itemEgg": "달걀",
+  "itemGoatMilk": "염소젖",
+  "itemWool": "양털",
+  "itemMilk": "우유",
+  "collectEggs": "달걀 줍기",
+  "collectMilk": "젖 짜기",
+  "collectWool": "털 깎기",
+  "errZoneLocked": "아직 잠긴 구역이에요",
+  "errAlreadyUnlocked": "이미 열린 구역이에요",
+  "errLevelTooLow": "레벨이 부족해요",
+  "errNotEnoughCoins": "코인이 부족해요",
+  "errNotEnoughWater": "물이 부족해요. 조금 기다리면 차요.",
+  "errFieldNotEmpty": "밭이 비어 있지 않아요",
+  "errWrongPlot": "여기에는 심을 수 없는 작물이에요",
+  "errNotReady": "아직 다 자라지 않았어요",
+  "errBarnFull": "창고가 가득 찼어요. 먼저 파세요.",
+  "errPenFull": "우리에 자리가 없어요",
+  "errNotAdult": "아직 다 자라지 않았어요",
+  "errNothingToCollect": "모을 것이 없어요",
+  "errNotEnoughItems": "물건이 모자라요",
+  "errSiloFull": "사료 저장고가 가득 찼어요",
+  "errUnknownAnimal": "그 동물을 찾을 수 없어요",
+  "durationHM": "{h}시간 {m}분",
+  "@durationHM": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "durationMS": "{m}분 {s}초",
+  "@durationMS": {
+    "placeholders": {
+      "m": {
+        "type": "int"
+      },
+      "s": {
+        "type": "int"
+      }
+    }
+  },
+  "durationS": "{s}초",
+  "@durationS": {
+    "placeholders": {
+      "s": {
+        "type": "int"
+      }
+    }
+  },
+  "updateAvailableSubtitle": "눌러서 내려받고 설치하기",
+  "durationH": "{h}시간",
+  "durationM": "{m}분",
+  "@durationH": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      }
+    }
+  },
+  "@durationM": {
+    "placeholders": {
+      "m": {
+        "type": "int"
+      }
+    }
+  }
 }

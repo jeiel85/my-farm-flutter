@@ -8,8 +8,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 
-import '../../data/farm_store.dart';
-import '../../data/reminder_plan.dart';
+import '../../data/storage.dart';
+import '../../game/game_store.dart';
+import '../../game/reminder_plan.dart';
+import '../../game/defs.dart';
 import '../../l10n/l10n.dart';
 
 /// 알림은 Android와 Windows에서 쓴다. 웹은 앱을 닫으면 알림을 예약해 둘 수 없어 쓰지 않는다.
@@ -135,7 +137,7 @@ class LocalNotificationsPlatform implements ReminderPlatform {
   }
 }
 
-/// 설정을 기기별 meta에 두고, 농장 기록이 바뀔 때마다 앞으로의 알림을 다시 예약한다.
+/// 설정을 기기별 meta에 두고, 게임 상태가 바뀔 때(행동·복원·앱 재개)와 앱이 뒤로 갈 때 앞으로의 알림을 다시 예약한다.
 class ReminderController extends ChangeNotifier {
   ReminderController({
     required this.store,
@@ -145,7 +147,7 @@ class ReminderController extends ChangeNotifier {
     this.debounce = const Duration(seconds: 2),
   });
 
-  final FarmStore store;
+  final GameStore store;
   final ReminderPlatform platform;
   final FarmStorage storage;
 
@@ -166,6 +168,7 @@ class ReminderController extends ChangeNotifier {
   Object? lastError;
 
   Timer? _pending;
+  int _seenRevision = -1;
   Future<void> _queue = Future.value();
 
   Future<void> init() async {
@@ -174,6 +177,7 @@ class ReminderController extends ChangeNotifier {
     } on FormatException {
       settings = const ReminderSettings();
     }
+    _seenRevision = store.revision;
     store.addListener(_onStoreChanged);
     try {
       await platform.init(appName: localizations().appTitle);
@@ -187,7 +191,10 @@ class ReminderController extends ChangeNotifier {
     await sync();
   }
 
+  /// 매초 시계(tick)는 예정 시각을 바꾸지 않으므로 무시하고, [GameStore.revision]이 바뀌었을 때만 다시 계산한다.
   void _onStoreChanged() {
+    if (store.revision == _seenRevision) return;
+    _seenRevision = store.revision;
     _pending?.cancel();
     _pending = Timer(debounce, sync);
   }
@@ -241,12 +248,12 @@ class ReminderController extends ChangeNotifier {
 
   ReminderNotice _notice(PlannedReminder r, AppLocalizations l) {
     final (title, body) = switch (r) {
-      WateringReminder(:final crops) => (l.notifWateringTitle, l.notifWateringBody(crops.join(', '))),
-      FeedingReminder(:final slot) => (l.alertFeedingTitle(slot.timeLabel, slot.label), l.notifFeedingBody),
-      CareReminder(:final item, :final animal) => (
-        l.notifCareTitle(item.title),
-        l.notifCareBody(animal == null ? l.kind(item.kind) : '${animal.name} (${animal.tag})'),
+      HarvestReminder(:final crops) => (l.notifHarvestTitle, l.notifHarvestBody(crops.map(l.crop).join(', '))),
+      AnimalsReminder(:final species) => (
+        l.notifAnimalsTitle(l.species(species)),
+        l.notifAnimalsBody(l.item(GameDefs.animals[species]!.product)),
       ),
+      FeedReminder() => (l.notifFeedTitle, l.notifFeedBody),
     };
     return ReminderNotice(
       id: reminderId(r),
@@ -255,9 +262,9 @@ class ReminderController extends ChangeNotifier {
       title: title,
       body: body,
       channelName: switch (r.kind) {
-        ReminderKind.watering => l.remindersWatering,
-        ReminderKind.feeding => l.remindersFeeding,
-        ReminderKind.care => l.remindersCare,
+        ReminderKind.harvest => l.remindersHarvest,
+        ReminderKind.animals => l.remindersAnimals,
+        ReminderKind.feed => l.remindersFeed,
       },
     );
   }
@@ -276,9 +283,9 @@ class ReminderController extends ChangeNotifier {
 /// `Object.hash`는 실행마다 값이 달라 쓰지 않는다.
 int reminderId(PlannedReminder r) {
   final key = switch (r) {
-    WateringReminder(:final crops) => 'w|${crops.join(',')}',
-    FeedingReminder(:final slot) => 'f|${slot.timeLabel}|${slot.label}',
-    CareReminder(:final item) => 'c|${item.id}',
+    HarvestReminder(:final crops) => 'h|${crops.map((c) => c.name).join(',')}',
+    AnimalsReminder(:final species) => 'a|${species.name}',
+    FeedReminder() => 'f',
   };
   var h = 0x811c9dc5;
   for (final unit in utf8.encode('$key|${r.at.toIso8601String()}')) {
@@ -288,7 +295,7 @@ int reminderId(PlannedReminder r) {
 }
 
 /// 알림 문구 언어. 앱 화면과 같은 규칙(직접 고른 언어 → 기기 언어, 한국어가 아니면 영어)을 따른다.
-AppLocalizations reminderLocalizations(FarmStore store) {
+AppLocalizations reminderLocalizations(GameStore store) {
   final code = store.localeOverride ?? WidgetsBinding.instance.platformDispatcher.locale.languageCode;
   return lookupAppLocalizations(Locale(code == 'ko' ? 'ko' : 'en'));
 }
@@ -297,9 +304,13 @@ class ReminderScope extends InheritedNotifier<ReminderController> {
   const ReminderScope({super.key, required ReminderController? controller, required super.child})
     : super(notifier: controller);
 
-  /// 알림을 쓰지 않는 플랫폼(웹·Windows)에서는 null.
+  /// 알림을 쓰지 않는 플랫폼(웹 등)에서는 null.
   static ReminderController? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<ReminderScope>()?.notifier;
+
+  /// 빌드 밖(수명 주기 콜백 등)에서 쓴다.
+  static ReminderController? read(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<ReminderScope>()?.notifier;
 }
 
 /// 알림 시각을 사람이 읽는 형식으로(설정 카드의 다음 알림 표시용).

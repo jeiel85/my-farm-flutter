@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:my_farm/data/weather.dart';
 
-import 'farm_store_test.dart' show MemoryStorage;
+import 'support/memory_storage.dart';
 
 const _sample = {
   'current': {'temperature_2m': 27.6, 'relative_humidity_2m': 61, 'weather_code': 1, 'wind_speed_10m': 8.4},

@@ -1,4 +1,4 @@
-import '../data/models.dart' show ZoneId;
+import 'zone.dart';
 import 'defs.dart';
 
 T _enum<T extends Enum>(List<T> values, Object? name) =>
@@ -6,13 +6,22 @@ T _enum<T extends Enum>(List<T> values, Object? name) =>
 
 /// 작물 구역 한 곳의 상태.
 class FieldState {
-  const FieldState({this.crop, this.minutesLeft = 0, this.ready = false, this.waitingWater = false});
+  const FieldState({
+    this.crop,
+    this.minutesLeft = 0,
+    this.totalMinutes = 0,
+    this.ready = false,
+    this.waitingWater = false,
+  });
 
   /// 심은 작물. 비어 있으면 null.
   final CropId? crop;
 
   /// 다 자랄 때까지 남은 분.
   final int minutesLeft;
+
+  /// 이번 회차(심은 뒤 또는 사과나무의 다음 열매까지) 전체 분. 성장 단계를 그릴 때 쓴다.
+  final int totalMinutes;
 
   /// 다 자라 수확을 기다린다.
   final bool ready;
@@ -22,18 +31,21 @@ class FieldState {
 
   bool get empty => crop == null;
 
-  FieldState copyWith({CropId? crop, int? minutesLeft, bool? ready, bool? waitingWater}) => FieldState(
-    crop: crop ?? this.crop,
-    minutesLeft: minutesLeft ?? this.minutesLeft,
-    ready: ready ?? this.ready,
-    waitingWater: waitingWater ?? this.waitingWater,
-  );
+  FieldState copyWith({CropId? crop, int? minutesLeft, int? totalMinutes, bool? ready, bool? waitingWater}) =>
+      FieldState(
+        crop: crop ?? this.crop,
+        minutesLeft: minutesLeft ?? this.minutesLeft,
+        totalMinutes: totalMinutes ?? this.totalMinutes,
+        ready: ready ?? this.ready,
+        waitingWater: waitingWater ?? this.waitingWater,
+      );
 
   static const emptyField = FieldState();
 
   Map<String, Object?> toJson() => {
     'crop': crop?.name,
     'minutesLeft': minutesLeft,
+    'totalMinutes': totalMinutes,
     'ready': ready,
     'waitingWater': waitingWater,
   };
@@ -41,6 +53,7 @@ class FieldState {
   factory FieldState.fromJson(Map<String, Object?> j) => FieldState(
     crop: j['crop'] == null ? null : _enum(CropId.values, j['crop']),
     minutesLeft: j['minutesLeft'] as int,
+    totalMinutes: j['totalMinutes'] as int,
     ready: j['ready'] as bool,
     waitingWater: j['waitingWater'] as bool? ?? false,
   );
