@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_farm/features/profile/backup_actions.dart';
+import 'package:my_farm/features/settings/backup_actions.dart';
 
 void main() {
   test('저장 위치 URI에서 파일 이름을 뽑는다', () {

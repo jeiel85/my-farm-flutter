@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 
-import 'farm_store.dart';
+import 'storage.dart';
 
 /// GitHub 릴리스로 내려받은 APK(사이드로드)의 앱 안 업데이트.
 ///

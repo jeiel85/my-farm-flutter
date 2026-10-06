@@ -1,14 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_farm/data/models.dart' show ZoneId;
-import 'package:my_farm/data/seed.dart';
+import 'package:my_farm/game/zone.dart';
 import 'package:my_farm/game/defs.dart';
 import 'package:my_farm/game/engine.dart';
 import 'package:my_farm/game/game_store.dart';
 import 'package:my_farm/game/state.dart';
 
-import 'farm_store_test.dart' show MemoryStorage;
+import 'support/memory_storage.dart';
 
 void main() {
   var now = DateTime(2026, 10, 6, 9, 0, 30);
@@ -26,7 +25,12 @@ void main() {
   });
 
   test('관리 앱(v4) 저장본은 지우지 않고 보관하고, 농장 이름만 이어받아 새 게임을 시작한다', () async {
-    final legacy = jsonEncode(buildDemoFarm(now).toJson());
+    // 관리 앱(1.7.x) 저장본의 앞부분. 새 게임은 농장 이름만 읽는다.
+    final legacy = jsonEncode({
+      'schemaVersion': 4,
+      'profile': {'name': '초록골 농장', 'currency': 'KRW'},
+      'ledger': [],
+    });
     final storage = MemoryStorage(legacy);
     final store = await load(storage);
     expect(store.migratedFromManagement, isTrue);

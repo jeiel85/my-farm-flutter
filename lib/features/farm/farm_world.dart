@@ -1,12 +1,17 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show mapEquals;
+import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
 import '../../core/theme.dart';
-import '../../data/models.dart';
+import '../../game/defs.dart';
+import '../../game/state.dart';
+import '../../game/todo.dart';
+import '../../game/zone.dart';
+import '../../l10n/l10n.dart';
+import 'storybook.dart';
 
 /// 위에서 내려다본 농장 지도. 좌표는 모두 월드 단위(1000 x 1250)다.
 abstract final class FarmWorld {
@@ -34,10 +39,10 @@ abstract final class FarmWorld {
 
   static Rect get bounds => Offset.zero & size;
 
-  /// 지도 바탕색(전체 지도 화면 배경도 같은 색으로 둔다).
-  static const groundColor = _P.paper;
+  /// 전체 지도 화면 배경색(구운 배경 밖).
+  static const groundColor = Tint.grass;
 
-  /// 가로 도로(행 사이) 중 트랙터가 다니는 도로의 세로 중심.
+  /// 트랙터가 다니는 가로 도로의 세로 중심.
   static double get tractorRoadY => _y(2) - _road / 2;
 
   static ZoneId? hitTest(Offset world) {
@@ -48,21 +53,12 @@ abstract final class FarmWorld {
   }
 
   /// 구역을 [aspect](가로/세로) 비율의 화면에 꽉 차게 보여 줄 카메라 영역.
-  static Rect focusRect(ZoneId zone, double aspect) {
-    final r = zones[zone]!.inflate(58);
-    var w = r.width;
-    var h = r.height;
-    if (w / h > aspect) {
-      h = w / aspect;
-    } else {
-      w = h * aspect;
-    }
-    return Rect.fromCenter(center: r.center, width: w, height: h);
-  }
+  static Rect focusRect(ZoneId zone, double aspect) => _fit(zones[zone]!.inflate(58), aspect);
 
   /// 전체 지도를 담는 카메라 영역.
-  static Rect overviewRect(double aspect) {
-    final r = bounds;
+  static Rect overviewRect(double aspect) => _fit(bounds, aspect);
+
+  static Rect _fit(Rect r, double aspect) {
     var w = r.width;
     var h = r.height;
     if (w / h > aspect) {
@@ -73,557 +69,261 @@ abstract final class FarmWorld {
     return Rect.fromCenter(center: r.center, width: w, height: h);
   }
 
-  static ui.Picture? _static;
-
-  /// 움직이지 않는 지형·건물·작물은 한 번만 그려 재사용한다.
-  static ui.Picture get staticLayer {
-    final cached = _static;
-    if (cached != null) return cached;
-    final recorder = ui.PictureRecorder();
-    _StaticPainter(Canvas(recorder)).paint();
-    return _static = recorder.endRecording();
+  /// 가축 우리 안에서 동물이 돌아다니는 영역(건물 옆 풀밭).
+  static Rect get pasture {
+    final r = zones[ZoneId.animals]!;
+    return Rect.fromLTRB(r.left + 170, r.top + 90, r.right - 30, r.bottom - 30);
   }
-}
 
-// ---------------------------------------------------------------- 팔레트
-
-/// 농지 도면처럼 보이는 지도 색. 그림자 없이 잉크 외곽선과 패턴(해칭·점)으로 구역을 구분한다.
-abstract final class _P {
-  static const paper = Color(0xFFEDE4CF);
-  static const paperLight = Color(0xFFF6F0E1);
-  static const ink = Color(0xFF2E3338);
-  static const sage = Color(0xFFB8C49C);
-  static const sageLight = Color(0xFFCFD8B6);
-  static const sageDeep = Color(0xFF7F9467);
-  static const olive = Color(0xFF9DAA78);
-  static const ochre = Color(0xFFD9BC7E);
-  static const ochreDeep = Color(0xFFB8924A);
-  static const soil = Color(0xFFCBA588);
-  static const soilDeep = Color(0xFF9C6F52);
-  static const brick = Color(0xFFB4553A);
-  static const building = Color(0xFFE3D3B8);
-  static const roof = Color(0xFF8C6D5A);
-  static const slate = Color(0xFF8FAFC4);
-  static const slateDeep = Color(0xFF4E7590);
-  static const glass = Color(0xFFDCE5E4);
-  static const carrot = Color(0xFFD27D3E);
-}
-
-Paint _fill(Color c) => Paint()..color = c;
-Paint _stroke(Color c, double w) => Paint()
-  ..color = c
-  ..style = PaintingStyle.stroke
-  ..strokeWidth = w
-  ..strokeCap = StrokeCap.round
-  ..strokeJoin = StrokeJoin.round;
-
-final _inkLine = _stroke(_P.ink, 2.2);
-final _inkThin = _stroke(_P.ink.withValues(alpha: 0.55), 1.2);
-
-/// 잉크 외곽선이 있는 필지.
-void _parcel(Canvas c, Rect r, Color fill, {double radius = 6}) {
-  final rr = RRect.fromRectAndRadius(r, Radius.circular(radius));
-  c.drawRRect(rr, _fill(fill));
-  c.drawRRect(rr, _inkLine);
-}
-
-/// [r] 안을 [angle] 방향 평행선으로 채운다(해칭).
-void _hatch(Canvas c, Rect r, double spacing, Paint paint, {double angle = 0, double radius = 6}) {
-  c.save();
-  c.clipRRect(RRect.fromRectAndRadius(r, Radius.circular(radius)));
-  c.translate(r.center.dx, r.center.dy);
-  c.rotate(angle);
-  final reach = (r.width + r.height);
-  for (var y = -reach; y <= reach; y += spacing) {
-    c.drawLine(Offset(-reach, y), Offset(reach, y), paint);
+  static Offset get tankCenter {
+    final r = zones[ZoneId.water]!;
+    return Offset(r.left + 82, r.center.dy);
   }
-  c.restore();
-}
 
-/// 점선(직선).
-void _dashed(Canvas c, Offset a, Offset b, Paint paint, {double dash = 10, double gap = 8}) {
-  final d = b - a;
-  final len = d.distance;
-  if (len == 0) return;
-  final u = d / len;
-  for (var s = 0.0; s < len; s += dash + gap) {
-    c.drawLine(a + u * s, a + u * math.min(s + dash, len), paint);
-  }
-}
+  static const tankRadius = 56.0;
 
-void _dashedRect(Canvas c, Rect r, Paint paint) {
-  _dashed(c, r.topLeft, r.topRight, paint);
-  _dashed(c, r.topRight, r.bottomRight, paint);
-  _dashed(c, r.bottomRight, r.bottomLeft, paint);
-  _dashed(c, r.bottomLeft, r.topLeft, paint);
-}
+  // ---------------------------------------------------------------- 구운 이미지
 
-/// 위에서 본 나무: 채운 원 + 잉크 테두리 + 가운데 점.
-void _tree(Canvas c, Offset p, double r, {Color canopy = _P.sageDeep, Color? fruit, math.Random? rng}) {
-  c.drawCircle(p, r, _fill(canopy));
-  c.drawCircle(p, r, _inkThin);
-  c.drawCircle(p, r * 0.55, _stroke(_P.ink.withValues(alpha: 0.25), 1));
-  if (fruit != null && rng != null) {
-    for (var i = 0; i < 5; i++) {
-      final a = rng.nextDouble() * math.pi * 2;
-      final d = rng.nextDouble() * r * 0.65;
-      c.drawCircle(p + Offset(math.cos(a) * d, math.sin(a) * d), r * 0.13, _fill(fruit));
+  /// 구운 이미지 해상도(월드 1단위당 픽셀). 수채 그림은 약간 부드러워도 어색하지 않다.
+  static const _pixelRatio = 1.6;
+  static final bakeArea = bounds.inflate(140);
+  static ui.Image? _ground;
+
+  /// 움직이지 않는 배경(땅·길·집·목장·물·창고). 처음 한 번만 굽는다.
+  static ui.Image get ground => _ground ??= bake(bakeArea, _pixelRatio, _paintGround);
+
+  static final _plotCache = <String, ui.Image>{};
+
+  /// 작물 구역 그림(밭·작물 단계·온실 유리·과수원). 상태가 바뀔 때만 굽고, 최근 것만 남긴다.
+  static ui.Image plotImage(ZoneId zone, CropId? crop, int? stage) {
+    final key = '${zone.name}/${crop?.name}/$stage';
+    final hit = _plotCache.remove(key);
+    if (hit != null) return _plotCache[key] = hit;
+    final r = zones[zone]!;
+    final img = bake(r.inflate(14), _pixelRatio, (c) => _paintPlot(c, zone, r, crop, stage));
+    _plotCache[key] = img;
+    while (_plotCache.length > 16) {
+      _plotCache.remove(_plotCache.keys.first)!.dispose();
     }
-  }
-}
-
-/// 건물 평면: 외곽선 + 용마루 선 + 지붕 한쪽 해칭.
-void _building(Canvas c, Rect r, {bool vertical = false, Color fill = _P.building}) {
-  _parcel(c, r, fill, radius: 2);
-  final half = vertical
-      ? Rect.fromLTRB(r.center.dx, r.top, r.right, r.bottom)
-      : Rect.fromLTRB(r.left, r.center.dy, r.right, r.bottom);
-  _hatch(c, half.deflate(1), 7, _stroke(_P.roof.withValues(alpha: 0.55), 1.2), angle: math.pi / 4, radius: 1);
-  if (vertical) {
-    c.drawLine(Offset(r.center.dx, r.top), Offset(r.center.dx, r.bottom), _inkLine);
-  } else {
-    c.drawLine(Offset(r.left, r.center.dy), Offset(r.right, r.center.dy), _inkLine);
-  }
-}
-
-void _hayBale(Canvas c, Offset p, double r) {
-  c.drawCircle(p, r, _fill(_P.ochre));
-  c.drawCircle(p, r, _inkThin);
-  c.drawCircle(p, r * 0.5, _stroke(_P.ochreDeep, 1.2));
-}
-
-class _StaticPainter {
-  _StaticPainter(this.c);
-
-  final Canvas c;
-  final rng = math.Random(11);
-
-  void paint() {
-    _ground();
-    final z = FarmWorld.zones;
-    _house(z[ZoneId.house]!);
-    _tomato(z[ZoneId.tomato]!);
-    _vegetable(z[ZoneId.vegetable]!);
-    _corn(z[ZoneId.corn]!);
-    _animals(z[ZoneId.animals]!);
-    _water(z[ZoneId.water]!);
-    _storage(z[ZoneId.storage]!);
-    _greenhouse(z[ZoneId.greenhouse]!);
-    _orchard(z[ZoneId.orchard]!);
+    return img;
   }
 
-  void _ground() {
-    // 카메라가 월드 밖을 비춰도 비어 보이지 않도록 넉넉히 칠한다.
-    c.drawRect(const Rect.fromLTWH(-1500, -1500, 4000, 4250), _fill(_P.paper));
-    // 종이 결
-    for (var i = 0; i < 700; i++) {
-      final p = Offset(rng.nextDouble() * 2400 - 700, rng.nextDouble() * 2650 - 700);
-      c.drawCircle(p, 0.8 + rng.nextDouble() * 1.4, _fill(_P.ink.withValues(alpha: 0.06)));
-    }
-    // 농장 바깥은 등고선으로 그린다.
-    final contour = _stroke(_P.sageDeep.withValues(alpha: 0.35), 1.4);
-    for (var i = 1; i <= 26; i++) {
-      final base = FarmWorld.bounds.inflate(i * 34.0);
-      final path = Path();
-      const steps = 120;
-      for (var s = 0; s <= steps; s++) {
-        final t = s / steps * math.pi * 2;
-        final wobble = 1 + 0.035 * math.sin(t * 3 + i * 0.7) + 0.02 * math.sin(t * 7 - i);
-        final p = Offset(
-          base.center.dx + math.cos(t) * base.width / 2 * 1.08 * wobble,
-          base.center.dy + math.sin(t) * base.height / 2 * 1.06 * wobble,
-        );
-        s == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
-      }
-      c.drawPath(path, i % 5 == 0 ? _stroke(_P.sageDeep.withValues(alpha: 0.5), 2) : contour);
-    }
-    // 농장 경계
-    c.drawRect(FarmWorld.bounds.deflate(10), _stroke(_P.ink.withValues(alpha: 0.5), 1.6));
-    // 도로: 밝은 띠 + 양쪽 실선 + 가운데 점선. 지도 밖까지 이어져 진입로처럼 보인다(트랙터가 달린다).
-    final road = _fill(_P.paperLight);
-    final centre = _stroke(_P.ink.withValues(alpha: 0.4), 1.6);
-    for (var row = 1; row < 4; row++) {
-      final y = FarmWorld._y(row) - FarmWorld._road + 8;
-      final r = Rect.fromLTWH(-1500, y, 4000, FarmWorld._road - 16);
-      c.drawRect(r, road);
-      c.drawLine(r.topLeft, r.topRight, _inkThin);
-      c.drawLine(r.bottomLeft, r.bottomRight, _inkThin);
-      _dashed(c, Offset(r.left, r.center.dy), Offset(r.right, r.center.dy), centre, dash: 14, gap: 12);
-    }
-    final vx = FarmWorld._x(1) - FarmWorld._road + 8;
-    final v = Rect.fromLTWH(vx, -1500, FarmWorld._road - 16, 4250);
-    c.drawRect(v, road);
-    c.drawLine(v.topLeft, v.bottomLeft, _inkThin);
-    c.drawLine(v.topRight, v.bottomRight, _inkThin);
-    _dashed(c, Offset(v.center.dx, v.top), Offset(v.center.dx, v.bottom), centre, dash: 14, gap: 12);
-  }
-
-  void _house(Rect r) {
-    _parcel(c, r, _P.sageLight, radius: 10);
-    // 진입로
-    final drive = Rect.fromLTWH(r.left + 92, r.top + 150, 34, r.bottom - r.top - 150);
-    c.drawRect(drive, _fill(_P.paperLight));
-    c.drawLine(drive.topLeft, drive.bottomLeft, _inkThin);
-    c.drawLine(drive.topRight, drive.bottomRight, _inkThin);
-    _building(c, Rect.fromLTWH(r.left + 36, r.top + 40, 150, 110));
-    // 주차 칸
-    final park = Rect.fromLTWH(r.left + 136, r.top + 168, 40, 62);
-    c.drawRect(park, _stroke(_P.ink.withValues(alpha: 0.45), 1.4));
-    c.drawLine(park.topLeft, park.bottomRight, _stroke(_P.ink.withValues(alpha: 0.25), 1));
-    // 텃밭: 점 격자
-    final garden = Rect.fromLTWH(r.left + 220, r.top + 40, 120, 92);
-    _parcel(c, garden, _P.soil, radius: 4);
-    for (var y = 0; y < 3; y++) {
-      for (var x = 0; x < 4; x++) {
-        c.drawCircle(Offset(garden.left + 20 + x * 27, garden.top + 22 + y * 25), 5, _fill(_P.sageDeep));
-      }
-    }
-    _hayBale(c, Offset(r.left + 250, r.top + 190), 14);
-    _hayBale(c, Offset(r.left + 282, r.top + 200), 14);
-    for (var i = 0; i < 6; i++) {
-      _tree(c, Offset(r.right - 36, r.top + 30 + i * 40), 15 + rng.nextDouble() * 4);
-    }
-    _tree(c, Offset(r.left + 26, r.top + 210), 17);
-  }
-
-  void _tomato(Rect r) {
-    final bed = r.deflate(8);
-    _parcel(c, bed, _P.soil);
-    // 이랑: 가로줄 + 줄마다 열매 점
-    final ridge = _stroke(_P.soilDeep.withValues(alpha: 0.7), 2);
-    for (var y = bed.top + 24.0; y < bed.bottom - 8; y += 26) {
-      c.drawLine(Offset(bed.left + 10, y), Offset(bed.right - 10, y), ridge);
-      for (var x = bed.left + 20.0; x < bed.right - 12; x += 24) {
-        c.drawCircle(Offset(x, y), 5.5, _fill(_P.sageDeep));
-        c.drawCircle(Offset(x + 3, y - 3), 2.4, _fill(_P.brick));
-      }
-    }
-  }
-
-  void _vegetable(Rect r) {
-    final bed = r.deflate(8);
-    _parcel(c, bed, _P.soil);
-    final left = Rect.fromLTRB(bed.left, bed.top, bed.center.dx - 4, bed.bottom);
-    final right = Rect.fromLTRB(bed.center.dx + 4, bed.top, bed.right, bed.bottom);
-    // 상추: 세로 줄무늬 띠
-    for (var x = left.left + 10; x < left.right - 10; x += 26) {
-      final strip = Rect.fromLTWH(x, left.top + 10, 14, left.height - 20);
-      c.drawRRect(RRect.fromRectAndRadius(strip, const Radius.circular(7)), _fill(_P.olive));
-    }
-    c.drawLine(Offset(bed.center.dx, bed.top + 6), Offset(bed.center.dx, bed.bottom - 6), _inkThin);
-    // 당근: 짧은 사선
-    final carrot = _stroke(_P.carrot, 2.4);
-    for (var y = right.top + 16; y < right.bottom - 8; y += 18) {
-      for (var x = right.left + 12; x < right.right - 8; x += 16) {
-        c.drawLine(Offset(x, y), Offset(x + 6, y - 6), carrot);
-      }
-    }
-  }
-
-  void _corn(Rect r) {
-    final bed = r.deflate(8);
-    _parcel(c, bed, _P.ochre);
-    _hatch(c, bed, 11, _stroke(_P.ochreDeep.withValues(alpha: 0.75), 1.6), angle: -math.pi / 5);
-    c.drawRRect(RRect.fromRectAndRadius(bed, const Radius.circular(6)), _inkLine);
-  }
-
-  void _animals(Rect r) {
-    _parcel(c, r, _P.sage, radius: 10);
-    final pasture = r.deflate(12);
-    // 풀밭 점묘
-    for (var i = 0; i < 160; i++) {
+  static void _paintGround(Canvas c) {
+    final rng = math.Random(7);
+    paintMeadow(c, bakeArea, rng);
+    // 바깥 나무
+    for (var i = 0; i < 46; i++) {
       final p = Offset(
-        pasture.left + rng.nextDouble() * pasture.width,
-        pasture.top + rng.nextDouble() * pasture.height,
+        bakeArea.left + rng.nextDouble() * bakeArea.width,
+        bakeArea.top + rng.nextDouble() * bakeArea.height,
       );
-      c.drawCircle(p, 1.4, _fill(_P.sageDeep.withValues(alpha: 0.6)));
+      if (bounds.deflate(-6).contains(p)) continue;
+      paintTree(c, p, 20 + rng.nextDouble() * 18, rng, leaf: i.isEven ? Tint.leaf : Tint.grassDeep);
     }
-    // 물웅덩이
-    final mud = Rect.fromLTWH(r.left + 230, r.top + 160, 90, 46);
-    c.drawOval(mud, _fill(_P.soil));
-    c.drawOval(mud, _inkThin);
-    _dashedRect(c, pasture, _stroke(_P.ink.withValues(alpha: 0.7), 1.8));
-    _building(c, Rect.fromLTWH(r.left + 26, r.top + 26, 118, 82), vertical: true);
-    _building(c, Rect.fromLTWH(r.left + 40, r.bottom - 74, 60, 44));
-    _hayBale(c, Offset(r.left + 170, r.top + 52), 13);
-    _hayBale(c, Offset(r.left + 200, r.top + 46), 13);
-    _hayBale(c, Offset(r.left + 186, r.top + 76), 13);
-    final trough = RRect.fromRectAndRadius(Rect.fromLTWH(r.right - 100, r.top + 34, 64, 18), const Radius.circular(4));
-    c.drawRRect(trough, _fill(_P.slate));
-    c.drawRRect(trough, _inkThin);
+    // 길
+    for (var row = 1; row < 4; row++) {
+      paintRoad(c, Rect.fromLTWH(bakeArea.left, _y(row) - _road + 6, bakeArea.width, _road - 12), rng);
+    }
+    paintRoad(c, Rect.fromLTWH(_x(1) - _road + 6, bakeArea.top, _road - 12, bakeArea.height), rng);
+
+    _paintHouse(c, zones[ZoneId.house]!, rng);
+    _paintBarnyard(c, zones[ZoneId.animals]!, rng);
+    _paintWater(c, zones[ZoneId.water]!, rng);
+    _paintStorage(c, zones[ZoneId.storage]!, rng);
   }
 
-  void _water(Rect r) {
-    _parcel(c, r, _P.sageLight, radius: 10);
-    // 물탱크(평면): 동심원
-    final tank = Offset(r.left + 80, r.center.dy);
-    c.drawCircle(tank, 56, _fill(_P.paperLight));
-    c.drawCircle(tank, 56, _inkLine);
-    c.drawCircle(tank, 46, _fill(_P.slate));
-    c.drawCircle(tank, 46, _inkThin);
-    // 배관: 두 줄
-    final a = tank + const Offset(56, -4);
-    final b = Offset(r.left + 190, r.center.dy - 4);
-    c.drawLine(a, b, _inkThin);
-    c.drawLine(a + const Offset(0, 8), b + const Offset(0, 8), _inkThin);
-    final valve = Rect.fromCenter(center: Offset(r.left + 190, r.center.dy), width: 20, height: 20);
-    c.drawRect(valve, _fill(_P.paperLight));
-    c.drawRect(valve, _inkThin);
-    // 연못: 바깥에서 안으로 등심선
-    // 두 타원을 합친 하나의 윤곽(겹친 선이 생기지 않게).
-    final pond = Path.combine(
-      PathOperation.union,
-      Path()..addOval(Rect.fromLTWH(r.left + 220, r.top + 22, 200, 110)),
-      Path()..addOval(Rect.fromLTWH(r.left + 300, r.top + 60, 120, 76)),
+  static void _paintHouse(Canvas c, Rect r, math.Random rng) {
+    wash(c, wobblyRect(r, rng, radius: 24), const Color(0xFFC6D79A), rng, layers: 2, edge: false);
+    paintRoad(c, Rect.fromLTWH(r.left + 92, r.top + 140, 34, r.bottom - r.top - 140), rng);
+    paintGableHouse(c, Rect.fromLTWH(r.left + 34, r.top + 34, 156, 112), rng);
+    c.drawRect(Rect.fromLTWH(r.left + 150, r.top + 44, 14, 18), fill(const Color(0xFF8C5A44)));
+    final bed = wobblyOval(Rect.fromLTWH(r.left + 220, r.top + 40, 130, 80), rng, jitter: 0.08);
+    wash(c, bed, Tint.soil, rng, layers: 2);
+    for (var i = 0; i < 40; i++) {
+      final p = Offset(r.left + 232 + rng.nextDouble() * 106, r.top + 52 + rng.nextDouble() * 56);
+      c.drawCircle(p, 3.2, fill([Tint.flowerA, Tint.flowerB, Colors.white, Tint.tomato][i % 4]));
+    }
+    paintHayBale(c, Offset(r.left + 250, r.top + 190), 15, rng);
+    paintHayBale(c, Offset(r.left + 284, r.top + 202), 15, rng);
+    for (var i = 0; i < 5; i++) {
+      paintTree(c, Offset(r.right - 34, r.top + 34 + i * 46), 18 + rng.nextDouble() * 5, rng);
+    }
+    paintTree(c, Offset(r.left + 28, r.top + 206), 20, rng);
+  }
+
+  static void _paintBarnyard(Canvas c, Rect r, math.Random rng) {
+    final yard = wobblyRect(r.deflate(4), rng, radius: 26);
+    wash(c, yard, const Color(0xFFC9D99C), rng, layers: 2);
+    final mud = wobblyOval(Rect.fromLTWH(r.left + 250, r.top + 170, 96, 48), rng, jitter: 0.1);
+    wash(c, mud, const Color(0xFFB58E66), rng, layers: 2);
+    paintGableHouse(c, Rect.fromLTWH(r.left + 24, r.top + 24, 120, 86), rng, vertical: true);
+    paintGableHouse(c, Rect.fromLTWH(r.left + 36, r.bottom - 82, 70, 50), rng, roof: const Color(0xFFB58A52));
+    paintHayBale(c, Offset(r.left + 172, r.top + 34), 13, rng);
+    final trough = wobblyRect(Rect.fromLTWH(r.right - 104, r.top + 28, 68, 20), rng, amp: 0.6, radius: 6);
+    dropShadow(c, trough, offset: const Offset(3, 4));
+    c.drawPath(trough, fill(const Color(0xFF9E8A6E)));
+    c.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(r.right - 99, r.top + 32, 58, 12), const Radius.circular(4)),
+      fill(Tint.water),
     );
-    c.drawPath(pond, _fill(_P.slate.withValues(alpha: 0.55)));
-    c.drawPath(pond, _stroke(_P.slateDeep, 2));
-    for (final k in const [0.78, 0.56, 0.34]) {
-      c.save();
-      c.translate(r.left + 330, r.top + 84);
-      c.scale(k, k);
-      c.translate(-(r.left + 330), -(r.top + 84));
-      c.drawPath(pond, _stroke(_P.slateDeep.withValues(alpha: 0.55), 1.6 / k));
-      c.restore();
-    }
-    _tree(c, Offset(r.right - 20, r.bottom - 20), 14);
+    paintFence(c, wobblyRect(r.deflate(12), rng, amp: 1.5, radius: 24));
   }
 
-  void _storage(Rect r) {
-    _parcel(c, r, _P.paperLight, radius: 8);
-    final shed = Rect.fromLTWH(r.left + 26, r.top + 14, 190, r.height - 28);
-    _parcel(c, shed, _P.building, radius: 2);
-    _hatch(c, shed.deflate(2), 10, _stroke(_P.roof.withValues(alpha: 0.45), 1.2), angle: math.pi / 2, radius: 1);
-    for (var i = 0; i < 2; i++) {
-      final s = Offset(r.left + 270 + i * 70, r.center.dy);
-      c.drawCircle(s, 28, _fill(_P.building));
-      c.drawCircle(s, 28, _inkLine);
-      c.drawLine(s - const Offset(18, 0), s + const Offset(18, 0), _inkThin);
-      c.drawLine(s - const Offset(0, 18), s + const Offset(0, 18), _inkThin);
-    }
-    for (var i = 0; i < 3; i++) {
-      final box = Rect.fromLTWH(r.right - 42, r.top + 14 + i * 22, 20, 18);
-      c.drawRect(box, _fill(_P.ochre));
-      c.drawRect(box, _inkThin);
-    }
+  static void _paintWater(Canvas c, Rect r, math.Random rng) {
+    wash(c, wobblyRect(r, rng, radius: 22), const Color(0xFFC6D79A), rng, layers: 2, edge: false);
+    paintTankBase(c, tankCenter, tankRadius, rng);
+    final pipe = Path()
+      ..moveTo(tankCenter.dx + tankRadius, tankCenter.dy)
+      ..lineTo(r.left + 196, r.center.dy);
+    c.drawPath(pipe, pen(const Color(0xFF7D8A8E), 6));
+    paintPond(c, Rect.fromLTWH(r.left + 220, r.top + 18, 200, 118), rng);
   }
 
-  void _greenhouse(Rect r) {
-    _parcel(c, r, _P.sageLight, radius: 10);
-    for (var i = 0; i < 2; i++) {
-      final g = Rect.fromLTWH(r.left + 18, r.top + 22 + i * 116, r.width - 36, 96);
-      _parcel(c, g, _P.glass, radius: 4);
-      final grid = _stroke(_P.slateDeep.withValues(alpha: 0.35), 1);
-      for (var x = g.left + 16; x < g.right; x += 16) {
-        c.drawLine(Offset(x, g.top), Offset(x, g.bottom), grid);
-      }
-      c.drawLine(Offset(g.left, g.center.dy), Offset(g.right, g.center.dy), _inkThin);
-      // 딸기 점
-      for (var y = g.top + 22; y < g.bottom - 10; y += 26) {
-        for (var x = g.left + 24; x < g.right - 10; x += 32) {
-          if (rng.nextDouble() < 0.6) c.drawCircle(Offset(x, y), 2.6, _fill(_P.brick));
+  static void _paintStorage(Canvas c, Rect r, math.Random rng) {
+    wash(c, wobblyRect(r, rng, radius: 18), const Color(0xFFD9CDB2), rng, layers: 2, edge: false);
+    paintGableHouse(c, Rect.fromLTWH(r.left + 22, r.top + 12, 190, r.height - 24), rng, roof: const Color(0xFF8E7A68));
+    paintSilo(c, Offset(r.left + 262, r.center.dy), 30, rng);
+    paintSilo(c, Offset(r.left + 330, r.center.dy), 30, rng);
+  }
+
+  static void _paintPlot(Canvas c, ZoneId zone, Rect r, CropId? crop, int? stage) {
+    final rng = math.Random(zone.index * 31 + (crop?.index ?? 9) * 7 + (stage ?? 5));
+    switch (GameDefs.zones[zone]?.plot) {
+      case PlotKind.orchard:
+        wash(c, wobblyRect(r, rng, radius: 22), const Color(0xFFBFD293), rng, layers: 2);
+        paintOrchard(c, r, crop == null ? null : stage, rng);
+      case PlotKind.greenhouse:
+        wash(c, wobblyRect(r, rng, radius: 22), const Color(0xFFC6D79A), rng, layers: 2, edge: false);
+        for (var i = 0; i < 2; i++) {
+          final g = Rect.fromLTWH(r.left + 18, r.top + 20 + i * 118, r.width - 36, 100);
+          paintBed(c, g.deflate(4), rng);
+          if (crop != null && stage != null) paintCrops(c, g.deflate(4), crop, stage, rng);
+          paintGlass(c, g, rng);
         }
-      }
-    }
-  }
-
-  void _orchard(Rect r) {
-    _parcel(c, r, _P.sage, radius: 10);
-    // 꽃밭 점묘
-    const flowers = [_P.ochre, _P.brick, _P.paperLight];
-    for (var i = 0; i < 50; i++) {
-      final p = Offset(r.left + 300 + rng.nextDouble() * 120, r.top + 180 + rng.nextDouble() * 70);
-      c.drawCircle(p, 2, _fill(flowers[i % 3]));
-    }
-    for (var row = 0; row < 3; row++) {
-      for (var col = 0; col < 4; col++) {
-        if (row == 2 && col >= 3) continue;
-        final p = Offset(r.left + 50 + col * 92 + (row.isOdd ? 30 : 0), r.top + 46 + row * 78);
-        _tree(c, p, 25, canopy: _P.olive, fruit: _P.brick, rng: rng);
-      }
-    }
-    // 벌통
-    for (var i = 0; i < 3; i++) {
-      final b = Rect.fromLTWH(r.right - 120 + i * 36, r.bottom - 56, 26, 30);
-      c.drawRect(b, _fill(_P.paperLight));
-      _hatch(c, b, 6, _stroke(_P.ochreDeep, 1.4), radius: 0);
-      c.drawRect(b, _inkThin);
+      default:
+        final bed = r.deflate(8);
+        paintBed(c, bed, rng);
+        if (crop != null && stage != null) paintCrops(c, bed, crop, stage, rng);
     }
   }
 }
 
-// ---------------------------------------------------------------- 움직이는 요소
+// ---------------------------------------------------------------- 지금 상태(그림 입력)
 
-class _Wanderer {
-  const _Wanderer(this.home, this.ax, this.ay, this.wx, this.wy, this.phase);
+/// 지도 한 장을 그리는 데 필요한 게임 상태 요약.
+@immutable
+class FarmScene {
+  const FarmScene({
+    required this.plots,
+    required this.ready,
+    required this.locked,
+    required this.animals,
+    required this.stored,
+    required this.waterRatio,
+    required this.barnRatio,
+    required this.labels,
+    required this.semantics,
+  });
 
-  final Offset home;
-  final double ax, ay, wx, wy, phase;
+  /// 작물 구역 → (작물, 단계). 빈 밭은 (null, null).
+  final Map<ZoneId, (CropId?, int?)> plots;
+  final Set<ZoneId> ready;
 
-  Offset at(double t) => home + Offset(ax * math.sin(t * wx + phase), ay * math.sin(t * wy + phase * 1.7));
+  /// 잠긴 구역 → 여는 레벨.
+  final Map<ZoneId, int> locked;
 
-  Offset velocity(double t) =>
-      Offset(ax * wx * math.cos(t * wx + phase), ay * wy * 1.0 * math.cos(t * wy + phase * 1.7));
-}
+  /// (종, 새끼인지). 우리에 있는 순서대로.
+  final List<(Species, bool)> animals;
+  final Map<Species, int> stored;
+  final double waterRatio;
+  final double barnRatio;
+  final Map<ZoneId, String> labels;
+  final Map<ZoneId, String> semantics;
 
-final _animalZone = FarmWorld.zones[ZoneId.animals]!;
-final _cows = [
-  for (var i = 0; i < 6; i++)
-    _Wanderer(
-      _animalZone.topLeft + Offset(200 + (i % 3) * 70.0, 120 + (i ~/ 3) * 70.0),
-      40 + i * 6.0,
-      22 + i * 3.0,
-      0.11 + i * 0.013,
-      0.17 + i * 0.011,
-      i * 1.3,
-    ),
-];
-final _sheep = [
-  for (var i = 0; i < 3; i++)
-    _Wanderer(_animalZone.topLeft + Offset(330 + i * 26.0, 70), 24, 16, 0.14 + i * 0.02, 0.19, i * 2.1),
-];
-final _hens = [
-  for (var i = 0; i < 5; i++)
-    _Wanderer(
-      _animalZone.topLeft + Offset(140 + i * 18.0, _animalZone.height - 44),
-      16,
-      9,
-      0.5 + i * 0.07,
-      0.6,
-      i * 1.9,
-    ),
-];
+  factory FarmScene.of(GameState s, AppLocalizations l) {
+    final plots = <ZoneId, (CropId?, int?)>{};
+    final ready = <ZoneId>{};
+    for (final z in GameDefs.plotZones) {
+      final f = s.fields[z] ?? FieldState.emptyField;
+      plots[z] = (f.crop, cropStage(f));
+      if (f.ready) ready.add(z);
+    }
+    final locked = {
+      for (final e in GameDefs.zones.entries)
+        if (!s.unlocked.contains(e.key)) e.key: e.value.unlockLevel,
+    };
+    final stored = <Species, int>{};
+    for (final a in s.animals) {
+      if (a.stored > 0) stored[a.species] = (stored[a.species] ?? 0) + a.stored;
+    }
+    String describe(ZoneId z) {
+      final name = l.zone(z);
+      if (locked.containsKey(z)) return l.mapZoneLocked(name, locked[z]!);
+      final crop = plots[z]?.$1;
+      if (ready.contains(z)) return l.mapZoneReady(name, l.crop(crop!));
+      if (crop != null) return l.mapZoneGrowing(name, l.crop(crop));
+      return name;
+    }
 
-// 동물·트랙터도 도면 기호처럼 단순한 도형 + 잉크 외곽선으로 그린다.
-final _glyphLine = _stroke(_P.ink, 1.4);
-
-void _drawCow(Canvas c, Offset p, Offset v) {
-  c.save();
-  c.translate(p.dx, p.dy);
-  c.rotate(math.atan2(v.dy, v.dx));
-  final body = RRect.fromRectAndRadius(
-    Rect.fromCenter(center: Offset.zero, width: 28, height: 15),
-    const Radius.circular(7),
-  );
-  c.drawRRect(body, _fill(_P.paperLight));
-  c.drawRRect(body, _glyphLine);
-  c.drawCircle(const Offset(-5, -2), 3.2, _fill(_P.ink));
-  c.drawCircle(const Offset(15, 0), 5, _fill(_P.paperLight));
-  c.drawCircle(const Offset(15, 0), 5, _glyphLine);
-  c.restore();
-}
-
-void _drawSheep(Canvas c, Offset p, Offset v) {
-  c.save();
-  c.translate(p.dx, p.dy);
-  c.rotate(math.atan2(v.dy, v.dx));
-  c.drawCircle(Offset.zero, 9, _fill(_P.paperLight));
-  c.drawCircle(Offset.zero, 9, _glyphLine);
-  c.drawCircle(const Offset(10, 0), 3.6, _fill(_P.ink));
-  c.restore();
-}
-
-void _drawHen(Canvas c, Offset p, double t, int i) {
-  final bob = math.sin(t * 6 + i) > 0.7 ? 1.5 : 0.0;
-  c.drawCircle(p, 4.4, _fill(_P.carrot));
-  c.drawCircle(p, 4.4, _stroke(_P.ink, 1));
-  c.drawCircle(p + Offset(4 + bob, -2), 1.6, _fill(_P.brick));
-}
-
-void _drawTractor(Canvas c, double t) {
-  final span = FarmWorld.size.width + 300;
-  final x = (t * 46) % span - 150;
-  final p = Offset(x, FarmWorld.tractorRoadY + 4);
-  c.save();
-  c.translate(p.dx, p.dy);
-  for (final w in const [Offset(-12, -12), Offset(-12, 12), Offset(13, -9), Offset(13, 9)]) {
-    c.drawRect(Rect.fromCenter(center: w, width: w.dx < 0 ? 14 : 8, height: 5), _fill(_P.ink));
+    return FarmScene(
+      plots: plots,
+      ready: ready,
+      locked: locked,
+      animals: [for (final a in s.animals) (a.species, !a.adult)],
+      stored: stored,
+      waterRatio: s.water / GameDefs.waterCapacity,
+      barnRatio: s.barnUsed / GameDefs.barnCapacity,
+      labels: {for (final z in ZoneId.values) z: l.zoneShort(z)},
+      semantics: {for (final z in ZoneId.values) z: describe(z)},
+    );
   }
-  final body = RRect.fromRectAndRadius(const Rect.fromLTWH(-18, -9, 38, 18), const Radius.circular(3));
-  c.drawRRect(body, _fill(AppMapColors.accent));
-  c.drawRRect(body, _glyphLine);
-  c.drawRect(const Rect.fromLTWH(-15, -6, 12, 12), _fill(_P.paperLight));
-  c.drawRect(const Rect.fromLTWH(-15, -6, 12, 12), _stroke(_P.ink, 1));
-  c.restore();
+
+  @override
+  bool operator ==(Object other) =>
+      other is FarmScene &&
+      mapEquals(other.plots, plots) &&
+      _setEquals(other.ready, ready) &&
+      mapEquals(other.locked, locked) &&
+      listEquals(other.animals, animals) &&
+      mapEquals(other.stored, stored) &&
+      other.waterRatio == waterRatio &&
+      other.barnRatio == barnRatio &&
+      mapEquals(other.labels, labels) &&
+      mapEquals(other.semantics, semantics);
+
+  @override
+  int get hashCode => Object.hash(plots.length, ready.length, animals.length, waterRatio, barnRatio);
 }
 
-void _drawRipples(Canvas c, double t) {
-  final pond = FarmWorld.zones[ZoneId.water]!;
-  final centre = pond.topLeft + const Offset(330, 84);
-  for (var i = 0; i < 2; i++) {
-    final phase = ((t * 0.35) + i * 0.5) % 1.0;
-    c.drawCircle(centre, 8 + phase * 40, _stroke(_P.slateDeep.withValues(alpha: (1 - phase) * 0.5), 1.4));
-  }
-}
+bool _setEquals<T>(Set<T> a, Set<T> b) => a.length == b.length && a.containsAll(b);
 
-void _drawSprinkler(Canvas c, double t) {
-  final veg = FarmWorld.zones[ZoneId.vegetable]!;
-  final centre = veg.center;
-  final a = t * 1.4;
-  final paint = Paint()..shader = ui.Gradient.radial(centre, 70, [const Color(0x554E7590), const Color(0x004E7590)]);
-  c.drawArc(Rect.fromCircle(center: centre, radius: 70), a, 0.9, true, paint);
-  c.drawCircle(centre, 4, _fill(_P.ink));
-}
+// ---------------------------------------------------------------- 매 프레임
 
-void _drawBees(Canvas c, double t) {
-  final orchard = FarmWorld.zones[ZoneId.orchard]!;
-  final hive = Offset(orchard.right - 70, orchard.bottom - 44);
-  for (var i = 0; i < 7; i++) {
-    final a = t * (1.6 + i * 0.25) + i;
-    final r = 22 + 14 * math.sin(t * 0.9 + i * 2);
-    final p = hive + Offset(math.cos(a) * r, math.sin(a * 1.3) * r * 0.7);
-    c.drawCircle(p, 1.8, _fill(_P.ink));
-  }
-}
+final _textCache = <String, TextPainter>{};
 
-/// 물탱크 테두리의 수위 호(채운 비율만큼).
-void _drawWaterLevel(Canvas c, double ratio, double t) {
-  final r = FarmWorld.zones[ZoneId.water]!;
-  final tank = Offset(r.left + 80, r.center.dy);
-  c.drawArc(
-    Rect.fromCircle(center: tank, radius: 51),
-    -math.pi / 2,
-    math.pi * 2 * ratio,
-    false,
-    _stroke(_P.slateDeep, 6),
-  );
-  final shimmer = (math.sin(t * 2) + 1) / 2;
-  c.drawCircle(tank, 14 + shimmer * 6, _stroke(_P.paperLight.withValues(alpha: 0.6), 1.4));
-}
+TextPainter _text(String text, {double size = 22, FontWeight weight = FontWeight.w700, Color color = Tint.line}) =>
+    _textCache.putIfAbsent(
+      '$text/$size/${weight.value}/${color.toARGB32()}',
+      () => TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(fontSize: size, fontWeight: weight, color: color),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(),
+    );
 
-// ---------------------------------------------------------------- 라벨
-
-final _labelCache = <String, TextPainter>{};
-final _iconCache = <ZoneId, TextPainter>{};
-
-TextPainter _iconLabel(ZoneId zone) => _iconCache.putIfAbsent(
-  zone,
+TextPainter _icon(IconData icon, double size, Color color) => _textCache.putIfAbsent(
+  'icon/${icon.codePoint}/$size/${color.toARGB32()}',
   () => TextPainter(
     text: TextSpan(
-      text: String.fromCharCode(zone.icon.codePoint),
-      style: TextStyle(
-        fontSize: 22,
-        fontFamily: zone.icon.fontFamily,
-        package: zone.icon.fontPackage,
-        color: AppMapColors.icon,
-      ),
+      text: String.fromCharCode(icon.codePoint),
+      style: TextStyle(fontSize: size, fontFamily: icon.fontFamily, package: icon.fontPackage, color: color),
     ),
     textDirection: TextDirection.ltr,
   )..layout(),
 );
 
-TextPainter _label(String text) => _labelCache.putIfAbsent(text, () {
-  final tp = TextPainter(
-    text: TextSpan(
-      text: text,
-      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: _P.ink, letterSpacing: 0.4),
-    ),
-    textDirection: TextDirection.ltr,
-  )..layout();
-  return tp;
-});
-
-/// 지도 전체를 그린다. [view]는 화면에 담을 월드 영역이다.
 class FarmMapPainter extends CustomPainter {
   FarmMapPainter({
     required this.view,
@@ -631,10 +331,7 @@ class FarmMapPainter extends CustomPainter {
     required this.selected,
     required this.selectionT,
     required this.labelOpacity,
-    required this.tankRatio,
-    required this.needsWater,
-    required this.zoneLabels,
-    this.zoneSemantics = const {},
+    required this.scene,
     this.onZoneTap,
     this.textDirection = TextDirection.ltr,
   }) : super(repaint: time);
@@ -644,18 +341,18 @@ class FarmMapPainter extends CustomPainter {
   final ZoneId? selected;
   final double selectionT;
   final double labelOpacity;
-  final double tankRatio;
-  final Set<ZoneId> needsWater;
-
-  /// 구역 라벨(현재 언어).
-  final Map<ZoneId, String> zoneLabels;
-
-  /// 스크린리더가 읽을 구역 이름(물 필요 여부 포함). 지도는 그림이라 이것이 없으면 구역을 고를 수 없다.
-  final Map<ZoneId, String> zoneSemantics;
+  final FarmScene scene;
   final ValueChanged<ZoneId>? onZoneTap;
   final TextDirection textDirection;
 
   static double scaleFor(Rect view, Size size) => math.max(size.width / view.width, size.height / view.height);
+
+  static void _blit(Canvas c, ui.Image img, Rect dst) => c.drawImageRect(
+    img,
+    Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+    dst,
+    Paint()..filterQuality = FilterQuality.medium,
+  );
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -663,49 +360,30 @@ class FarmMapPainter extends CustomPainter {
     final scale = scaleFor(view, size);
     canvas.save();
     canvas.clipRect(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, fill(FarmWorld.groundColor));
     canvas.translate(size.width / 2, size.height / 2);
     canvas.scale(scale);
     canvas.translate(-view.center.dx, -view.center.dy);
 
-    canvas.drawPicture(FarmWorld.staticLayer);
-    _drawSprinkler(canvas, t);
-    _drawRipples(canvas, t);
-    _drawWaterLevel(canvas, tankRatio, t);
-    for (var i = 0; i < _hens.length; i++) {
-      _drawHen(canvas, _hens[i].at(t), t, i);
+    _blit(canvas, FarmWorld.ground, FarmWorld.bakeArea);
+    for (final e in scene.plots.entries) {
+      _blit(canvas, FarmWorld.plotImage(e.key, e.value.$1, e.value.$2), FarmWorld.zones[e.key]!.inflate(14));
     }
-    for (final s in _sheep) {
-      _drawSheep(canvas, s.at(t), s.velocity(t));
-    }
-    for (final cow in _cows) {
-      _drawCow(canvas, cow.at(t), cow.velocity(t));
-    }
-    _drawBees(canvas, t);
+
+    _drawWater(canvas, t);
+    _drawCrates(canvas);
+    _drawAnimals(canvas, t);
     _drawTractor(canvas, t);
+    _drawStoredBubbles(canvas, t);
+    _drawReady(canvas, t);
+    _drawLocked(canvas);
 
-    // 물이 필요한 밭: 물방울 표식(잉크 테두리) 둘레로 고리가 퍼진다.
-    final pulse = (math.sin(t * 3) + 1) / 2;
-    for (final zone in needsWater) {
-      final r = FarmWorld.zones[zone]!;
-      // 화면에서 늘 같은 크기로 보이도록 배율을 상쇄한다.
-      final p = r.topRight + const Offset(-1, 1) * (20 / scale);
-      canvas.drawCircle(
-        p,
-        (7 + pulse * 8) / scale,
-        _stroke(_P.slateDeep.withValues(alpha: 0.6 * (1 - pulse)), 2 / scale),
-      );
-      canvas.drawCircle(p, 6 / scale, _fill(_P.slateDeep));
-      canvas.drawCircle(p, 6 / scale, _stroke(_P.paperLight, 1.6 / scale));
-    }
-
-    // 고른 구역: 종이색 테두리 위에 주색 실선(도면에서 구역을 표시하듯).
     if (selected != null && selectionT > 0) {
       final r = FarmWorld.zones[selected]!.inflate(5);
-      final rr = RRect.fromRectAndRadius(r, const Radius.circular(10));
-      canvas.drawRRect(rr, _stroke(_P.paperLight.withValues(alpha: 0.8 * selectionT), 10 / scale));
-      canvas.drawRRect(rr, _stroke(AppMapColors.accent.withValues(alpha: selectionT), 3.5 / scale));
+      final rr = RRect.fromRectAndRadius(r, const Radius.circular(18));
+      canvas.drawRRect(rr, pen(const Color(0xFFFFF8E6).withValues(alpha: 0.85 * selectionT), 10 / scale));
+      canvas.drawRRect(rr, pen(AppColors.orange.withValues(alpha: selectionT), 3.5 / scale));
     }
-
     if (labelOpacity > 0) {
       for (final zone in ZoneId.values) {
         _drawLabel(canvas, zone, scale);
@@ -714,24 +392,166 @@ class FarmMapPainter extends CustomPainter {
     canvas.restore();
   }
 
+  void _drawWater(Canvas c, double t) {
+    final center = FarmWorld.tankCenter;
+    final r = FarmWorld.tankRadius * 0.84;
+    c.save();
+    c.clipPath(Path()..addOval(Rect.fromCircle(center: center, radius: r)));
+    final top = center.dy + r - 2 * r * scene.waterRatio.clamp(0.0, 1.0);
+    final wave = Path()..moveTo(center.dx - r, top);
+    for (var x = -r; x <= r; x += 4) {
+      wave.lineTo(center.dx + x, top + math.sin(x / 9 + t * 2) * 2);
+    }
+    wave
+      ..lineTo(center.dx + r, center.dy + r)
+      ..lineTo(center.dx - r, center.dy + r)
+      ..close();
+    c.drawPath(wave, fill(Tint.water));
+    c.drawLine(
+      Offset(center.dx - r * 0.5, top + 8),
+      Offset(center.dx - r * 0.1, top + 8),
+      pen(const Color(0x99FFFFFF), 2),
+    );
+    c.restore();
+  }
+
+  void _drawCrates(Canvas c) {
+    final r = FarmWorld.zones[ZoneId.storage]!;
+    final n = (scene.barnRatio * 6).ceil().clamp(0, 6);
+    for (var i = 0; i < n; i++) {
+      paintCrate(c, Rect.fromLTWH(r.right - 70 + (i % 2) * 24, r.top + 16 + (i ~/ 2) * 24, 20, 20));
+    }
+  }
+
+  static double _hash(double x) => (math.sin(x) * 43758.5453).abs() % 1;
+
+  void _drawAnimals(Canvas c, double t) {
+    final area = FarmWorld.pasture;
+    for (final (i, (species, young)) in scene.animals.indexed) {
+      final seed = i * 7.31 + species.index * 2.17;
+      final home = Offset(
+        area.left + area.width * (0.12 + 0.76 * _hash(seed * 12.9898)),
+        area.top + area.height * (0.12 + 0.76 * _hash(seed * 78.233)),
+      );
+      final speed = species == Species.chicken ? 0.55 : 0.14;
+      final reach = species == Species.chicken ? 14.0 : 26.0;
+      final p = home + Offset(math.sin(t * speed + seed) * reach, math.sin(t * speed * 1.3 + seed * 1.7) * reach * 0.6);
+      final v = Offset(math.cos(t * speed + seed), math.cos(t * speed * 1.3 + seed * 1.7) * 0.78);
+      final angle = math.atan2(v.dy, v.dx);
+      final scale = young ? 0.62 : 1.0;
+      switch (species) {
+        case Species.cow:
+          drawCow(c, p, angle, scale);
+        case Species.goat:
+          drawGoat(c, p, angle, scale);
+        case Species.sheep:
+          drawSheep(c, p, angle, scale);
+        case Species.chicken:
+          drawChicken(c, p, t, i, scale);
+      }
+    }
+  }
+
+  void _drawTractor(Canvas c, double t) {
+    final span = FarmWorld.size.width + 300;
+    final x = (t * 40) % span - 150;
+    c.save();
+    c.translate(x, FarmWorld.tractorRoadY + 2);
+    c.drawOval(const Rect.fromLTWH(-20, -10, 44, 26), fill(Tint.shadow));
+    for (final w in const [Offset(-12, -12), Offset(-12, 12), Offset(13, -9), Offset(13, 9)]) {
+      c.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: w, width: w.dx < 0 ? 14 : 9, height: 6),
+          const Radius.circular(2),
+        ),
+        fill(const Color(0xFF3B332C)),
+      );
+    }
+    final body = RRect.fromRectAndRadius(const Rect.fromLTWH(-18, -9, 38, 18), const Radius.circular(5));
+    c.drawRRect(body, fill(AppColors.primary));
+    c.drawRRect(
+      RRect.fromRectAndRadius(const Rect.fromLTWH(-15, -6, 12, 12), const Radius.circular(2)),
+      fill(const Color(0xFFDCE8EA)),
+    );
+    c.drawRRect(body, pen(Tint.line.withValues(alpha: 0.6), 1.2));
+    c.restore();
+  }
+
+  /// 쌓인 생산물 말풍선(가축 우리 위쪽).
+  void _drawStoredBubbles(Canvas c, double t) {
+    final r = FarmWorld.zones[ZoneId.animals]!;
+    var i = 0;
+    for (final species in Species.values) {
+      final n = scene.stored[species];
+      if (n == null) continue;
+      final bob = math.sin(t * 2.4 + i) * 3;
+      _bubble(c, Offset(r.left + 230 + i * 70, r.top + 52 + bob), itemEmoji(GameDefs.animals[species]!.product), '$n');
+      i++;
+    }
+  }
+
+  void _drawReady(Canvas c, double t) {
+    for (final zone in scene.ready) {
+      final r = FarmWorld.zones[zone]!;
+      final crop = scene.plots[zone]?.$1;
+      if (crop == null) continue;
+      _bubble(c, Offset(r.right - 46, r.top + 36 + math.sin(t * 3) * 4), cropEmoji(crop), null, highlight: true);
+    }
+  }
+
+  void _bubble(Canvas c, Offset center, String emoji, String? count, {bool highlight = false}) {
+    final body = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: center, width: count == null ? 46 : 66, height: 40),
+      const Radius.circular(20),
+    );
+    c.drawRRect(body.shift(const Offset(2, 4)), fill(Tint.shadow));
+    final tail = Path()
+      ..moveTo(center.dx - 6, body.bottom - 1)
+      ..lineTo(center.dx, body.bottom + 9)
+      ..lineTo(center.dx + 6, body.bottom - 1)
+      ..close();
+    c.drawPath(tail, fill(const Color(0xFFFFFBF0)));
+    c.drawRRect(body, fill(const Color(0xFFFFFBF0)));
+    c.drawRRect(body, pen(highlight ? AppColors.orange : Tint.line.withValues(alpha: 0.5), highlight ? 3 : 1.6));
+    final e = _text(emoji, size: 22);
+    e.paint(c, Offset(count == null ? center.dx - e.width / 2 : center.dx - 26, center.dy - e.height / 2));
+    if (count != null) {
+      final n = _text(count, size: 18, weight: FontWeight.w800);
+      n.paint(c, Offset(center.dx + 4, center.dy - n.height / 2));
+    }
+  }
+
+  void _drawLocked(Canvas c) {
+    for (final e in scene.locked.entries) {
+      final r = FarmWorld.zones[e.key]!.deflate(2);
+      final rr = RRect.fromRectAndRadius(r, const Radius.circular(20));
+      c.drawRRect(rr, fill(const Color(0xFFF1EADB).withValues(alpha: 0.78)));
+      c.drawRRect(rr, pen(Tint.line.withValues(alpha: 0.35), 2));
+      final lock = _icon(Icons.lock_rounded, 40, Tint.line.withValues(alpha: 0.7));
+      final label = _text('Lv ${e.value}', size: 24, weight: FontWeight.w800);
+      lock.paint(c, Offset(r.center.dx - lock.width / 2, r.center.dy - lock.height + 2));
+      label.paint(c, Offset(r.center.dx - label.width / 2, r.center.dy + 6));
+    }
+  }
+
   void _drawLabel(Canvas canvas, ZoneId zone, double scale) {
-    final tp = _label(zoneLabels[zone] ?? zone.name);
+    final tp = _text(scene.labels[zone] ?? zone.name, size: 22);
+    final icon = _icon(zone.icon, 22, AppColors.primary);
     final r = FarmWorld.zones[zone]!;
-    // 화면 크기가 일정하게 보이도록 배율을 상쇄한다.
+    // 화면에서 늘 같은 크기로 보이도록 배율을 상쇄한다.
     final k = 0.42 / scale;
     final w = (tp.width + 46) * k;
     final h = 40 * k;
     final box = Rect.fromLTWH(r.left + 10, r.top + 10, w, h);
-    // 지도 범례처럼 각진 태그.
-    final tag = RRect.fromRectAndRadius(box, Radius.circular(4 * k));
-    canvas.drawRRect(tag, _fill(_P.paperLight.withValues(alpha: 0.95 * labelOpacity)));
-    canvas.drawRRect(tag, _stroke(_P.ink.withValues(alpha: labelOpacity), 3 * k));
+    final tag = RRect.fromRectAndRadius(box, Radius.circular(h / 2));
+    canvas.drawRRect(tag.shift(Offset(0, 2 * k)), fill(Tint.shadow.withValues(alpha: 0.2 * labelOpacity)));
+    canvas.drawRRect(tag, fill(const Color(0xFFFFFBF0).withValues(alpha: 0.95 * labelOpacity)));
+    canvas.drawRRect(tag, pen(Tint.line.withValues(alpha: 0.4 * labelOpacity), 2.4 * k));
     final opaque = labelOpacity >= 1;
     if (!opaque) canvas.saveLayer(box, Paint()..color = Colors.black.withValues(alpha: labelOpacity));
     canvas.save();
     canvas.translate(box.left + 14 * k, box.top + (h - tp.height * k) / 2);
     canvas.scale(k);
-    final icon = _iconLabel(zone);
     icon.paint(canvas, Offset(0, (tp.height - icon.height) / 2));
     tp.paint(canvas, const Offset(26, 0));
     canvas.restore();
@@ -739,7 +559,7 @@ class FarmMapPainter extends CustomPainter {
   }
 
   @override
-  SemanticsBuilderCallback? get semanticsBuilder => zoneSemantics.isEmpty ? null : _buildSemantics;
+  SemanticsBuilderCallback? get semanticsBuilder => scene.semantics.isEmpty ? null : _buildSemantics;
 
   /// 화면에 보이는 구역마다 탭할 수 있는 영역을 만든다(구역을 확대하면 보이는 구역만 남는다).
   List<CustomPainterSemantics> _buildSemantics(Size size) {
@@ -748,7 +568,7 @@ class FarmMapPainter extends CustomPainter {
     Offset toScreen(Offset world) => (world - view.center) * scale + size.center(Offset.zero);
     return [
       for (final zone in ZoneId.values)
-        if (zoneSemantics[zone] case final label?)
+        if (scene.semantics[zone] case final label?)
           if (Rect.fromPoints(toScreen(FarmWorld.zones[zone]!.topLeft), toScreen(FarmWorld.zones[zone]!.bottomRight))
               case final rect when rect.overlaps(screen))
             CustomPainterSemantics(
@@ -767,9 +587,7 @@ class FarmMapPainter extends CustomPainter {
 
   @override
   bool shouldRebuildSemantics(FarmMapPainter oldDelegate) =>
-      oldDelegate.view != view ||
-      oldDelegate.selected != selected ||
-      !mapEquals(oldDelegate.zoneSemantics, zoneSemantics);
+      oldDelegate.view != view || oldDelegate.selected != selected || oldDelegate.scene != scene;
 
   @override
   bool shouldRepaint(FarmMapPainter old) =>
@@ -777,16 +595,5 @@ class FarmMapPainter extends CustomPainter {
       old.selected != selected ||
       old.selectionT != selectionT ||
       old.labelOpacity != labelOpacity ||
-      old.tankRatio != tankRatio ||
-      !setEquals(old.needsWater, needsWater) ||
-      old.zoneLabels[ZoneId.house] != zoneLabels[ZoneId.house];
-}
-
-bool setEquals<T>(Set<T> a, Set<T> b) => a.length == b.length && a.containsAll(b);
-
-abstract final class AppMapColors {
-  static const icon = AppColors.primary;
-
-  /// 트랙터·선택 테두리처럼 지도에서 눈에 띄어야 하는 요소.
-  static const accent = AppColors.orange;
+      old.scene != scene;
 }

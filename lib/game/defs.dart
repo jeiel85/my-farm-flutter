@@ -1,7 +1,7 @@
 /// 게임 정의 표. 수치는 docs/game-design.md(수치표 v1)와 같아야 한다.
 library;
 
-import '../data/models.dart' show ZoneId;
+import 'zone.dart';
 
 /// 창고에 들어가는 물건.
 enum ItemId { lettuce, carrot, tomato, corn, strawberry, apple, egg, goatMilk, wool, milk }

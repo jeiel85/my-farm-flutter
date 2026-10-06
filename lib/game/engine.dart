@@ -1,4 +1,4 @@
-import '../data/models.dart' show ZoneId;
+import 'zone.dart';
 import 'defs.dart';
 import 'state.dart';
 
@@ -66,7 +66,11 @@ abstract final class GameEngine {
       unlocked: {ZoneId.house, ZoneId.vegetable, ZoneId.animals, ZoneId.water, ZoneId.storage},
       fields: {
         for (final z in GameDefs.plotZones) z: FieldState.emptyField,
-        ZoneId.vegetable: FieldState(crop: CropId.lettuce, minutesLeft: lettuce.growMinutes - 1),
+        ZoneId.vegetable: FieldState(
+          crop: CropId.lettuce,
+          minutesLeft: lettuce.growMinutes - 1,
+          totalMinutes: lettuce.growMinutes,
+        ),
       },
       animals: [
         for (var i = 0; i < 2; i++)
@@ -104,7 +108,11 @@ abstract final class GameEngine {
         if (f.waitingWater) {
           if (water >= def.waterL) {
             water -= def.waterL;
-            fields[e.key] = f.copyWith(waitingWater: false, minutesLeft: def.regrowMinutes);
+            fields[e.key] = f.copyWith(
+              waitingWater: false,
+              minutesLeft: def.regrowMinutes,
+              totalMinutes: def.regrowMinutes,
+            );
           }
           continue;
         }
@@ -218,7 +226,7 @@ abstract final class GameEngine {
         water: s.water - def.waterL,
         fields: {
           ...s.fields,
-          zone: FieldState(crop: crop, minutesLeft: def.growMinutes),
+          zone: FieldState(crop: crop, minutesLeft: def.growMinutes, totalMinutes: def.growMinutes),
         },
       ),
       LogKind.seed,
@@ -237,9 +245,9 @@ abstract final class GameEngine {
     if (def.perennial) {
       if (water >= def.waterL) {
         water -= def.waterL;
-        next = FieldState(crop: f.crop, minutesLeft: def.regrowMinutes!);
+        next = FieldState(crop: f.crop, minutesLeft: def.regrowMinutes!, totalMinutes: def.regrowMinutes!);
       } else {
-        next = FieldState(crop: f.crop, waitingWater: true);
+        next = FieldState(crop: f.crop, waitingWater: true, totalMinutes: def.regrowMinutes!);
       }
     } else {
       next = FieldState.emptyField;

@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'package:intl/intl.dart';
 
-import '../data/models.dart';
-import '../data/weather.dart';
+import '../game/defs.dart';
+import '../game/engine.dart';
+import '../game/zone.dart';
 import 'app_localizations.dart';
 
 export 'app_localizations.dart';
@@ -14,7 +14,7 @@ extension L10nContext on BuildContext {
   String get localeName => Localizations.localeOf(this).toLanguageTag();
 }
 
-/// 모델 값(enum 등)을 화면 문구로 바꾼다.
+/// 게임 값(enum 등)을 화면 문구로 바꾼다.
 extension Labels on AppLocalizations {
   String zoneShort(ZoneId z) => switch (z) {
     ZoneId.house => zoneShortHouse,
@@ -40,82 +40,71 @@ extension Labels on AppLocalizations {
     ZoneId.orchard => zoneOrchard,
   };
 
-  /// 무리 이름(소, Cows).
-  String kind(AnimalKind k) => switch (k) {
-    AnimalKind.cow => kindCow,
-    AnimalKind.chicken => kindChicken,
-    AnimalKind.sheep => kindSheep,
-    AnimalKind.goat => kindGoat,
+  /// 무리 이름(닭, Chickens).
+  String species(Species s) => switch (s) {
+    Species.chicken => kindChicken,
+    Species.goat => kindGoat,
+    Species.sheep => kindSheep,
+    Species.cow => kindCow,
   };
 
-  /// 한 마리를 가리킬 때(소, cow).
-  String kindOne(AnimalKind k) => switch (k) {
-    AnimalKind.cow => kindCowOne,
-    AnimalKind.chicken => kindChickenOne,
-    AnimalKind.sheep => kindSheepOne,
-    AnimalKind.goat => kindGoatOne,
+  /// 새끼 이름(병아리, chick).
+  String young(Species s) => switch (s) {
+    Species.chicken => youngChicken,
+    Species.goat => youngGoat,
+    Species.sheep => youngSheep,
+    Species.cow => youngCow,
   };
 
-  String status(CropStatus s) => switch (s) {
-    CropStatus.excellent => statusExcellent,
-    CropStatus.good => statusGood,
-    CropStatus.attention => statusAttention,
+  String item(ItemId i) => switch (i) {
+    ItemId.lettuce => itemLettuce,
+    ItemId.carrot => itemCarrot,
+    ItemId.tomato => itemTomato,
+    ItemId.corn => itemCorn,
+    ItemId.strawberry => itemStrawberry,
+    ItemId.apple => itemApple,
+    ItemId.egg => itemEgg,
+    ItemId.goatMilk => itemGoatMilk,
+    ItemId.wool => itemWool,
+    ItemId.milk => itemMilk,
   };
 
-  String inventoryCategory(InventoryCategory c) => switch (c) {
-    InventoryCategory.feed => invFeed,
-    InventoryCategory.seed => invSeed,
-    InventoryCategory.fertilizer => invFertilizer,
-    InventoryCategory.supply => invSupply,
+  String crop(CropId c) => item(GameDefs.crops[c]!.item);
+
+  /// 생산물을 거두는 동작(짜기·줍기·깎기).
+  String collectVerb(Species s) => switch (s) {
+    Species.chicken => collectEggs,
+    Species.goat || Species.cow => collectMilk,
+    Species.sheep => collectWool,
   };
 
-  String eventType(AnimalEventType t) => switch (t) {
-    AnimalEventType.added => eventAdded,
-    AnimalEventType.sold => eventSold,
-    AnimalEventType.died => eventDied,
-    AnimalEventType.other => eventOther,
+  String gameError(GameError e) => switch (e) {
+    GameError.zoneLocked => errZoneLocked,
+    GameError.alreadyUnlocked => errAlreadyUnlocked,
+    GameError.levelTooLow => errLevelTooLow,
+    GameError.notEnoughCoins => errNotEnoughCoins,
+    GameError.notEnoughWater => errNotEnoughWater,
+    GameError.fieldNotEmpty => errFieldNotEmpty,
+    GameError.wrongPlot => errWrongPlot,
+    GameError.notReady => errNotReady,
+    GameError.barnFull => errBarnFull,
+    GameError.penFull => errPenFull,
+    GameError.notAdult => errNotAdult,
+    GameError.nothingToCollect => errNothingToCollect,
+    GameError.notEnoughItems => errNotEnoughItems,
+    GameError.siloFull => errSiloFull,
+    GameError.unknownAnimal => errUnknownAnimal,
   };
 
-  String careType(CareType t) => switch (t) {
-    CareType.vaccine => careVaccine,
-    CareType.checkup => careCheckup,
-    CareType.deworm => careDeworm,
-    CareType.other => careOther,
-  };
-
-  String ledgerCategory(LedgerCategory c) => switch (c) {
-    LedgerCategory.crops => ledgerCrops,
-    LedgerCategory.livestock => ledgerLivestock,
-    LedgerCategory.products => ledgerProducts,
-    LedgerCategory.subsidy => ledgerSubsidy,
-    LedgerCategory.otherIncome => ledgerOtherIncome,
-    LedgerCategory.feed => ledgerFeed,
-    LedgerCategory.seeds => ledgerSeeds,
-    LedgerCategory.fertilizer => ledgerFertilizer,
-    LedgerCategory.equipment => ledgerEquipment,
-    LedgerCategory.labor => ledgerLabor,
-    LedgerCategory.utilities => ledgerUtilities,
-    LedgerCategory.vet => ledgerVet,
-    LedgerCategory.otherExpense => ledgerOtherExpense,
-  };
-
-  String weatherText(WeatherCondition c) => switch (c) {
-    WeatherCondition.clear => wxClear,
-    WeatherCondition.partlyCloudy => wxPartlyCloudy,
-    WeatherCondition.cloudy => wxCloudy,
-    WeatherCondition.fog => wxFog,
-    WeatherCondition.drizzle => wxDrizzle,
-    WeatherCondition.rain => wxRain,
-    WeatherCondition.snow => wxSnow,
-    WeatherCondition.thunder => wxThunder,
-    WeatherCondition.unknown => wxUnknown,
-  };
-
-  String age(Animal a, DateTime now) {
-    final months = a.ageInMonths(now);
-    if (months < 12) return ageMonths(months);
-    final years = months / 12;
-    return ageYears(years == years.roundToDouble() ? '${years.toInt()}' : years.toStringAsFixed(1));
+  /// 남은 시간 같은 길이(3시간 5분, 2시간, 4분 12초, 6분, 30초).
+  String duration(Duration d) {
+    final secs = d.inSeconds < 0 ? 0 : d.inSeconds;
+    final h = secs ~/ 3600;
+    final m = secs % 3600 ~/ 60;
+    final s = secs % 60;
+    if (h > 0) return m == 0 ? durationH(h) : durationHM(h, m);
+    if (m > 0) return s == 0 ? durationM(m) : durationMS(m, s);
+    return durationS(s);
   }
 
   /// "3시간 후", "2 days ago" 같은 상대 시간.
@@ -132,16 +121,18 @@ extension Labels on AppLocalizations {
   }
 }
 
-/// 날씨를 받은 시각. 오늘이면 시각만, 아니면 날짜도 붙인다(보관본을 다음 날 보여 줄 때).
-String weatherFetchedLabel(BuildContext context, DateTime fetchedAt, DateTime now) {
-  final sameDay = fetchedAt.year == now.year && fetchedAt.month == now.month && fetchedAt.day == now.day;
-  return sameDay
-      ? DateFormat('HH:mm').format(fetchedAt)
-      : DateFormat.MMMd(context.localeName).add_Hm().format(fetchedAt);
-}
-
-String weatherErrorText(BuildContext context, WeatherException e) => switch (e.problem) {
-  WeatherProblem.server => context.l10n.weatherServerError(e.statusCode ?? 0),
-  WeatherProblem.badData => context.l10n.weatherDataError,
-  WeatherProblem.network => context.l10n.weatherError,
+/// 물건 그림 문자(창고·시장·말풍선).
+String itemEmoji(ItemId i) => switch (i) {
+  ItemId.lettuce => '🥬',
+  ItemId.carrot => '🥕',
+  ItemId.tomato => '🍅',
+  ItemId.corn => '🌽',
+  ItemId.strawberry => '🍓',
+  ItemId.apple => '🍎',
+  ItemId.egg => '🥚',
+  ItemId.goatMilk => '🍼',
+  ItemId.wool => '🧶',
+  ItemId.milk => '🥛',
 };
+
+String cropEmoji(CropId c) => itemEmoji(GameDefs.crops[c]!.item);

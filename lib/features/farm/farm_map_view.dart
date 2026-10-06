@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../../data/models.dart';
-import 'farm_world.dart';
+import '../../game/zone.dart';
 import '../../l10n/l10n.dart';
+import 'farm_world.dart';
 
 /// 선택한 구역으로 카메라가 부드럽게 이동하는 농장 지도.
 /// [selected]가 null이면 전체 지도를 보여 준다.
@@ -12,15 +12,13 @@ class FarmMapView extends StatefulWidget {
     super.key,
     required this.selected,
     required this.onZoneTap,
-    required this.tankRatio,
-    required this.needsWater,
+    required this.scene,
     this.aspect = 0.8,
   });
 
   final ZoneId? selected;
   final ValueChanged<ZoneId> onZoneTap;
-  final double tankRatio;
-  final Set<ZoneId> needsWater;
+  final FarmScene scene;
   final double aspect;
 
   @override
@@ -97,15 +95,7 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
                     selected: widget.selected,
                     selectionT: widget.selected == null ? 0 : Curves.easeOut.transform(focusT.clamp(0, 1)),
                     labelOpacity: widget.selected == null ? Curves.easeIn.transform(1 - focusT.clamp(0.0, 1.0)) : 0,
-                    tankRatio: widget.tankRatio,
-                    needsWater: widget.needsWater,
-                    zoneLabels: {for (final z in ZoneId.values) z: context.l10n.zoneShort(z)},
-                    zoneSemantics: {
-                      for (final z in ZoneId.values)
-                        z: widget.needsWater.contains(z)
-                            ? context.l10n.mapZoneNeedsWater(context.l10n.zone(z))
-                            : context.l10n.zone(z),
-                    },
+                    scene: widget.scene,
                     onZoneTap: widget.onZoneTap,
                     textDirection: Directionality.of(context),
                   ),
