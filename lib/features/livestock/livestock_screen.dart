@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/animal_painter.dart';
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
@@ -30,173 +31,176 @@ class _LivestockScreenState extends State<LivestockScreen> {
     final production = store.productionRatio;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            PageHeader(
-              title: context.l10n.livestockTitle,
-              subtitle: store.state.profile.name,
-              trailing: Pressable(
-                onTap: () async {
-                  final added = await showAddAnimalSheet(context, _kind);
-                  if (added == null || !context.mounted) return;
-                  setState(() => _kind = added.kind);
-                  showMessage(context, context.l10n.animalAdded(added.name, added.tag));
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                  child: const Icon(Icons.add_rounded, size: 22, color: Colors.white),
+      body: WideBody(
+        maxWidth: 860,
+        child: SafeArea(
+          child: Column(
+            children: [
+              PageHeader(
+                title: context.l10n.livestockTitle,
+                subtitle: store.state.profile.name,
+                trailing: Pressable(
+                  onTap: () async {
+                    final added = await showAddAnimalSheet(context, _kind);
+                    if (added == null || !context.mounted) return;
+                    setState(() => _kind = added.kind);
+                    showMessage(context, context.l10n.animalAdded(added.name, added.tag));
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                    child: const Icon(Icons.add_rounded, size: 22, color: Colors.white),
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: CustomScrollView(
-                slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    sliver: SliverList.list(
-                      children: [
-                        rise(
-                          AppCard(
-                            child: Column(
+              Expanded(
+                child: CustomScrollView(
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                      sliver: SliverList.list(
+                        children: [
+                          rise(
+                            AppCard(
+                              child: Column(
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(context.l10n.allAnimals, style: AppText.caption),
+                                            Row(
+                                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                                              textBaseline: TextBaseline.alphabetic,
+                                              children: [
+                                                TweenAnimationBuilder<double>(
+                                                  tween: Tween(begin: 0, end: store.totalAnimals.toDouble()),
+                                                  duration: const Duration(milliseconds: 900),
+                                                  curve: Curves.easeOutCubic,
+                                                  builder: (_, v, _) =>
+                                                      Text('${v.round()}', style: AppText.title.copyWith(fontSize: 34)),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(context.l10n.animalsUnit, style: AppText.caption),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      care == 0
+                                          ? Tag(context.l10n.allHealthy, icon: Icons.verified_user_outlined)
+                                          : Tag(
+                                              context.l10n.needCareCount(care),
+                                              color: AppColors.orange,
+                                              icon: Icons.healing_outlined,
+                                            ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                    children: [
+                                      RingStat(
+                                        value: store.herdHealth,
+                                        color: AppColors.primary,
+                                        label: context.l10n.healthLabel,
+                                        caption: store.herdHealth >= 0.9 ? context.l10n.healthy : context.l10n.checkUp,
+                                      ),
+                                      RingStat(
+                                        value: feedDays == null ? 0 : feedDays / FarmStore.feedTargetDays,
+                                        color: AppColors.orange,
+                                        label: context.l10n.feedLabel,
+                                        caption: feedDays == null
+                                            ? context.l10n.noRecords
+                                            : context.l10n.daysOfFeed(feedDays.floor()),
+                                      ),
+                                      Pressable(
+                                        onTap: () => _showProductionSheet(context),
+                                        child: RingStat(
+                                          value: production ?? 0,
+                                          color: AppColors.blue,
+                                          label: context.l10n.production,
+                                          caption: store.todayProduction == null
+                                              ? context.l10n.recordToday
+                                              : context.l10n.vsTarget,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            0,
+                          ),
+                          const SizedBox(height: 12),
+                          rise(_FeedingCard(), 1),
+                          const SizedBox(height: 12),
+                          rise(
+                            CareCard(
+                              items: store.pendingCare.take(6).toList(),
+                              onAdd: () => showAddCareSheet(context, kind: _kind),
+                            ),
+                            1,
+                          ),
+                          SectionTitle(context.l10n.kinds, subtitle: context.l10n.kindsHint),
+                          rise(
+                            Row(
                               children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(context.l10n.allAnimals, style: AppText.caption),
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                                            textBaseline: TextBaseline.alphabetic,
-                                            children: [
-                                              TweenAnimationBuilder<double>(
-                                                tween: Tween(begin: 0, end: store.totalAnimals.toDouble()),
-                                                duration: const Duration(milliseconds: 900),
-                                                curve: Curves.easeOutCubic,
-                                                builder: (_, v, _) =>
-                                                    Text('${v.round()}', style: AppText.title.copyWith(fontSize: 34)),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(context.l10n.animalsUnit, style: AppText.caption),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                                for (final k in AnimalKind.values) ...[
+                                  if (k != AnimalKind.values.first) const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _KindCard(
+                                      kind: k,
+                                      count: store.countOf(k),
+                                      active: k == _kind,
+                                      onTap: () => setState(() => _kind = k),
                                     ),
-                                    care == 0
-                                        ? Tag(context.l10n.allHealthy, icon: Icons.verified_user_outlined)
-                                        : Tag(
-                                            context.l10n.needCareCount(care),
-                                            color: AppColors.orange,
-                                            icon: Icons.healing_outlined,
-                                          ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                  children: [
-                                    RingStat(
-                                      value: store.herdHealth,
-                                      color: AppColors.primary,
-                                      label: context.l10n.healthLabel,
-                                      caption: store.herdHealth >= 0.9 ? context.l10n.healthy : context.l10n.checkUp,
-                                    ),
-                                    RingStat(
-                                      value: feedDays == null ? 0 : feedDays / FarmStore.feedTargetDays,
-                                      color: AppColors.orange,
-                                      label: context.l10n.feedLabel,
-                                      caption: feedDays == null
-                                          ? context.l10n.noRecords
-                                          : context.l10n.daysOfFeed(feedDays.floor()),
-                                    ),
-                                    Pressable(
-                                      onTap: () => _showProductionSheet(context),
-                                      child: RingStat(
-                                        value: production ?? 0,
-                                        color: AppColors.blue,
-                                        label: context.l10n.production,
-                                        caption: store.todayProduction == null
-                                            ? context.l10n.recordToday
-                                            : context.l10n.vsTarget,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ],
                             ),
+                            2,
                           ),
-                          0,
-                        ),
-                        const SizedBox(height: 12),
-                        rise(_FeedingCard(), 1),
-                        const SizedBox(height: 12),
-                        rise(
-                          CareCard(
-                            items: store.pendingCare.take(6).toList(),
-                            onAdd: () => showAddCareSheet(context, kind: _kind),
+                          SectionTitle(
+                            context.l10n.ourHerd(context.l10n.kind(_kind)),
+                            subtitle: context.l10n.herdSubtitle(context.l10n.animalCount(animals.length)),
                           ),
-                          1,
-                        ),
-                        SectionTitle(context.l10n.kinds, subtitle: context.l10n.kindsHint),
-                        rise(
-                          Row(
-                            children: [
-                              for (final k in AnimalKind.values) ...[
-                                if (k != AnimalKind.values.first) const SizedBox(width: 8),
-                                Expanded(
-                                  child: _KindCard(
-                                    kind: k,
-                                    count: store.countOf(k),
-                                    active: k == _kind,
-                                    onTap: () => setState(() => _kind = k),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          2,
-                        ),
-                        SectionTitle(
-                          context.l10n.ourHerd(context.l10n.kind(_kind)),
-                          subtitle: context.l10n.herdSubtitle(context.l10n.animalCount(animals.length)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (animals.isEmpty)
-                    SliverPadding(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
-                      sliver: SliverToBoxAdapter(
-                        child: AppCard(child: Text(context.l10n.noAnimalsOfKind, style: AppText.caption)),
+                        ],
                       ),
                     ),
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList.separated(
-                      itemCount: animals.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, i) => rise(_AnimalTile(animal: animals[i]), i.clamp(0, 8)),
+                    if (animals.isEmpty)
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        sliver: SliverToBoxAdapter(
+                          child: AppCard(child: Text(context.l10n.noAnimalsOfKind, style: AppText.caption)),
+                        ),
+                      ),
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      sliver: SliverList.separated(
+                        itemCount: animals.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
+                        itemBuilder: (context, i) => rise(_AnimalTile(animal: animals[i]), i.clamp(0, 8)),
+                      ),
                     ),
-                  ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-                    sliver: SliverList.list(
-                      children: [
-                        SectionTitle(context.l10n.animalHistory, subtitle: context.l10n.recent10),
-                        AnimalHistoryCard(events: store.state.animalEvents),
-                      ],
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                      sliver: SliverList.list(
+                        children: [
+                          SectionTitle(context.l10n.animalHistory, subtitle: context.l10n.recent10),
+                          AnimalHistoryCard(events: store.state.animalEvents),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -280,7 +284,7 @@ class _FeedingCard extends StatelessWidget {
             children: [
               const IconBubble(
                 size: 30,
-                color: Color(0xFFFCF1D2),
+                color: AppTints.ochre,
                 child: Icon(Icons.schedule_rounded, size: 16, color: AppColors.orange),
               ),
               const SizedBox(width: 10),
@@ -419,7 +423,7 @@ class _KindCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: active ? AppColors.primary : Colors.transparent, width: 2),
         boxShadow: active
-            ? const [BoxShadow(color: Color(0x221F4D2C), blurRadius: 14, offset: Offset(0, 6))]
+            ? const [BoxShadow(color: Color(0x222D4A63), blurRadius: 14, offset: Offset(0, 6))]
             : const [],
       ),
       child: Column(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../app_shell.dart';
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
@@ -14,6 +15,7 @@ import '../inventory/inventory_screen.dart';
 import '../livestock/livestock_screen.dart';
 import '../weather/weather_screen.dart';
 import 'farm_map_view.dart';
+import 'farm_world.dart';
 import '../../l10n/l10n.dart';
 
 final _liters = NumberFormat('#,###');
@@ -44,7 +46,8 @@ class _FarmScreenState extends State<FarmScreen> {
     setState(() => _zone = zone == _zone ? null : zone);
     final key = _zone == null ? _overviewKey : _chipKeys[_zone]!;
     final ctx = key.currentContext;
-    if (ctx != null) {
+    // 칩을 감싸 보여 주는 넓은 화면에서는 가로로 맞출 필요가 없다(세로 목록만 움직이게 된다).
+    if (ctx != null && !isWide(context)) {
       Scrollable.ensureVisible(
         ctx,
         alignment: 0.5,
@@ -59,11 +62,32 @@ class _FarmScreenState extends State<FarmScreen> {
     final store = FarmScope.of(context);
     final profile = store.state.profile;
     final needsWater = {for (final f in store.fieldsNeedingWater) f.zone};
+    final wide = isWide(context);
+    final chips = [
+      _ZoneChip(
+        key: _overviewKey,
+        label: context.l10n.allZones,
+        icon: Icons.grid_view_rounded,
+        active: _zone == null,
+        onTap: () => _select(null),
+      ),
+      for (final z in ZoneId.values)
+        _ZoneChip(
+          key: _chipKeys[z],
+          label: context.l10n.zone(z),
+          icon: z.icon,
+          active: _zone == z,
+          onTap: () => _select(z),
+        ),
+    ];
     return SafeArea(
       bottom: false,
-      child: ListView(
+      // 넓은 화면: 왼쪽에 구역 칩·지도, 오른쪽에 고른 구역 카드와 둘러보기.
+      child: SplitList(
         padding: const EdgeInsets.fromLTRB(0, 8, 0, 28),
-        children: [
+        widePadding: const EdgeInsets.fromLTRB(8, 16, 8, 32),
+        gap: 0,
+        primary: [
           rise(
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -100,30 +124,20 @@ class _FarmScreenState extends State<FarmScreen> {
           ),
           const SizedBox(height: 14),
           rise(
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  _ZoneChip(
-                    key: _overviewKey,
-                    label: context.l10n.allZones,
-                    icon: Icons.grid_view_rounded,
-                    active: _zone == null,
-                    onTap: () => _select(null),
-                  ),
-                  for (final z in ZoneId.values)
-                    _ZoneChip(
-                      key: _chipKeys[z],
-                      label: context.l10n.zone(z),
-                      icon: z.icon,
-                      active: _zone == z,
-                      onTap: () => _select(z),
+            // PC에서는 마우스로 가로 목록을 끌 수 없어 칩을 여러 줄로 감싼다.
+            wide
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Wrap(runSpacing: 8, children: chips),
+                  )
+                : SizedBox(
+                    height: 40,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: chips,
                     ),
-                ],
-              ),
-            ),
+                  ),
             1,
           ),
           const SizedBox(height: 14),
@@ -165,7 +179,9 @@ class _FarmScreenState extends State<FarmScreen> {
             ),
             2,
           ),
-          const SizedBox(height: 14),
+        ],
+        secondary: [
+          SizedBox(height: wide ? 54 : 14),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: AnimatedSize(
@@ -237,7 +253,7 @@ class _FullMapPageState extends State<_FullMapPage> {
     final store = FarmScope.of(context);
     final size = MediaQuery.sizeOf(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF94C46A),
+      backgroundColor: FarmWorld.groundColor,
       body: Stack(
         children: [
           Positioned.fill(
@@ -305,12 +321,15 @@ class _ZoneChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
+        // 가로 목록(휴대폰)과 여러 줄 감싸기(넓은 화면) 모두에서 같은 크기가 되도록 높이·폭을 내용에 맞춘다.
+        height: 40,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: active ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 15, color: active ? Colors.white : AppColors.text),
             const SizedBox(width: 6),
@@ -606,14 +625,14 @@ class _ExploreGrid extends StatelessWidget {
         Icons.pets_outlined,
         context.l10n.livestock,
         context.l10n.animalCount(store.totalAnimals),
-        const Color(0xFFF7E6D9),
+        AppTints.terracotta,
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LivestockScreen())),
       ),
       (
         Icons.water_drop_outlined,
         context.l10n.watering,
         next == null ? '-' : (next.isAfter(store.now) ? context.l10n.nextAt(hm(next)) : context.l10n.neededNow),
-        const Color(0xFFDDEEFA),
+        AppTints.slate,
         () => onSelectZone(ZoneId.water),
       ),
       (
@@ -622,21 +641,21 @@ class _ExploreGrid extends StatelessWidget {
         report == null
             ? (weather.error != null ? context.l10n.loadFailed : wLabel)
             : '$wLabel · ${report.temperatureC.round()}°C',
-        const Color(0xFFFCF1D2),
+        AppTints.ochre,
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WeatherScreen())),
       ),
       (
         Icons.warehouse_outlined,
         context.l10n.inventory,
         store.lowInventory.isEmpty ? context.l10n.allStocked : context.l10n.lowCount(store.lowInventory.length),
-        const Color(0xFFE9E6F5),
+        AppTints.stone,
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const InventoryScreen())),
       ),
       (
         Icons.inventory_2_outlined,
         context.l10n.harvestRecords,
         context.l10n.recordsCount(store.state.harvests.length),
-        const Color(0xFFFBE3E1),
+        AppTints.brick,
         () => AppShell.goTo(context, AppTab.harvest),
       ),
     ];

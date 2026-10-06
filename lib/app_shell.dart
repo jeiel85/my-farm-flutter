@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/layout.dart';
 import 'core/theme.dart';
 import 'core/widgets.dart';
 import 'data/farm_store.dart';
@@ -59,30 +60,136 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final store = FarmScope.of(context);
-    return Scaffold(
-      body: Column(
-        children: [
-          if (store.recoveredFromCorruptData)
-            _Banner(text: context.l10n.recoveredNotice, onClose: store.dismissLoadNotice),
-          if (store.saveError != null)
-            _Banner(text: context.l10n.saveFailed('${store.saveError}'), color: AppColors.red),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 380),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, anim) => FadeTransition(
-                opacity: anim,
-                child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(anim), child: child),
-              ),
-              child: KeyedSubtree(key: ValueKey(_tab), child: _page(_tab)),
+    final content = Column(
+      children: [
+        if (store.recoveredFromCorruptData)
+          _Banner(text: context.l10n.recoveredNotice, onClose: store.dismissLoadNotice),
+        if (store.saveError != null) _Banner(text: context.l10n.saveFailed('${store.saveError}'), color: AppColors.red),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 380),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: ScaleTransition(scale: Tween(begin: 0.985, end: 1.0).animate(anim), child: child),
             ),
+            child: KeyedSubtree(key: ValueKey(_tab), child: _page(_tab)),
           ),
+        ),
+      ],
+    );
+    // 넓은 화면(PC·태블릿 가로)은 아래 탭 대신 왼쪽 메뉴를 둔다.
+    // 창 폭이 900을 넘나들어도 트리 모양(Row → 키 있는 Expanded)을 그대로 둬야 탭 화면 상태
+    // (프로필의 저장 전 입력, 고른 구역, 스크롤 위치)가 다시 만들어지지 않는다.
+    final wide = isWide(context);
+    return Scaffold(
+      body: Row(
+        children: [
+          if (wide) _SideBar(current: _tab, onSelect: _select),
+          Expanded(key: const ValueKey('content'), child: content),
         ],
       ),
-      bottomNavigationBar: _BottomBar(current: _tab, onSelect: _select),
+      bottomNavigationBar: wide ? null : _BottomBar(current: _tab, onSelect: _select),
     );
   }
+}
+
+class _SideBar extends StatelessWidget {
+  const _SideBar({required this.current, required this.onSelect});
+
+  final AppTab current;
+  final ValueChanged<AppTab> onSelect;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 220,
+    decoration: const BoxDecoration(
+      color: AppColors.surface,
+      boxShadow: [BoxShadow(color: Color(0x143A2E12), blurRadius: 20, offset: Offset(4, 0))],
+    ),
+    child: SafeArea(
+      right: false,
+      // 창 높이가 낮아도 넘치지 않게 스크롤한다.
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(14, 20, 14, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 24),
+              child: Row(
+                children: [
+                  const IconBubble(
+                    color: AppColors.primary,
+                    size: 38,
+                    child: Text('🌱', style: TextStyle(fontSize: 18)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(context.l10n.appTitle, style: AppText.h2, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+            ),
+            for (final tab in AppTab.values)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: _SideItem(tab: tab, active: tab == current, onTap: () => onSelect(tab)),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _SideItem extends StatelessWidget {
+  const _SideItem({required this.tab, required this.active, required this.onTap});
+
+  final AppTab tab;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    selected: active,
+    button: true,
+    label: tab.label(context.l10n),
+    excludeSemantics: true,
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: active ? AppColors.primarySoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Icon(active ? tab.activeIcon : tab.icon, size: 22, color: active ? AppColors.primary : AppColors.muted),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  tab.label(context.l10n),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                    color: active ? AppColors.primary : AppColors.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _Banner extends StatelessWidget {

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'app_shell.dart';
+import 'core/layout.dart';
 import 'core/theme.dart';
 import 'data/app_update.dart';
 import 'data/farm_store.dart';
@@ -91,7 +92,7 @@ class MyFarmApp extends StatelessWidget {
   );
 }
 
-/// 웹·PC처럼 화면이 넓을 때 휴대폰 폭으로 가운데 정렬한다.
+/// 휴대폰보다 넓지만 가로 배치를 쓰기엔 좁은 화면(작은 창·세로 태블릿)에서 휴대폰 폭으로 가운데 정렬한다.
 /// 하위 위젯이 실제 앱 영역 크기를 쓰도록 MediaQuery 크기도 함께 줄인다.
 class PhoneWidthFrame extends StatelessWidget {
   const PhoneWidthFrame({super.key, required this.child});
@@ -103,9 +104,10 @@ class PhoneWidthFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    if (media.size.width <= maxWidth + 40) return child;
+    // 휴대폰 폭이거나, 가로 배치를 쓸 만큼 넓으면(옆 메뉴 + 두 열) 그대로 그린다. 그 사이 폭만 휴대폰 틀에 담는다.
+    if (media.size.width <= maxWidth + 40 || media.size.width >= wideBreakpoint) return child;
     return ColoredBox(
-      color: const Color(0xFFE4DCCD),
+      color: const Color(0xFFE2DCD0),
       child: Center(
         child: Container(
           width: maxWidth,

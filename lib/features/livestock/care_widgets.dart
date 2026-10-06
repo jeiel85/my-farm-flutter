@@ -46,7 +46,7 @@ class CareCard extends StatelessWidget {
           children: [
             const IconBubble(
               size: 30,
-              color: Color(0xFFFBE3E1),
+              color: AppTints.brick,
               child: Icon(Icons.vaccines_outlined, size: 16, color: AppColors.red),
             ),
             const SizedBox(width: 10),

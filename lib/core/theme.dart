@@ -1,19 +1,35 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
+/// 앱 색. 농지 도면 느낌의 팔레트: 잉크 블루(주색), 테라코타(강조·주의), 세이지·황토(보조), 따뜻한 회색 종이(바탕).
+/// 이름(orange, yellow 등)은 쓰임새를 뜻하고, 실제 색은 이 팔레트의 가까운 색이다.
 abstract final class AppColors {
-  static const bg = Color(0xFFF4EFE6);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceSoft = Color(0xFFFAF7F1);
-  static const line = Color(0xFFEAE3D6);
-  static const primary = Color(0xFF1F4D2C);
-  static const primarySoft = Color(0xFFE2EEDB);
-  static const text = Color(0xFF1C211E);
-  static const muted = Color(0xFF7C837D);
-  static const orange = Color(0xFFE8963A);
-  static const blue = Color(0xFF3D8ED8);
-  static const red = Color(0xFFD6534A);
-  static const yellow = Color(0xFFF1C04B);
+  static const bg = Color(0xFFF1EDE4);
+  static const surface = Color(0xFFFFFDF9);
+  static const surfaceSoft = Color(0xFFF8F5EE);
+  static const line = Color(0xFFE3DED3);
+  static const primary = Color(0xFF2D4A63);
+  static const primaryLight = Color(0xFF3F6585);
+  static const primarySoft = Color(0xFFDCE5EE);
+  static const text = Color(0xFF1F2429);
+  static const muted = Color(0xFF6F757C);
+  static const orange = Color(0xFFC4633F);
+  static const orangeLight = Color(0xFFD5825F);
+  static const blue = Color(0xFF3E7BAA);
+  static const blueDeep = Color(0xFF2F5F86);
+  static const red = Color(0xFFB9473D);
+  static const yellow = Color(0xFFD8A23E);
+  static const sage = Color(0xFF6F8F5C);
+  static const plum = Color(0xFF7D6A9A);
+}
+
+/// 카드·타일 배경용 옅은 색.
+abstract final class AppTints {
+  static const terracotta = Color(0xFFF3E2D9);
+  static const slate = Color(0xFFDFE8EF);
+  static const ochre = Color(0xFFF5EBD3);
+  static const stone = Color(0xFFE7E3DA);
+  static const brick = Color(0xFFF2DED8);
 }
 
 ThemeData buildTheme() {

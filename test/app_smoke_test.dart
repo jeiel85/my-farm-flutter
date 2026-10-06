@@ -21,8 +21,13 @@ import 'farm_store_test.dart' show MemoryStorage;
 void main() {
   setUpAll(() => initializeDateFormatting('ko'));
 
-  Future<FarmStore> pumpApp(WidgetTester tester, {String locale = 'ko', UpdateController? update}) async {
-    await tester.binding.setSurfaceSize(const Size(400, 900));
+  Future<FarmStore> pumpApp(
+    WidgetTester tester, {
+    String locale = 'ko',
+    UpdateController? update,
+    Size size = const Size(400, 900),
+  }) async {
+    await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     // 테스트 환경의 기기 언어와 상관없이 화면 언어를 고정한다.
     final storage = MemoryStorage()..meta['locale'] = locale;
@@ -241,6 +246,65 @@ void main() {
     expect(selected('토마토 밭'), isTrue);
     expect(find.text('토마토 밭'), findsWidgets);
     semantics.dispose();
+    await _unmount(tester);
+  });
+
+  testWidgets('넓은 화면(PC)에서는 옆 메뉴와 두 열 배치로 모든 탭과 상세 화면이 오류 없이 그려진다', (tester) async {
+    // MediaQuery는 테스트 뷰 크기를 따르므로 뷰도 PC 창 크기로 맞춘다.
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.reset);
+    await pumpApp(tester, size: const Size(1440, 900));
+    // 아래 탭 대신 옆 메뉴가 있고, 앱 이름이 메뉴 위에 보인다.
+    expect(find.text('마이팜'), findsOneWidget);
+    expect(find.text('오늘 할 일'), findsOneWidget);
+    expect(find.text('오늘 확인할 것'), findsOneWidget);
+    // 홈은 두 열이다: 오늘 할 일(왼쪽)과 확인할 것(오른쪽)이 나란히 있다.
+    expect(tester.getTopLeft(find.text('오늘 확인할 것')).dx, greaterThan(tester.getTopLeft(find.text('오늘 할 일')).dx + 300));
+    for (final tab in ['농장', '분석', '수확', '프로필', '홈']) {
+      await tester.tap(find.text(tab).last);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(tester.takeException(), isNull, reason: tab);
+    }
+    // 수확 기록 버튼은 넓은 화면에서 떠 있지 않고 요약 아래에 있다.
+    await tester.tap(find.text('수확').last);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('수확 기록하기'), findsOneWidget);
+
+    // 상세 화면(장부)도 두 열로 그려진다.
+    await tester.tap(find.text('분석').last);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('장부 열기'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('매출·비용 장부'), findsOneWidget);
+    expect(find.text('매출·비용 기록'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
+  testWidgets('창 폭이 넓은 배치와 휴대폰 배치를 오가도 프로필의 저장 전 입력이 남는다', (tester) async {
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.reset);
+    await pumpApp(tester, size: const Size(1440, 900));
+    await tester.tap(find.text('프로필').last);
+    await tester.pump(const Duration(seconds: 1));
+    final name = find.widgetWithText(TextFormField, '농장 이름');
+    await tester.enterText(name, '바뀐 농장');
+    await tester.pump();
+
+    for (final size in const [Size(400, 860), Size(1440, 900), Size(1440, 320)]) {
+      tester.view.physicalSize = size;
+      await tester.binding.setSurfaceSize(size);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('바뀐 농장'), findsOneWidget, reason: '$size');
+      expect(tester.takeException(), isNull, reason: '$size');
+    }
     await _unmount(tester);
   });
 

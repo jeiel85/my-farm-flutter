@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/app_update.dart';
@@ -135,9 +136,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       bottom: false,
       child: Form(
         key: _form,
-        child: ListView(
+        // 넓은 화면: 왼쪽에 농장 정보·목표, 오른쪽에 언어·데이터·알림·업데이트.
+        child: SplitList(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-          children: [
+          primary: [
             rise(Text(context.l10n.profileTitle, style: AppText.title), 0),
             const SizedBox(height: 14),
             rise(
@@ -272,6 +274,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               opacity: _dirty ? 1 : 0.5,
               child: PrimaryButton(label: context.l10n.save, icon: Icons.check_rounded, onTap: _dirty ? _save : null),
             ),
+          ],
+          secondary: [
             SectionTitle(context.l10n.language),
             rise(
               SegmentedButton<String>(

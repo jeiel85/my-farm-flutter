@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
@@ -39,9 +40,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     return SafeArea(
       bottom: false,
-      child: ListView(
-        padding: EdgeInsets.fromLTRB(20, 8, 20, 28),
-        children: [
+      // 넓은 화면: 왼쪽에 기간·요약·매출비용, 오른쪽에 생산·물·수확 차트.
+      child: SplitList(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        primary: [
           rise(Text(context.l10n.analyticsTitle, style: AppText.title), 0),
           SizedBox(height: 14),
           rise(
@@ -93,7 +95,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
                 _Summary(
                   icon: Icons.local_drink_rounded,
-                  color: const Color(0xFF8A7BD8),
+                  color: AppColors.plum,
                   label: context.l10n.avgDailyMilk,
                   value: avgMilk == null ? context.l10n.noRecords : '${avgMilk.toStringAsFixed(1)}L',
                 ),
@@ -151,6 +153,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
             3,
           ),
+        ],
+        secondary: [
           SectionTitle(context.l10n.eggProduction, subtitle: context.l10n.eggTargetLine(profile.dailyEggTarget)),
           rise(
             _ChartCard(
@@ -177,7 +181,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   for (final (i, p) in production.indexed)
                     p.$2 == null ? FlSpot.nullSpot : FlSpot(i.toDouble(), p.$2!.milkL),
                 ],
-                const Color(0xFF8A7BD8),
+                AppColors.plum,
                 target: profile.dailyMilkTargetL,
                 labels: [for (final p in production) p.$1],
               ),
