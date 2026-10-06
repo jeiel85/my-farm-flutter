@@ -277,13 +277,22 @@ class FarmStore extends ChangeNotifier {
   }
 
   /// 출하·폐사 등으로 목록에서 뺀다. 개체 정보는 이력으로 남는다.
-  Future<void> removeAnimal(String id, {required AnimalEventType type, String note = ''}) {
+  ///
+  /// 출하하면서 [sale]을 주면 같은 저장에서 장부에 가축 판매 매출로 적는다(둘 중 하나만 남지 않게).
+  Future<void> removeAnimal(String id, {required AnimalEventType type, String note = '', LedgerSale? sale}) {
     if (type == AnimalEventType.added) throw ArgumentError.value(type, 'type', 'is not a removal reason');
+    if (sale != null && type != AnimalEventType.sold) {
+      throw ArgumentError.value(type, 'type', 'only sales have an amount');
+    }
     final animal = animalById(id);
     if (animal == null) throw StateError('No animal with id $id');
     final at = now;
+    final entry = sale == null
+        ? null
+        : _newLedgerEntry(category: LedgerCategory.livestock, amount: sale.amount, date: at, note: sale.note);
     return _commit(
       _state.copyWith(
+        ledger: entry == null ? null : [..._state.ledger, entry],
         animals: _state.animals.where((a) => a.id != id).toList(),
         // 그 개체만 대상으로 한 남은 일정은 의미가 없으므로 지운다(완료 기록은 남긴다).
         careItems: _state.careItems.where((c) => c.animalId != id || c.isDone).toList(),
@@ -627,9 +636,19 @@ class FarmStore extends ChangeNotifier {
       _commit(_state.copyWith(fields: [for (final f in _state.fields) f.id == id ? f.copyWith(status: status) : f]));
 
   /// 수확을 기록한다. [replant]이면 같은 밭에 오늘 날짜로 다시 심는다.
-  Future<void> harvest({required String fieldId, required double amountKg, required bool replant, String note = ''}) {
+  /// [sale]을 주면 같은 저장에서 장부에 작물 판매 매출로 적는다.
+  Future<void> harvest({
+    required String fieldId,
+    required double amountKg,
+    required bool replant,
+    String note = '',
+    LedgerSale? sale,
+  }) {
     final field = fieldById(fieldId);
     if (field == null) throw StateError('No field with id $fieldId');
+    final entry = sale == null
+        ? null
+        : _newLedgerEntry(category: LedgerCategory.crops, amount: sale.amount, date: now, note: sale.note);
     final record = HarvestRecord(
       id: 'h${now.microsecondsSinceEpoch}',
       cropName: field.cropName,
@@ -641,6 +660,7 @@ class FarmStore extends ChangeNotifier {
     return _commit(
       _state.copyWith(
         harvests: [record, ..._state.harvests],
+        ledger: entry == null ? null : [..._state.ledger, entry],
         fields: replant
             ? [for (final f in _state.fields) f.id == fieldId ? f.copyWith(plantedAt: now, status: CropStatus.good) : f]
             : null,
@@ -767,23 +787,58 @@ class FarmStore extends ChangeNotifier {
     required DateTime date,
     String note = '',
   }) async {
-    if (!amount.isFinite || amount <= 0 || amount > maxLedgerAmount) {
-      throw ArgumentError.value(amount, 'amount', 'must be between 0 (exclusive) and $maxLedgerAmount');
-    }
-    // 삭제는 id로 하므로 같은 시각(웹은 밀리초 단위)에 적은 기록끼리 id가 겹치지 않게 한다.
+    final entry = _newLedgerEntry(category: category, amount: amount, date: date, note: note);
+    await _commit(_state.copyWith(ledger: [..._state.ledger, entry]));
+    return entry;
+  }
+
+  /// 검사를 거친 새 장부 기록. 출하·수확처럼 다른 기록과 함께 한 번에 저장할 때도 쓴다.
+  LedgerEntry _newLedgerEntry({
+    required LedgerCategory category,
+    required double amount,
+    required DateTime date,
+    required String note,
+  }) {
+    _checkLedgerAmount(amount);
+    // 수정·삭제는 id로 하므로 같은 시각(웹은 밀리초 단위)에 적은 기록끼리 id가 겹치지 않게 한다.
     var stamp = now.microsecondsSinceEpoch;
     while (_state.ledger.any((e) => e.id == 'l$stamp')) {
       stamp++;
     }
-    final entry = LedgerEntry(
+    return LedgerEntry(
       id: 'l$stamp',
       category: category,
       amount: amount,
       date: DateTime(date.year, date.month, date.day),
       note: note.trim(),
     );
-    await _commit(_state.copyWith(ledger: [..._state.ledger, entry]));
-    return entry;
+  }
+
+  static void _checkLedgerAmount(double amount) {
+    if (!amount.isFinite || amount <= 0 || amount > maxLedgerAmount) {
+      throw ArgumentError.value(amount, 'amount', 'must be between 0 (exclusive) and $maxLedgerAmount');
+    }
+  }
+
+  /// 기록을 고친다. 목록 위치는 그대로 두므로 같은 날 안의 순서(적은 순서)도 바뀌지 않는다.
+  Future<LedgerEntry> updateLedgerEntry(
+    String id, {
+    required LedgerCategory category,
+    required double amount,
+    required DateTime date,
+    String note = '',
+  }) async {
+    if (!_state.ledger.any((e) => e.id == id)) throw StateError('No ledger entry with id $id');
+    _checkLedgerAmount(amount);
+    final updated = LedgerEntry(
+      id: id,
+      category: category,
+      amount: amount,
+      date: DateTime(date.year, date.month, date.day),
+      note: note.trim(),
+    );
+    await _commit(_state.copyWith(ledger: [for (final e in _state.ledger) e.id == id ? updated : e]));
+    return updated;
   }
 
   Future<void> deleteLedgerEntry(String id) =>
@@ -831,6 +886,14 @@ class FarmStore extends ChangeNotifier {
     await _storage.keepCopy(jsonEncode(_state.toJson()), 'before_restore');
     await _commit(restored);
   }
+}
+
+/// 출하·수확과 함께 장부에 적을 판매 금액(농장 통화)과 메모.
+class LedgerSale {
+  const LedgerSale({required this.amount, required this.note});
+
+  final double amount;
+  final String note;
 }
 
 enum BackupProblem { notJson, notBackup, damaged, newerVersion }

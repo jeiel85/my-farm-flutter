@@ -84,18 +84,31 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
           builder: (context, _) {
             final focusT = widget.selected == null ? 1 - _camera.value : _camera.value;
             return RepaintBoundary(
-              child: CustomPaint(
-                size: size,
-                isComplex: true,
-                painter: FarmMapPainter(
-                  view: _view,
-                  time: _time,
-                  selected: widget.selected,
-                  selectionT: widget.selected == null ? 0 : Curves.easeOut.transform(focusT.clamp(0, 1)),
-                  labelOpacity: widget.selected == null ? Curves.easeIn.transform(1 - focusT.clamp(0.0, 1.0)) : 0,
-                  tankRatio: widget.tankRatio,
-                  needsWater: widget.needsWater,
-                  zoneLabels: {for (final z in ZoneId.values) z: context.l10n.zoneShort(z)},
+              child: Semantics(
+                label: context.l10n.farmMap,
+                container: true,
+                explicitChildNodes: true,
+                child: CustomPaint(
+                  size: size,
+                  isComplex: true,
+                  painter: FarmMapPainter(
+                    view: _view,
+                    time: _time,
+                    selected: widget.selected,
+                    selectionT: widget.selected == null ? 0 : Curves.easeOut.transform(focusT.clamp(0, 1)),
+                    labelOpacity: widget.selected == null ? Curves.easeIn.transform(1 - focusT.clamp(0.0, 1.0)) : 0,
+                    tankRatio: widget.tankRatio,
+                    needsWater: widget.needsWater,
+                    zoneLabels: {for (final z in ZoneId.values) z: context.l10n.zoneShort(z)},
+                    zoneSemantics: {
+                      for (final z in ZoneId.values)
+                        z: widget.needsWater.contains(z)
+                            ? context.l10n.mapZoneNeedsWater(context.l10n.zone(z))
+                            : context.l10n.zone(z),
+                    },
+                    onZoneTap: widget.onZoneTap,
+                    textDirection: Directionality.of(context),
+                  ),
                 ),
               ),
             );

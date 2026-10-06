@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:intl/intl.dart';
 
 import '../data/models.dart';
 import '../data/weather.dart';
@@ -129,6 +130,14 @@ extension Labels on AppLocalizations {
         : spanDays((mins / 1440).floor());
     return diff.isNegative ? timeAgo(span) : timeIn(span);
   }
+}
+
+/// 날씨를 받은 시각. 오늘이면 시각만, 아니면 날짜도 붙인다(보관본을 다음 날 보여 줄 때).
+String weatherFetchedLabel(BuildContext context, DateTime fetchedAt, DateTime now) {
+  final sameDay = fetchedAt.year == now.year && fetchedAt.month == now.month && fetchedAt.day == now.day;
+  return sameDay
+      ? DateFormat('HH:mm').format(fetchedAt)
+      : DateFormat.MMMd(context.localeName).add_Hm().format(fetchedAt);
 }
 
 String weatherErrorText(BuildContext context, WeatherException e) => switch (e.problem) {

@@ -21,3 +21,33 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed $(git ls-files 'lib/*.dart' 'test/*.dart')
       - run: flutter analyze
       - run: flutter test
+
+  # 릴리스 APK는 서명 키가 필요해 로컬(tool/release_android.ps1)에서만 만든다. 여기서는 Gradle·Kotlin·플러그인이
+  # 깨지지 않았는지 debug APK로 확인한다(서명 키·시크릿을 CI에 두지 않는다).
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.6
+          cache: true
+      - run: flutter build apk --debug
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.6
+          cache: true
+      - run: flutter build windows --release

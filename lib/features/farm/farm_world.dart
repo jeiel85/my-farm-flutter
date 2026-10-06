@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../../data/models.dart';
 
@@ -649,6 +651,9 @@ class FarmMapPainter extends CustomPainter {
     required this.tankRatio,
     required this.needsWater,
     required this.zoneLabels,
+    this.zoneSemantics = const {},
+    this.onZoneTap,
+    this.textDirection = TextDirection.ltr,
   }) : super(repaint: time);
 
   final Rect view;
@@ -661,6 +666,11 @@ class FarmMapPainter extends CustomPainter {
 
   /// 구역 라벨(현재 언어).
   final Map<ZoneId, String> zoneLabels;
+
+  /// 스크린리더가 읽을 구역 이름(물 필요 여부 포함). 지도는 그림이라 이것이 없으면 구역을 고를 수 없다.
+  final Map<ZoneId, String> zoneSemantics;
+  final ValueChanged<ZoneId>? onZoneTap;
+  final TextDirection textDirection;
 
   static double scaleFor(Rect view, Size size) => math.max(size.width / view.width, size.height / view.height);
 
@@ -739,6 +749,39 @@ class FarmMapPainter extends CustomPainter {
     canvas.restore();
     if (!opaque) canvas.restore();
   }
+
+  @override
+  SemanticsBuilderCallback? get semanticsBuilder => zoneSemantics.isEmpty ? null : _buildSemantics;
+
+  /// 화면에 보이는 구역마다 탭할 수 있는 영역을 만든다(구역을 확대하면 보이는 구역만 남는다).
+  List<CustomPainterSemantics> _buildSemantics(Size size) {
+    final scale = scaleFor(view, size);
+    final screen = Offset.zero & size;
+    Offset toScreen(Offset world) => (world - view.center) * scale + size.center(Offset.zero);
+    return [
+      for (final zone in ZoneId.values)
+        if (zoneSemantics[zone] case final label?)
+          if (Rect.fromPoints(toScreen(FarmWorld.zones[zone]!.topLeft), toScreen(FarmWorld.zones[zone]!.bottomRight))
+              case final rect when rect.overlaps(screen))
+            CustomPainterSemantics(
+              key: ValueKey(zone),
+              rect: rect.intersect(screen),
+              properties: SemanticsProperties(
+                label: label,
+                textDirection: textDirection,
+                button: true,
+                selected: zone == selected,
+                onTap: onZoneTap == null ? null : () => onZoneTap!(zone),
+              ),
+            ),
+    ];
+  }
+
+  @override
+  bool shouldRebuildSemantics(FarmMapPainter oldDelegate) =>
+      oldDelegate.view != view ||
+      oldDelegate.selected != selected ||
+      !mapEquals(oldDelegate.zoneSemantics, zoneSemantics);
 
   @override
   bool shouldRepaint(FarmMapPainter old) =>

@@ -231,8 +231,11 @@ class _AnimalDetailScreenState extends State<AnimalDetailScreen> {
                       filled: false,
                       onTap: () async {
                         final removed = await showRemoveAnimalSheet(context, a);
-                        if (!removed || !context.mounted) return;
-                        showMessage(context, context.l10n.animalRemoved(a.name));
+                        if (removed == null || !context.mounted) return;
+                        showMessage(
+                          context,
+                          removed.sale ? context.l10n.animalSoldWithSale(a.name) : context.l10n.animalRemoved(a.name),
+                        );
                         Navigator.of(context).pop();
                       },
                     ),

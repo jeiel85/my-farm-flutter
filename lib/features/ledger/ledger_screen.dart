@@ -6,6 +6,7 @@ import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import '../../l10n/l10n.dart';
+import 'ledger_export.dart';
 
 /// 농장 통화로 금액을 적는 형식(₩1,250,000, $1,250.00).
 NumberFormat moneyFormat(BuildContext context, String currency) =>
@@ -70,6 +71,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
             PageHeader(
               title: context.l10n.ledgerTitle,
               subtitle: context.l10n.ledgerCurrencyNote(store.state.profile.currency),
+              trailing: IconButton(
+                tooltip: context.l10n.exportLedgerCsv,
+                onPressed: () => exportLedgerCsvFile(context),
+                icon: const Icon(Icons.file_download_outlined),
+              ),
             ),
             Expanded(
               child: Stack(
@@ -279,11 +285,17 @@ class _EntryTile extends StatelessWidget {
     if (ok == true && context.mounted) await FarmScope.read(context).deleteLedgerEntry(entry.id);
   }
 
+  Future<void> _edit(BuildContext context) async {
+    final saved = await showLedgerSheet(context, editing: entry);
+    if (saved != null && context.mounted) showMessage(context, context.l10n.ledgerUpdated);
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = ledgerColor(entry.isIncome);
     final category = context.l10n.ledgerCategory(entry.category);
     return GestureDetector(
+      onTap: () => _edit(context),
       onLongPress: () => _delete(context),
       child: AppCard(
         padding: const EdgeInsets.all(14),
@@ -321,32 +333,46 @@ class _EntryTile extends StatelessWidget {
   }
 }
 
-/// 매출·비용 한 건을 입력받아 장부에 적는다. 적은 기록을 돌려주고, 취소하면 null.
-Future<LedgerEntry?> showLedgerSheet(BuildContext context, {DateTime? initialDate}) =>
+/// 매출·비용 한 건을 입력받아 장부에 적는다. [editing]을 주면 그 기록을 고친다.
+/// 적거나 고친 기록을 돌려주고, 취소하면 null.
+Future<LedgerEntry?> showLedgerSheet(BuildContext context, {DateTime? initialDate, LedgerEntry? editing}) =>
     showModalBottomSheet<LedgerEntry>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.bg,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (_) => _LedgerSheet(initialDate: initialDate ?? FarmScope.read(context).now),
+      builder: (_) =>
+          _LedgerSheet(initialDate: editing?.date ?? initialDate ?? FarmScope.read(context).now, editing: editing),
     );
 
 class _LedgerSheet extends StatefulWidget {
-  const _LedgerSheet({required this.initialDate});
+  const _LedgerSheet({required this.initialDate, this.editing});
 
   final DateTime initialDate;
+  final LedgerEntry? editing;
 
   @override
   State<_LedgerSheet> createState() => _LedgerSheetState();
 }
 
 class _LedgerSheetState extends State<_LedgerSheet> {
-  bool _income = true;
-  LedgerCategory _category = LedgerCategory.crops;
+  late bool _income = widget.editing?.isIncome ?? true;
+  late LedgerCategory _category = widget.editing?.category ?? LedgerCategory.crops;
   late DateTime _date = widget.initialDate;
   final _amount = TextEditingController();
-  final _note = TextEditingController();
+  late final _note = TextEditingController(text: widget.editing?.note);
   String? _error;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final editing = widget.editing;
+    if (editing != null && _amount.text.isEmpty) {
+      // 쉼표 없이 통화 자릿수만큼 적어 둔다(원화 300000, 달러 12.50). 입력할 때와 같은 형식이다.
+      final digits = moneyFormat(context, FarmScope.read(context).state.profile.currency).decimalDigits ?? 0;
+      _amount.text = editing.amount.toStringAsFixed(digits);
+    }
+  }
 
   @override
   void dispose() {
@@ -385,7 +411,10 @@ class _LedgerSheetState extends State<_LedgerSheet> {
       setState(() => _error = context.l10n.ledgerAmountTooLarge);
       return;
     }
-    final entry = await store.addLedgerEntry(category: _category, amount: amount, date: _date, note: _note.text);
+    final editing = widget.editing;
+    final entry = editing == null
+        ? await store.addLedgerEntry(category: _category, amount: amount, date: _date, note: _note.text)
+        : await store.updateLedgerEntry(editing.id, category: _category, amount: amount, date: _date, note: _note.text);
     if (mounted) Navigator.of(context).pop(entry);
   }
 
@@ -407,7 +436,10 @@ class _LedgerSheetState extends State<_LedgerSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(context.l10n.addLedgerEntry, style: AppText.h2),
+            Text(
+              widget.editing == null ? context.l10n.addLedgerEntry : context.l10n.editLedgerEntry,
+              style: AppText.h2,
+            ),
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
@@ -445,7 +477,7 @@ class _LedgerSheetState extends State<_LedgerSheet> {
             const SizedBox(height: 14),
             TextField(
               controller: _amount,
-              autofocus: true,
+              autofocus: widget.editing == null,
               keyboardType: TextInputType.numberWithOptions(decimal: (money.decimalDigits ?? 0) > 0),
               decoration: InputDecoration(
                 labelText: context.l10n.ledgerAmount,

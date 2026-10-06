@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
+import 'farm_store.dart';
 
 class DailyForecast {
   const DailyForecast({
@@ -37,6 +40,21 @@ class WeatherReport {
   final DateTime fetchedAt;
 
   int get todayRainChance => daily.isEmpty ? 0 : daily.first.rainChance;
+
+  /// [today] 이전 예보를 뺀 사본(보관본을 다음 날 보여 줄 때). 남는 날이 없으면 null.
+  WeatherReport? fromDay(DateTime today) {
+    final start = DateTime(today.year, today.month, today.day);
+    final rest = daily.where((d) => !d.date.isBefore(start)).toList();
+    if (rest.isEmpty) return null;
+    return WeatherReport(
+      temperatureC: temperatureC,
+      code: code,
+      windKmh: windKmh,
+      humidity: humidity,
+      daily: rest,
+      fetchedAt: fetchedAt,
+    );
+  }
 }
 
 enum WeatherCondition { clear, partlyCloudy, cloudy, fog, drizzle, rain, snow, thunder, unknown }
@@ -60,7 +78,11 @@ class WeatherService {
 
   final http.Client _client;
 
-  Future<WeatherReport> fetch(double latitude, double longitude) async {
+  Future<WeatherReport> fetch(double latitude, double longitude) async =>
+      _parseChecked(await fetchJson(latitude, longitude), DateTime.now());
+
+  /// 응답 JSON을 그대로 돌려준다(보관본으로 저장할 때). 해석할 수 없으면 [WeatherException].
+  Future<Map<String, Object?>> fetchJson(double latitude, double longitude) async {
     final uri = Uri.https('api.open-meteo.com', '/v1/forecast', {
       'latitude': latitude.toStringAsFixed(4),
       'longitude': longitude.toStringAsFixed(4),
@@ -69,12 +91,31 @@ class WeatherService {
       'timezone': 'auto',
       'forecast_days': '5',
     });
-    final res = await _client.get(uri).timeout(const Duration(seconds: 10));
+    final http.Response res;
+    try {
+      res = await _client.get(uri).timeout(const Duration(seconds: 10));
+    } on TimeoutException {
+      throw const WeatherException(WeatherProblem.network);
+    } on http.ClientException {
+      throw const WeatherException(WeatherProblem.network);
+    }
     if (res.statusCode != 200) {
       throw WeatherException(WeatherProblem.server, statusCode: res.statusCode);
     }
+    final Object? json;
     try {
-      return parse(jsonDecode(res.body) as Map<String, Object?>, DateTime.now());
+      json = jsonDecode(res.body);
+    } on FormatException {
+      throw const WeatherException(WeatherProblem.badData);
+    }
+    if (json is! Map<String, Object?>) throw const WeatherException(WeatherProblem.badData);
+    _parseChecked(json, DateTime.now());
+    return json;
+  }
+
+  static WeatherReport _parseChecked(Map<String, Object?> json, DateTime fetchedAt) {
+    try {
+      return parse(json, fetchedAt);
     } on FormatException {
       throw const WeatherException(WeatherProblem.badData);
     } on TypeError {
@@ -117,38 +158,115 @@ class WeatherException implements Exception {
   const WeatherException(this.problem, {this.statusCode});
   final WeatherProblem problem;
   final int? statusCode;
+
+  /// 잠시 뒤 다시 하면 될 수도 있는 실패(연결 끊김, 서버 과부하·장애). 형식 오류나 4xx는 다시 해도 같다.
+  bool get transient =>
+      problem == WeatherProblem.network ||
+      (problem == WeatherProblem.server && (statusCode == null || statusCode! >= 500 || statusCode == 429));
+
   @override
   String toString() => 'WeatherException($problem, $statusCode)';
 }
 
-/// 앱 전역에서 날씨를 한 번만 받아 공유한다. 15분 동안은 캐시를 쓴다.
+/// 앱 전역에서 날씨를 한 번만 받아 공유한다. 15분 동안은 받은 값을 다시 쓴다.
+///
+/// 마지막으로 받은 응답은 기기별 meta에 보관해 두고(백업 파일에는 들어가지 않는다), 앱을 다시 열었을 때나
+/// 연결이 안 될 때 [cacheMaxAge]까지 보여 준다. 일시적인 실패는 [retryDelays] 간격으로 다시 시도한다.
 class WeatherController extends ChangeNotifier {
-  WeatherController(this._service);
+  WeatherController(this._service, {this._cache, DateTime Function()? clock, Future<void> Function(Duration)? wait})
+    : _clock = clock ?? DateTime.now,
+      _wait = wait ?? Future<void>.delayed;
 
   final WeatherService _service;
+  final FarmStorage? _cache;
+  final DateTime Function() _clock;
+  final Future<void> Function(Duration) _wait;
+
+  static const cacheKey = 'weather_cache';
+  static const cacheMaxAge = Duration(days: 3);
+  static const retryDelays = [Duration(seconds: 2), Duration(seconds: 5)];
+
   WeatherReport? report;
+
+  /// 마지막 시도의 실패. [report]가 함께 있으면 보관본이나 이전 값을 보여 주는 중이다.
   WeatherException? error;
   bool loading = false;
   (double, double)? _loadedFor;
+  bool _cacheChecked = false;
+
+  bool _isFresh(double lat, double lon) =>
+      report != null &&
+      _loadedFor == (lat, lon) &&
+      _clock().difference(report!.fetchedAt) < const Duration(minutes: 15);
 
   Future<void> ensureLoaded(double lat, double lon, {bool force = false}) async {
     if (loading) return;
-    final fresh =
-        report != null &&
-        _loadedFor == (lat, lon) &&
-        DateTime.now().difference(report!.fetchedAt) < const Duration(minutes: 15);
-    if (fresh && !force) return;
+    if (_cacheChecked && _isFresh(lat, lon) && !force) return;
     loading = true;
     error = null;
     notifyListeners();
     try {
-      report = await _service.fetch(lat, lon);
+      if (!_cacheChecked) {
+        _cacheChecked = true;
+        await _restoreCache(lat, lon);
+        if (_isFresh(lat, lon) && !force) return;
+      }
+      if (_loadedFor != (lat, lon)) report = null; // 다른 곳의 날씨를 보여 주지 않는다.
+      final json = await _fetchWithRetry(lat, lon);
+      final fetchedAt = _clock();
+      report = WeatherService.parse(json, fetchedAt);
       _loadedFor = (lat, lon);
+      await _saveCache(lat, lon, fetchedAt, json);
+    } on WeatherException catch (e) {
+      error = e;
     } catch (e) {
-      error = e is WeatherException ? e : const WeatherException(WeatherProblem.network);
+      error = const WeatherException(WeatherProblem.network);
     } finally {
       loading = false;
       notifyListeners();
+    }
+  }
+
+  Future<Map<String, Object?>> _fetchWithRetry(double lat, double lon) async {
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _service.fetchJson(lat, lon);
+      } on WeatherException catch (e) {
+        if (!e.transient || attempt >= retryDelays.length) rethrow;
+        await _wait(retryDelays[attempt]);
+      }
+    }
+  }
+
+  Future<void> _restoreCache(double lat, double lon) async {
+    final raw = await _cache?.readMeta(cacheKey);
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final j = (jsonDecode(raw) as Map).cast<String, Object?>();
+      if (j['lat'] != lat || j['lon'] != lon) return;
+      final fetchedAt = DateTime.parse(j['fetchedAt'] as String);
+      final now = _clock();
+      if (now.difference(fetchedAt) > cacheMaxAge || fetchedAt.isAfter(now)) return;
+      final cached = WeatherService.parse((j['json'] as Map).cast<String, Object?>(), fetchedAt).fromDay(now);
+      if (cached == null) return;
+      report = cached;
+      _loadedFor = (lat, lon);
+      notifyListeners();
+    } catch (e) {
+      // 보관본은 다시 받으면 되는 값이다. 읽지 못하면 없는 것으로 본다.
+      debugPrint('Ignoring unreadable weather cache: $e');
+    }
+  }
+
+  Future<void> _saveCache(double lat, double lon, DateTime fetchedAt, Map<String, Object?> json) async {
+    try {
+      await _cache?.writeMeta(
+        cacheKey,
+        jsonEncode({'lat': lat, 'lon': lon, 'fetchedAt': fetchedAt.toIso8601String(), 'json': json}),
+      );
+    } catch (e) {
+      // 화면에는 이미 새 값이 있다. 보관만 못 했을 뿐이라 다음 성공 때 다시 저장한다.
+      debugPrint('Could not save weather cache: $e');
     }
   }
 }
