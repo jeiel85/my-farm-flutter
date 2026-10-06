@@ -39,7 +39,10 @@ try {
   $outDir = Join-Path $root 'build/play-ownership'
   New-Item -ItemType Directory -Force $outDir | Out-Null
   $out = Join-Path $outDir 'my-farm-ownership.apk'
-  Copy-Item (Join-Path $root 'build/app/outputs/flutter-apk/app-release.apk') $out -Force
+  $built = Join-Path $root 'build/app/outputs/flutter-apk/app-release.apk'
+  Move-Item $built $out -Force
+  # 표준 출력 위치에 증명용 APK가 남으면 release_android.ps1 -SkipBuild가 그것을 배포할 수 있다.
+  Remove-Item "$built.sha1" -Force -ErrorAction SilentlyContinue
   Write-Host "소유 증명용 APK: $out"
   Write-Host 'Play Console의 Android developer verification 페이지에서 이 APK를 올리세요.'
 } finally {

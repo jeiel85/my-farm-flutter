@@ -30,13 +30,14 @@
     <h2>요약</h2>
     <ul>
       <li>마이팜은 계정·로그인이 없고, 개발자 서버로 아무 정보도 보내지 않습니다.</li>
-      <li>모든 농장 기록(작물·가축·물·수확·재고·장부·일정)은 기기 안에만 저장됩니다.</li>
+      <li>모든 농장 기록(작물·가축·물·수확·재고·장부·일정)은 기기 안에 저장됩니다. Android 시스템 백업이 켜져 있으면 사용자의 Google 계정 백업에도 들어갈 수 있습니다(개발자는 볼 수 없음).</li>
       <li>광고·분석·추적 SDK를 쓰지 않습니다.</li>
     </ul>
   </div>
 
   <h2>1. 기기 안에 저장하는 정보</h2>
   <p>사용자가 입력한 농장 정보와 기록은 기기(웹 데모는 브라우저)의 앱 저장소에만 저장됩니다. 사용자가 직접 백업 파일(JSON)이나 장부 CSV를 내보낼 때만 사용자가 고른 위치에 파일이 만들어집니다. 앱을 삭제하면 기기 안의 기록도 함께 지워집니다.</p>
+  <p><b>Android 시스템 백업</b>: 기기 설정에서 Google 백업을 켜 두었다면 Android가 앱 데이터를 사용자의 Google 계정에 백업하고, 새 기기로 옮기거나 다시 설치할 때 복원할 수 있습니다. 이 백업은 Google이 사용자 계정에 보관하며 개발자는 접근할 수 없습니다. 원하지 않으면 기기 설정 → Google → 백업에서 끌 수 있고, 앱 안의 프로필 → 예시 농장으로 초기화로 기록을 지울 수 있습니다.</p>
 
   <h2>2. 외부로 보내는 정보</h2>
   <ul>
@@ -68,7 +69,7 @@
   <p class="muted" lang="en">Effective October 6, 2026 · App: My Farm (com.jeiel85.myfarm)</p>
   <div class="card" lang="en">
     <ul>
-      <li>My Farm has no accounts and sends nothing to the developer's servers. All farm records stay on your device (or your browser for the web demo). No ads, analytics or tracking SDKs.</li>
+      <li>My Farm has no accounts and sends nothing to the developer's servers. All farm records are stored on your device (or your browser for the web demo). If Android system backup is on, Android may include the app data in your Google account backup and restore it on a new device or reinstall; the developer cannot access it, and you can turn it off in device settings. No ads, analytics or tracking SDKs.</li>
       <li><b>Weather</b>: the latitude and longitude you enter for your farm are sent to <a href="https://open-meteo.com/">Open-Meteo</a> to fetch the forecast. The device location permission is not used.</li>
       <li><b>Update check</b> (optional, Android): when you turn it on, the app downloads an update manifest from GitHub Releases without any identifier. GitHub and Open-Meteo can see the requesting IP address.</li>
       <li><b>Permissions</b>: internet; notifications (Android 13+, only if you enable reminders; scheduled on the device); vibrate (for reminders, per device settings); boot completed (to restore scheduled reminders); request install packages (to hand a downloaded update to the system installer).</li>
