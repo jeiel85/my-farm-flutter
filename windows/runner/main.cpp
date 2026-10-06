@@ -25,8 +25,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
+  // Open a landscape window so the side menu and two-column layout (wideBreakpoint
+  // 900 in lib/core/layout.dart) are used. Logical pixels, scaled by Win32Window.
   Win32Window::Point origin(10, 10);
-  Win32Window::Size size(420, 820);
+  Win32Window::Size size(1280, 820);
   // App name in Korean, written as escapes so the build does not depend on the
   // source code page (the runner is compiled with /WX).
   if (!window.Create(L"\uB9C8\uC774\uD31C", origin, size)) {

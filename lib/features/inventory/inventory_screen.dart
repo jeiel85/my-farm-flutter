@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
@@ -17,31 +18,34 @@ class InventoryScreen extends StatelessWidget {
     final store = FarmScope.of(context);
     var index = 0;
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            PageHeader(title: context.l10n.inventory, subtitle: context.l10n.inventoryHint),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-                children: [
-                  for (final cat in InventoryCategory.values) ...[
-                    if (store.state.inventory.any((i) => i.category == cat)) ...[
-                      SectionTitle(
-                        context.l10n.inventoryCategory(cat),
-                        subtitle: cat == InventoryCategory.feed ? context.l10n.feedAutoDeduct : null,
-                      ),
-                      for (final item in store.state.inventory.where((i) => i.category == cat))
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: rise(_ItemTile(item: item), index++),
+      body: WideBody(
+        maxWidth: 760,
+        child: SafeArea(
+          child: Column(
+            children: [
+              PageHeader(title: context.l10n.inventory, subtitle: context.l10n.inventoryHint),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                  children: [
+                    for (final cat in InventoryCategory.values) ...[
+                      if (store.state.inventory.any((i) => i.category == cat)) ...[
+                        SectionTitle(
+                          context.l10n.inventoryCategory(cat),
+                          subtitle: cat == InventoryCategory.feed ? context.l10n.feedAutoDeduct : null,
                         ),
+                        for (final item in store.state.inventory.where((i) => i.category == cat))
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: rise(_ItemTile(item: item), index++),
+                          ),
+                      ],
                     ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
@@ -29,13 +30,27 @@ class HarvestScreen extends StatelessWidget {
     }
 
     var index = 3;
+    final wide = isWide(context);
+    final recordButton = PrimaryButton(
+      label: context.l10n.recordHarvestAction,
+      icon: Icons.add_rounded,
+      onTap: () async {
+        final saved = await showHarvestSheet(context);
+        if (saved != null && context.mounted) {
+          showMessage(context, saved.sale ? context.l10n.harvestSavedWithSale : context.l10n.harvestSaved);
+        }
+      },
+    );
     return SafeArea(
       bottom: false,
       child: Stack(
         children: [
-          ListView(
+          // 넓은 화면: 왼쪽에 요약과 기록 버튼, 오른쪽에 달별 기록. 휴대폰은 버튼이 아래에 떠 있다.
+          SplitList(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-            children: [
+            primaryFlex: 2,
+            secondaryFlex: 3,
+            primary: [
               rise(Text(context.l10n.harvestTitle, style: AppText.title), 0),
               const SizedBox(height: 14),
               rise(
@@ -77,6 +92,9 @@ class HarvestScreen extends StatelessWidget {
                 ),
                 1,
               ),
+              if (wide) ...[const SizedBox(height: 14), recordButton],
+            ],
+            secondary: [
               if (harvests.isEmpty)
                 Padding(
                   padding: EdgeInsets.only(top: 40),
@@ -92,21 +110,7 @@ class HarvestScreen extends StatelessWidget {
               ],
             ],
           ),
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 16,
-            child: PrimaryButton(
-              label: context.l10n.recordHarvestAction,
-              icon: Icons.add_rounded,
-              onTap: () async {
-                final saved = await showHarvestSheet(context);
-                if (saved != null && context.mounted) {
-                  showMessage(context, saved.sale ? context.l10n.harvestSavedWithSale : context.l10n.harvestSaved);
-                }
-              },
-            ),
-          ),
+          if (!wide) Positioned(left: 20, right: 20, bottom: 16, child: recordButton),
         ],
       ),
     );

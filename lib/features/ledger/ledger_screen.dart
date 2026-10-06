@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
@@ -64,80 +65,87 @@ class _LedgerScreenState extends State<LedgerScreen> {
     }
 
     var index = 3;
+    final wide = isWide(context);
+    final addButton = PrimaryButton(label: context.l10n.addLedgerEntry, icon: Icons.add_rounded, onTap: _add);
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            PageHeader(
-              title: context.l10n.ledgerTitle,
-              subtitle: context.l10n.ledgerCurrencyNote(store.state.profile.currency),
-              trailing: IconButton(
-                tooltip: context.l10n.exportLedgerCsv,
-                onPressed: () => exportLedgerCsvFile(context),
-                icon: const Icon(Icons.file_download_outlined),
+      body: WideBody(
+        maxWidth: wideContentMaxWidth,
+        child: SafeArea(
+          child: Column(
+            children: [
+              PageHeader(
+                title: context.l10n.ledgerTitle,
+                subtitle: context.l10n.ledgerCurrencyNote(store.state.profile.currency),
+                trailing: IconButton(
+                  tooltip: context.l10n.exportLedgerCsv,
+                  onPressed: () => exportLedgerCsvFile(context),
+                  icon: const Icon(Icons.file_download_outlined),
+                ),
               ),
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                    children: [
-                      rise(
-                        Row(
-                          children: [
-                            IconButton(
-                              tooltip: context.l10n.previousMonth,
-                              onPressed: () => setState(() => _month = addMonths(_month, -1)),
-                              icon: const Icon(Icons.chevron_left_rounded),
-                            ),
-                            Expanded(
-                              child: Text(
-                                DateFormat.yMMMM(context.localeName).format(_month),
-                                style: AppText.h2,
-                                textAlign: TextAlign.center,
+              Expanded(
+                child: Stack(
+                  children: [
+                    // 넓은 화면: 왼쪽에 달 이동·요약·분류별·기록 버튼, 오른쪽에 날짜별 기록.
+                    SplitList(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                      widePadding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
+                      primary: [
+                        rise(
+                          Row(
+                            children: [
+                              IconButton(
+                                tooltip: context.l10n.previousMonth,
+                                onPressed: () => setState(() => _month = addMonths(_month, -1)),
+                                icon: const Icon(Icons.chevron_left_rounded),
                               ),
-                            ),
-                            IconButton(
-                              tooltip: context.l10n.nextMonth,
-                              onPressed: canGoNext ? () => setState(() => _month = nextMonth) : null,
-                              icon: const Icon(Icons.chevron_right_rounded),
-                            ),
-                          ],
+                              Expanded(
+                                child: Text(
+                                  DateFormat.yMMMM(context.localeName).format(_month),
+                                  style: AppText.h2,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: context.l10n.nextMonth,
+                                onPressed: canGoNext ? () => setState(() => _month = nextMonth) : null,
+                                icon: const Icon(Icons.chevron_right_rounded),
+                              ),
+                            ],
+                          ),
+                          0,
                         ),
-                        0,
-                      ),
-                      const SizedBox(height: 8),
-                      rise(_MonthSummary(income: income, expense: expense, money: money), 1),
-                      if (entries.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 40),
-                          child: Center(child: Text(context.l10n.noLedgerThisMonth, style: AppText.caption)),
-                        )
-                      else ...[
-                        SectionTitle(context.l10n.byCategory),
-                        rise(_CategoryCard(categories: categories, money: money), 2),
-                        for (final day in days.entries) ...[
-                          SectionTitle(DateFormat.MMMEd(context.localeName).format(day.key)),
-                          for (final e in day.value)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: rise(_EntryTile(entry: e, money: money), (index++).clamp(0, 10)),
-                            ),
+                        const SizedBox(height: 8),
+                        rise(_MonthSummary(income: income, expense: expense, money: money), 1),
+                        if (entries.isNotEmpty) ...[
+                          SectionTitle(context.l10n.byCategory),
+                          rise(_CategoryCard(categories: categories, money: money), 2),
+                        ],
+                        if (wide) ...[const SizedBox(height: 14), addButton],
+                      ],
+                      secondary: [
+                        if (entries.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 40),
+                            child: Center(child: Text(context.l10n.noLedgerThisMonth, style: AppText.caption)),
+                          )
+                        else ...[
+                          for (final day in days.entries) ...[
+                            SectionTitle(DateFormat.MMMEd(context.localeName).format(day.key)),
+                            for (final e in day.value)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: rise(_EntryTile(entry: e, money: money), (index++).clamp(0, 10)),
+                              ),
+                          ],
                         ],
                       ],
-                    ],
-                  ),
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    bottom: 16,
-                    child: PrimaryButton(label: context.l10n.addLedgerEntry, icon: Icons.add_rounded, onTap: _add),
-                  ),
-                ],
+                    ),
+                    if (!wide) Positioned(left: 20, right: 20, bottom: 16, child: addButton),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
