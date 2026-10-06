@@ -90,6 +90,33 @@ class _WeatherScreenState extends State<WeatherScreen> {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                       children: [
+                        if (weather.error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: AppCard(
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.cloud_off_rounded, color: AppColors.muted),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      context.l10n.weatherOffline(
+                                        weatherFetchedLabel(context, r.fetchedAt, DateTime.now()),
+                                      ),
+                                      style: AppText.caption,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: weather.loading
+                                        ? null
+                                        : () => weather.ensureLoaded(profile.latitude, profile.longitude, force: true),
+                                    child: Text(context.l10n.retry),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         rise(_Current(report: r), 0),
                         SectionTitle(context.l10n.farmAdvice),
                         for (final (i, (icon, text)) in _advice(r).indexed)
@@ -150,7 +177,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         ),
                         const SizedBox(height: 14),
                         Text(
-                          context.l10n.weatherUpdated(DateFormat('HH:mm').format(r.fetchedAt)),
+                          context.l10n.weatherUpdated(weatherFetchedLabel(context, r.fetchedAt, DateTime.now())),
                           style: AppText.tiny,
                           textAlign: TextAlign.center,
                         ),

@@ -244,7 +244,12 @@ class CropDetailScreen extends StatelessWidget {
                       icon: Icons.add_rounded,
                       onTap: () async {
                         final saved = await showHarvestSheet(context, field: field);
-                        if (saved && context.mounted) showMessage(context, context.l10n.harvestSaved);
+                        if (saved != null && context.mounted) {
+                          showMessage(
+                            context,
+                            saved.sale ? context.l10n.harvestSavedWithSale : context.l10n.harvestSaved,
+                          );
+                        }
                       },
                     ),
                   ),

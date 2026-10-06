@@ -7,6 +7,7 @@ import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
 import '../../data/models.dart';
 import '../../l10n/l10n.dart';
+import '../crops/crop_actions.dart';
 
 String _date(BuildContext context, DateTime d) => DateFormat.yMMMd(context.localeName).format(d);
 
@@ -158,17 +159,15 @@ class _AddAnimalSheetState extends State<_AddAnimalSheet> {
   }
 }
 
-/// 출하·폐사 처리 시트. 처리했으면 true.
-Future<bool> showRemoveAnimalSheet(BuildContext context, Animal animal) async {
-  final result = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: AppColors.bg,
-    shape: _sheetShape,
-    builder: (_) => _RemoveAnimalSheet(animal: animal),
-  );
-  return result ?? false;
-}
+/// 출하·폐사 처리 시트. 처리했으면 판매 금액도 장부에 적었는지([sale])를 돌려주고, 취소하면 null.
+Future<({bool sale})?> showRemoveAnimalSheet(BuildContext context, Animal animal) =>
+    showModalBottomSheet<({bool sale})>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bg,
+      shape: _sheetShape,
+      builder: (_) => _RemoveAnimalSheet(animal: animal),
+    );
 
 class _RemoveAnimalSheet extends StatefulWidget {
   const _RemoveAnimalSheet({required this.animal});
@@ -182,52 +181,73 @@ class _RemoveAnimalSheet extends StatefulWidget {
 class _RemoveAnimalSheetState extends State<_RemoveAnimalSheet> {
   AnimalEventType _type = AnimalEventType.sold;
   final _note = TextEditingController();
+  final _sale = TextEditingController();
+  String? _saleError;
 
   @override
   void dispose() {
     _note.dispose();
+    _sale.dispose();
     super.dispose();
   }
 
   Future<void> _confirm() async {
-    await FarmScope.read(context).removeAnimal(widget.animal.id, type: _type, note: _note.text);
-    if (mounted) Navigator.of(context).pop(true);
+    final a = widget.animal;
+    // 출하가 아니면 금액 칸이 숨겨지므로, 남아 있는 입력은 무시한다.
+    final (sale, saleError) = _type == AnimalEventType.sold ? readSaleAmount(context, _sale.text) : (null, null);
+    setState(() => _saleError = saleError);
+    if (saleError != null) return;
+    await FarmScope.read(context).removeAnimal(
+      a.id,
+      type: _type,
+      note: _note.text,
+      sale: sale == null
+          ? null
+          : LedgerSale(amount: sale, note: context.l10n.animalSaleNote(context.l10n.kindOne(a.kind), a.name, a.tag)),
+    );
+    if (mounted) Navigator.of(context).pop((sale: sale != null));
   }
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(context.l10n.removeAnimalTitle(widget.animal.name), style: AppText.h2),
-        Text(context.l10n.removeAnimalHint, style: AppText.caption),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final t in AnimalEventType.values.where((t) => t != AnimalEventType.added))
-              ChoiceChip(
-                label: Text(context.l10n.eventType(t)),
-                selected: _type == t,
-                onSelected: (_) => setState(() => _type = t),
-                selectedColor: AppColors.primarySoft,
-              ),
+    child: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(context.l10n.removeAnimalTitle(widget.animal.name), style: AppText.h2),
+          Text(context.l10n.removeAnimalHint, style: AppText.caption),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final t in AnimalEventType.values.where((t) => t != AnimalEventType.added))
+                ChoiceChip(
+                  label: Text(context.l10n.eventType(t)),
+                  selected: _type == t,
+                  onSelected: (_) => setState(() => _type = t),
+                  selectedColor: AppColors.primarySoft,
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_type == AnimalEventType.sold) ...[
+            SaleAmountField(controller: _sale, errorText: _saleError),
+            const SizedBox(height: 10),
           ],
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _note,
-          decoration: InputDecoration(labelText: context.l10n.optionalMemo, hintText: context.l10n.removeNoteHint),
-        ),
-        const SizedBox(height: 16),
-        PrimaryButton(
-          label: context.l10n.confirmRemoval(context.l10n.eventType(_type)),
-          icon: Icons.check_rounded,
-          onTap: _confirm,
-        ),
-      ],
+          TextField(
+            controller: _note,
+            decoration: InputDecoration(labelText: context.l10n.optionalMemo, hintText: context.l10n.removeNoteHint),
+          ),
+          const SizedBox(height: 16),
+          PrimaryButton(
+            label: context.l10n.confirmRemoval(context.l10n.eventType(_type)),
+            icon: Icons.check_rounded,
+            onTap: _confirm,
+          ),
+        ],
+      ),
     ),
   );
 }

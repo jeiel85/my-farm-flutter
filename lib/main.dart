@@ -28,7 +28,13 @@ Future<void> main() async {
   final update = appUpdateSupported
       ? UpdateController(storage: storage, platform: MethodChannelUpdatePlatform())
       : null;
-  runApp(MyFarmApp(store: store, weather: WeatherController(WeatherService()), update: update));
+  runApp(
+    MyFarmApp(
+      store: store,
+      weather: WeatherController(WeatherService(), cache: storage),
+      update: update,
+    ),
+  );
   // 첫 화면을 막지 않도록 앱을 띄운 뒤 확인한다.
   unawaited(update?.init());
 }

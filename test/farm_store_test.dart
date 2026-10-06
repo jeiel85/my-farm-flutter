@@ -497,6 +497,113 @@ void main() {
       expect(store.state.ledger, hasLength(count));
     });
 
+    test('고치면 값만 바뀌고 목록 위치(같은 날 순서)는 그대로이며, 잘못된 값·없는 기록은 거부한다', () async {
+      final (store, storage) = await fresh();
+      final first = await store.addLedgerEntry(
+        category: LedgerCategory.crops,
+        amount: 1000,
+        date: DateTime(2026, 10, 4),
+      );
+      final second = await store.addLedgerEntry(
+        category: LedgerCategory.feed,
+        amount: 2000,
+        date: DateTime(2026, 10, 4),
+      );
+      final index = store.state.ledger.indexWhere((e) => e.id == first.id);
+
+      final updated = await store.updateLedgerEntry(
+        first.id,
+        category: LedgerCategory.vet,
+        amount: 1500,
+        date: DateTime(2026, 10, 4, 18),
+        note: ' 수의사 왕진 ',
+      );
+      expect(updated.id, first.id);
+      expect(updated.isIncome, isFalse);
+      expect(updated.date, DateTime(2026, 10, 4));
+      expect(updated.note, '수의사 왕진');
+      expect(store.state.ledger.indexWhere((e) => e.id == first.id), index);
+      final day = store.ledgerBetween(DateTime(2026, 10, 4), DateTime(2026, 10, 5));
+      expect([for (final e in day) e.id], [second.id, first.id]);
+      expect(jsonEncode(store.state.toJson()), storage.value);
+
+      expect(
+        () => store.updateLedgerEntry(first.id, category: LedgerCategory.vet, amount: 0, date: now),
+        throwsArgumentError,
+      );
+      expect(
+        () => store.updateLedgerEntry('nope', category: LedgerCategory.vet, amount: 5, date: now),
+        throwsStateError,
+      );
+      expect(store.state.ledger.firstWhere((e) => e.id == first.id).amount, 1500);
+    });
+
+    test('출하·수확에 판매 금액을 주면 같은 저장에서 장부 매출로 적는다', () async {
+      final (store, storage) = await fresh();
+      final count = store.state.ledger.length;
+      final cow = store.animalsOf(AnimalKind.cow).first;
+      await store.removeAnimal(
+        cow.id,
+        type: AnimalEventType.sold,
+        sale: const LedgerSale(amount: 4500000, note: '한우 출하'),
+      );
+      expect(store.animalById(cow.id), isNull);
+      final sold = store.state.ledger.last;
+      expect(
+        (sold.category, sold.amount, sold.note, sold.date),
+        (LedgerCategory.livestock, 4500000.0, '한우 출하', DateTime(2026, 10, 5)),
+      );
+
+      final field = store.state.fields.first;
+      await store.harvest(
+        fieldId: field.id,
+        amountKg: 12,
+        replant: false,
+        sale: const LedgerSale(amount: 96000, note: '토마토 12kg 수확'),
+      );
+      final crop = store.state.ledger.last;
+      expect((crop.category, crop.amount), (LedgerCategory.crops, 96000.0));
+      expect(crop.id, isNot(sold.id));
+      expect(store.state.ledger, hasLength(count + 2));
+      expect(jsonEncode(store.state.toJson()), storage.value);
+
+      // 금액 없이 기록하면 장부는 그대로다.
+      await store.harvest(fieldId: field.id, amountKg: 3, replant: false);
+      expect(store.state.ledger, hasLength(count + 2));
+    });
+
+    test('폐사에 판매 금액을 주거나 금액이 잘못되면 아무것도 바꾸지 않는다', () async {
+      final (store, _) = await fresh();
+      final before = jsonEncode(store.state.toJson());
+      final cow = store.animalsOf(AnimalKind.cow).first;
+      expect(
+        () => store.removeAnimal(
+          cow.id,
+          type: AnimalEventType.died,
+          sale: const LedgerSale(amount: 10, note: ''),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => store.removeAnimal(
+          cow.id,
+          type: AnimalEventType.sold,
+          sale: const LedgerSale(amount: -1, note: ''),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => store.harvest(
+          fieldId: store.state.fields.first.id,
+          amountKg: 1,
+          replant: true,
+          sale: const LedgerSale(amount: double.nan, note: ''),
+        ),
+        throwsArgumentError,
+      );
+      expect(jsonEncode(store.state.toJson()), before);
+    });
+
     test('분류별 합계는 큰 순이다', () async {
       final (store, _) = await fresh();
       final from = DateTime(2020);

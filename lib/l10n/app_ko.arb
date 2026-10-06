@@ -1168,5 +1168,83 @@
   "updateOpenSettings": "설정 열기",
   "updateFailed": "내려받지 못했거나 파일 확인에 실패했어요.",
   "updateRetry": "다시 시도",
-  "updateOpenInBrowser": "브라우저에서 받기"
+  "updateOpenInBrowser": "브라우저에서 받기",
+  "editLedgerEntry": "장부 기록 고치기",
+  "ledgerUpdated": "장부 기록을 고쳤어요.",
+  "saleAmountOptional": "판매 금액 (선택)",
+  "saleAmountHint": "적으면 장부에 매출로 함께 기록돼요.",
+  "harvestSaleNote": "{crop} {kg}kg 수확",
+  "@harvestSaleNote": {
+    "placeholders": {
+      "crop": {
+        "type": "String"
+      },
+      "kg": {
+        "type": "String"
+      }
+    }
+  },
+  "animalSaleNote": "{kind} {name}({tag}) 출하",
+  "@animalSaleNote": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      },
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "harvestSavedWithSale": "수확과 판매 금액을 기록했습니다.",
+  "animalSoldWithSale": "{name}의 출하와 판매 금액을 기록했습니다.",
+  "@animalSoldWithSale": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "exportLedgerCsv": "CSV로 내보내기",
+  "saveLedgerCsvDialog": "장부 CSV 저장",
+  "ledgerCsvEmpty": "내보낼 장부 기록이 없어요.",
+  "ledgerCsvCancelled": "내보내기를 취소했어요.",
+  "ledgerCsvSaved": "장부를 저장했어요: {file}",
+  "@ledgerCsvSaved": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
+  "ledgerCsvFailed": "장부를 저장하지 못했어요: {error}",
+  "@ledgerCsvFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "csvType": "구분",
+  "csvCategory": "분류",
+  "csvNote": "메모",
+  "weatherOffline": "연결하지 못해 {when}에 받은 날씨를 보여 줘요.",
+  "@weatherOffline": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "farmMap": "농장 지도",
+  "mapZoneNeedsWater": "{zone}, 물 줄 때가 됐어요",
+  "@mapZoneNeedsWater": {
+    "placeholders": {
+      "zone": {
+        "type": "String"
+      }
+    }
+  }
 }

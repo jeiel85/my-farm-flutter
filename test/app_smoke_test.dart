@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:ui' show Tristate;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -178,7 +180,67 @@ void main() {
     expect(expense, greaterThanOrEqualTo(45000));
     final won = NumberFormat.simpleCurrency(locale: 'ko', name: 'KRW');
     expect(find.text(won.format(income - expense)), findsOneWidget);
+
+    // 기록을 누르면 같은 값이 채워진 수정 시트가 열리고, 고치면 같은 기록이 바뀐다.
+    await tester.tap(find.text('송아지 설사약'));
+    await tester.pumpAndSettle();
+    expect(find.text('장부 기록 고치기'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '45000'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, '52000');
+    await tester.tap(find.text('기록하기'));
+    await tester.pumpAndSettle();
+    expect(store.state.ledger, hasLength(before + 1));
+    expect(store.state.ledger.last.id, added.id);
+    expect(store.state.ledger.last.amount, 52000);
+    expect(find.text('장부 기록을 고쳤어요.'), findsOneWidget);
+    expect(find.text('-₩52,000'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
+  testWidgets('수확할 때 판매 금액을 적으면 장부에 작물 매출로 함께 남는다', (tester) async {
+    final store = await pumpApp(tester);
+    await tester.tap(find.text('수확').last);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.text('수확 기록하기'));
+    await tester.pumpAndSettle();
+    final before = store.state.ledger.length;
+    await tester.enterText(find.widgetWithText(TextField, '수확량'), '12');
+    await tester.enterText(find.widgetWithText(TextField, '판매 금액 (선택)'), '96,000');
+    await tester.tap(find.text('기록하기'));
+    await tester.pumpAndSettle();
+    expect(store.state.ledger, hasLength(before + 1));
+    final sale = store.state.ledger.last;
+    expect((sale.category, sale.amount), (LedgerCategory.crops, 96000.0));
+    expect(sale.note, endsWith('12kg 수확'));
+    expect(find.text('수확과 판매 금액을 기록했습니다.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
+  testWidgets('스크린리더로 지도 구역을 읽고 고를 수 있다', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpApp(tester);
+    await tester.tap(find.text('농장'));
+    // 탭 전환 애니메이션이 끝나 이전 화면이 빠질 때까지 프레임을 넘긴다.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    // 구역 칩도 같은 이름이라 지도 안에서만 찾는다.
+    FinderBase<SemanticsNode> inMap(Pattern label) =>
+        find.semantics.descendant(of: find.semantics.byLabel('농장 지도'), matching: find.semantics.byLabel(label));
+    bool selected(Pattern label) =>
+        inMap(label).evaluate().single.getSemanticsData().flagsCollection.isSelected == Tristate.isTrue;
+
+    expect(inMap('토마토 밭'), findsOne);
+    expect(inMap('채소 밭, 물 줄 때가 됐어요'), findsOne);
+    expect(selected('토마토 밭'), isFalse);
+    tester.semantics.tap(inMap('토마토 밭'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(selected('토마토 밭'), isTrue);
+    expect(find.text('토마토 밭'), findsWidgets);
+    semantics.dispose();
     await _unmount(tester);
   });
 

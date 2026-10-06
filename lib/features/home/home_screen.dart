@@ -403,6 +403,11 @@ class _WeatherCard extends StatelessWidget {
                   ),
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
+                if (weather.error != null)
+                  Text(
+                    context.l10n.weatherOffline(weatherFetchedLabel(context, report.fetchedAt, DateTime.now())),
+                    style: const TextStyle(color: Color(0xFFFFD66B), fontSize: 12),
+                  ),
               ],
             ),
           ),
