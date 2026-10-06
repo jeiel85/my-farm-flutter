@@ -150,11 +150,15 @@ class _WeatherScreenState extends State<WeatherScreen> {
                                       padding: const EdgeInsets.symmetric(vertical: 8),
                                       child: Row(
                                         children: [
+                                          // "10. 10. (토)"처럼 두 자리 월·일도 한 줄에 들어가는 폭.
                                           SizedBox(
-                                            width: 64,
+                                            width: 96,
                                             child: Text(
                                               DateFormat.MEd(context.localeName).format(d.date),
                                               style: AppText.body,
+                                              maxLines: 1,
+                                              softWrap: false,
+                                              overflow: TextOverflow.fade,
                                             ),
                                           ),
                                           Icon(describeWeather(d.code).$2, size: 20, color: AppColors.orange),
