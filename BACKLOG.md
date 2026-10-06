@@ -22,6 +22,12 @@ v1.0.0에 넣지 않은 항목입니다. "무엇을 · 왜 · 영향 범위" 순
 
 - [x] **5일 예보 날짜 칸 줄바꿈** (v1.7.0) · 날짜 칸 폭이 64px로 고정되어 "10. 10. (토)"처럼 두 자리 월·일이면 두 줄로 넘어감(1080px 기기에서 확인) · `weather_screen.dart` 예보 행
 
+## 2.0 게임 전환 중 나온 항목
+
+- [ ] **실기기에서 지도 첫 굽기 시간 재기** · 에뮬레이터에서 흐림 처리를 줄인 뒤 첫 화면 2~4초였으나, 호스트 메모리가 부족한 상태라 1.7.1과 같은 조건 비교는 못 함. 저사양 휴대폰에서 첫 화면이 늦으면 배경을 비동기로 굽고 그동안 단색 풀밭을 보여 주는 방식 검토 · `farm_world.dart` `FarmWorld.ground`
+- [ ] **날씨 모듈 재사용 또는 정리** · 관리 앱 날씨 화면을 걷어내면서 `lib/data/weather.dart`(와 테스트)만 남음. 5단계(날씨 효과)에서 쓰지 않기로 하면 지움 · `weather.dart`, `weather_test.dart`
+- [ ] **지도 동물 크기** · 전체 지도에서 닭이 점처럼 작게 보임(구역을 누르면 커짐). 플레이테스트 의견 보고 결정 · `storybook.dart` `draw*`
+
 ## 하드닝 후보
 
 GitHub 이슈 [#1 v1.0.0](https://github.com/jeiel85/my-farm-flutter/issues/1), [#2 v1.1.0](https://github.com/jeiel85/my-farm-flutter/issues/2), [#6 v1.5.0](https://github.com/jeiel85/my-farm-flutter/issues/6), [#14 v1.7.0](https://github.com/jeiel85/my-farm-flutter/issues/14)에서 관리합니다.
