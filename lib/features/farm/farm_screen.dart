@@ -15,6 +15,7 @@ import '../inventory/inventory_screen.dart';
 import '../livestock/livestock_screen.dart';
 import '../weather/weather_screen.dart';
 import 'farm_map_view.dart';
+import 'farm_world.dart';
 import '../../l10n/l10n.dart';
 
 final _liters = NumberFormat('#,###');
@@ -252,7 +253,7 @@ class _FullMapPageState extends State<_FullMapPage> {
     final store = FarmScope.of(context);
     final size = MediaQuery.sizeOf(context);
     return Scaffold(
-      backgroundColor: const Color(0xFF94C46A),
+      backgroundColor: FarmWorld.groundColor,
       body: Stack(
         children: [
           Positioned.fill(
@@ -624,14 +625,14 @@ class _ExploreGrid extends StatelessWidget {
         Icons.pets_outlined,
         context.l10n.livestock,
         context.l10n.animalCount(store.totalAnimals),
-        const Color(0xFFF7E6D9),
+        AppTints.terracotta,
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LivestockScreen())),
       ),
       (
         Icons.water_drop_outlined,
         context.l10n.watering,
         next == null ? '-' : (next.isAfter(store.now) ? context.l10n.nextAt(hm(next)) : context.l10n.neededNow),
-        const Color(0xFFDDEEFA),
+        AppTints.slate,
         () => onSelectZone(ZoneId.water),
       ),
       (
@@ -640,21 +641,21 @@ class _ExploreGrid extends StatelessWidget {
         report == null
             ? (weather.error != null ? context.l10n.loadFailed : wLabel)
             : '$wLabel · ${report.temperatureC.round()}°C',
-        const Color(0xFFFCF1D2),
+        AppTints.ochre,
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WeatherScreen())),
       ),
       (
         Icons.warehouse_outlined,
         context.l10n.inventory,
         store.lowInventory.isEmpty ? context.l10n.allStocked : context.l10n.lowCount(store.lowInventory.length),
-        const Color(0xFFE9E6F5),
+        AppTints.stone,
         () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const InventoryScreen())),
       ),
       (
         Icons.inventory_2_outlined,
         context.l10n.harvestRecords,
         context.l10n.recordsCount(store.state.harvests.length),
-        const Color(0xFFFBE3E1),
+        AppTints.brick,
         () => AppShell.goTo(context, AppTab.harvest),
       ),
     ];

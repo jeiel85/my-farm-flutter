@@ -29,9 +29,9 @@ enum AnimalKind {
 }
 
 enum CropStatus {
-  excellent(Color(0xFF2E7D4F)),
-  good(Color(0xFF5B8C3A)),
-  attention(Color(0xFFD9822B));
+  excellent(Color(0xFF5E7F4C)),
+  good(Color(0xFF8A9A5B)),
+  attention(Color(0xFFC4633F));
 
   const CropStatus(this.color);
   final Color color;

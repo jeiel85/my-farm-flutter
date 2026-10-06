@@ -107,7 +107,7 @@ class PhoneWidthFrame extends StatelessWidget {
     // 휴대폰 폭이거나, 가로 배치를 쓸 만큼 넓으면(옆 메뉴 + 두 열) 그대로 그린다. 그 사이 폭만 휴대폰 틀에 담는다.
     if (media.size.width <= maxWidth + 40 || media.size.width >= wideBreakpoint) return child;
     return ColoredBox(
-      color: const Color(0xFFE4DCCD),
+      color: const Color(0xFFE2DCD0),
       child: Center(
         child: Container(
           width: maxWidth,
