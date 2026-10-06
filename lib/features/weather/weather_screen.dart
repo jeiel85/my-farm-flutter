@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
@@ -51,140 +52,144 @@ class _WeatherScreenState extends State<WeatherScreen> {
     final profile = FarmScope.of(context).state.profile;
     final r = weather.report;
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            PageHeader(
-              title: context.l10n.weather,
-              subtitle: profile.locationLabel,
-              trailing: IconButton(
-                onPressed: weather.loading
-                    ? null
-                    : () => weather.ensureLoaded(profile.latitude, profile.longitude, force: true),
-                icon: const Icon(Icons.refresh_rounded),
+      body: WideBody(
+        maxWidth: 760,
+        child: SafeArea(
+          child: Column(
+            children: [
+              PageHeader(
+                title: context.l10n.weather,
+                subtitle: profile.locationLabel,
+                trailing: IconButton(
+                  onPressed: weather.loading
+                      ? null
+                      : () => weather.ensureLoaded(profile.latitude, profile.longitude, force: true),
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
               ),
-            ),
-            Expanded(
-              child: r == null
-                  ? Center(
-                      child: weather.error != null
-                          ? Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.muted),
-                                const SizedBox(height: 8),
-                                Text(
-                                  weatherErrorText(context, weather.error!),
-                                  style: AppText.caption,
-                                  textAlign: TextAlign.center,
-                                ),
-                                TextButton(
-                                  onPressed: () =>
-                                      weather.ensureLoaded(profile.latitude, profile.longitude, force: true),
-                                  child: Text(context.l10n.retry),
-                                ),
-                              ],
-                            )
-                          : const CircularProgressIndicator(),
-                    )
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-                      children: [
-                        if (weather.error != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: AppCard(
-                              padding: const EdgeInsets.all(14),
-                              child: Row(
+              Expanded(
+                child: r == null
+                    ? Center(
+                        child: weather.error != null
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.cloud_off_rounded, color: AppColors.muted),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      context.l10n.weatherOffline(
-                                        weatherFetchedLabel(context, r.fetchedAt, DateTime.now()),
-                                      ),
-                                      style: AppText.caption,
-                                    ),
+                                  const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.muted),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    weatherErrorText(context, weather.error!),
+                                    style: AppText.caption,
+                                    textAlign: TextAlign.center,
                                   ),
                                   TextButton(
-                                    onPressed: weather.loading
-                                        ? null
-                                        : () => weather.ensureLoaded(profile.latitude, profile.longitude, force: true),
+                                    onPressed: () =>
+                                        weather.ensureLoaded(profile.latitude, profile.longitude, force: true),
                                     child: Text(context.l10n.retry),
                                   ),
                                 ],
-                              ),
-                            ),
-                          ),
-                        rise(_Current(report: r), 0),
-                        SectionTitle(context.l10n.farmAdvice),
-                        for (final (i, (icon, text)) in _advice(r).indexed)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: rise(
-                              AppCard(
+                              )
+                            : const CircularProgressIndicator(),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                        children: [
+                          if (weather.error != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: AppCard(
                                 padding: const EdgeInsets.all(14),
                                 child: Row(
                                   children: [
-                                    Icon(icon, color: AppColors.primary),
+                                    const Icon(Icons.cloud_off_rounded, color: AppColors.muted),
                                     const SizedBox(width: 12),
-                                    Expanded(child: Text(text, style: AppText.body)),
+                                    Expanded(
+                                      child: Text(
+                                        context.l10n.weatherOffline(
+                                          weatherFetchedLabel(context, r.fetchedAt, DateTime.now()),
+                                        ),
+                                        style: AppText.caption,
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: weather.loading
+                                          ? null
+                                          : () =>
+                                                weather.ensureLoaded(profile.latitude, profile.longitude, force: true),
+                                      child: Text(context.l10n.retry),
+                                    ),
                                   ],
                                 ),
                               ),
-                              1 + i,
                             ),
-                          ),
-                        SectionTitle(context.l10n.forecast5),
-                        rise(
-                          AppCard(
-                            child: Column(
-                              children: [
-                                for (final d in r.daily)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
-                                    child: Row(
-                                      children: [
-                                        SizedBox(
-                                          width: 64,
-                                          child: Text(
-                                            DateFormat.MEd(context.localeName).format(d.date),
-                                            style: AppText.body,
-                                          ),
-                                        ),
-                                        Icon(describeWeather(d.code).$2, size: 20, color: AppColors.orange),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            context.l10n.weatherText(describeWeather(d.code).$1),
-                                            style: AppText.caption,
-                                          ),
-                                        ),
-                                        Text('💧${d.rainChance}%', style: AppText.caption),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          '${d.minC.round()}° / ${d.maxC.round()}°',
-                                          style: AppText.h3.copyWith(fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
+                          rise(_Current(report: r), 0),
+                          SectionTitle(context.l10n.farmAdvice),
+                          for (final (i, (icon, text)) in _advice(r).indexed)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: rise(
+                                AppCard(
+                                  padding: const EdgeInsets.all(14),
+                                  child: Row(
+                                    children: [
+                                      Icon(icon, color: AppColors.primary),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: Text(text, style: AppText.body)),
+                                    ],
                                   ),
-                              ],
+                                ),
+                                1 + i,
+                              ),
                             ),
+                          SectionTitle(context.l10n.forecast5),
+                          rise(
+                            AppCard(
+                              child: Column(
+                                children: [
+                                  for (final d in r.daily)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      child: Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 64,
+                                            child: Text(
+                                              DateFormat.MEd(context.localeName).format(d.date),
+                                              style: AppText.body,
+                                            ),
+                                          ),
+                                          Icon(describeWeather(d.code).$2, size: 20, color: AppColors.orange),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              context.l10n.weatherText(describeWeather(d.code).$1),
+                                              style: AppText.caption,
+                                            ),
+                                          ),
+                                          Text('💧${d.rainChance}%', style: AppText.caption),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            '${d.minC.round()}° / ${d.maxC.round()}°',
+                                            style: AppText.h3.copyWith(fontSize: 14),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            5,
                           ),
-                          5,
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          context.l10n.weatherUpdated(weatherFetchedLabel(context, r.fetchedAt, DateTime.now())),
-                          style: AppText.tiny,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-            ),
-          ],
+                          const SizedBox(height: 14),
+                          Text(
+                            context.l10n.weatherUpdated(weatherFetchedLabel(context, r.fetchedAt, DateTime.now())),
+                            style: AppText.tiny,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );

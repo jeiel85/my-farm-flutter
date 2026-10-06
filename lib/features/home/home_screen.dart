@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../app_shell.dart';
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/app_update.dart';
@@ -50,11 +51,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final avgGrowth = store.state.fields.isEmpty
         ? 0.0
         : store.state.fields.map((f) => f.growthAt(now)).reduce((a, b) => a + b) / store.state.fields.length;
+    final wide = isWide(context);
+    final tasks = [SectionTitle(context.l10n.todayTasks), rise(const _TaskCard(), 4 + alerts.length)];
     return SafeArea(
       bottom: false,
-      child: ListView(
+      // 넓은 화면: 왼쪽에 인사·날씨·지표·오늘 할 일, 오른쪽에 확인할 것.
+      child: SplitList(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-        children: [
+        primary: [
           rise(
             Row(
               children: [
@@ -116,6 +120,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             2,
           ),
+          if (wide) ...tasks,
+        ],
+        secondary: [
           SectionTitle(
             context.l10n.toCheckToday,
             subtitle: alerts.isEmpty ? null : context.l10n.alertsCount(alerts.length),
@@ -137,8 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
           else
             for (var i = 0; i < alerts.length; i++)
               Padding(padding: const EdgeInsets.only(bottom: 8), child: rise(alerts[i], 3 + i)),
-          SectionTitle(context.l10n.todayTasks),
-          rise(const _TaskCard(), 4 + alerts.length),
+          if (!wide) ...tasks,
         ],
       ),
     );

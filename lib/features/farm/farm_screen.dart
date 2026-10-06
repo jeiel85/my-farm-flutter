@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../app_shell.dart';
+import '../../core/layout.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import '../../data/farm_store.dart';
@@ -44,7 +45,8 @@ class _FarmScreenState extends State<FarmScreen> {
     setState(() => _zone = zone == _zone ? null : zone);
     final key = _zone == null ? _overviewKey : _chipKeys[_zone]!;
     final ctx = key.currentContext;
-    if (ctx != null) {
+    // 칩을 감싸 보여 주는 넓은 화면에서는 가로로 맞출 필요가 없다(세로 목록만 움직이게 된다).
+    if (ctx != null && !isWide(context)) {
       Scrollable.ensureVisible(
         ctx,
         alignment: 0.5,
@@ -59,11 +61,32 @@ class _FarmScreenState extends State<FarmScreen> {
     final store = FarmScope.of(context);
     final profile = store.state.profile;
     final needsWater = {for (final f in store.fieldsNeedingWater) f.zone};
+    final wide = isWide(context);
+    final chips = [
+      _ZoneChip(
+        key: _overviewKey,
+        label: context.l10n.allZones,
+        icon: Icons.grid_view_rounded,
+        active: _zone == null,
+        onTap: () => _select(null),
+      ),
+      for (final z in ZoneId.values)
+        _ZoneChip(
+          key: _chipKeys[z],
+          label: context.l10n.zone(z),
+          icon: z.icon,
+          active: _zone == z,
+          onTap: () => _select(z),
+        ),
+    ];
     return SafeArea(
       bottom: false,
-      child: ListView(
+      // 넓은 화면: 왼쪽에 구역 칩·지도, 오른쪽에 고른 구역 카드와 둘러보기.
+      child: SplitList(
         padding: const EdgeInsets.fromLTRB(0, 8, 0, 28),
-        children: [
+        widePadding: const EdgeInsets.fromLTRB(8, 16, 8, 32),
+        gap: 0,
+        primary: [
           rise(
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -100,30 +123,20 @@ class _FarmScreenState extends State<FarmScreen> {
           ),
           const SizedBox(height: 14),
           rise(
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  _ZoneChip(
-                    key: _overviewKey,
-                    label: context.l10n.allZones,
-                    icon: Icons.grid_view_rounded,
-                    active: _zone == null,
-                    onTap: () => _select(null),
-                  ),
-                  for (final z in ZoneId.values)
-                    _ZoneChip(
-                      key: _chipKeys[z],
-                      label: context.l10n.zone(z),
-                      icon: z.icon,
-                      active: _zone == z,
-                      onTap: () => _select(z),
+            // PC에서는 마우스로 가로 목록을 끌 수 없어 칩을 여러 줄로 감싼다.
+            wide
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Wrap(runSpacing: 8, children: chips),
+                  )
+                : SizedBox(
+                    height: 40,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: chips,
                     ),
-                ],
-              ),
-            ),
+                  ),
             1,
           ),
           const SizedBox(height: 14),
@@ -165,7 +178,9 @@ class _FarmScreenState extends State<FarmScreen> {
             ),
             2,
           ),
-          const SizedBox(height: 14),
+        ],
+        secondary: [
+          SizedBox(height: wide ? 54 : 14),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: AnimatedSize(
@@ -305,12 +320,15 @@ class _ZoneChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
+        // 가로 목록(휴대폰)과 여러 줄 감싸기(넓은 화면) 모두에서 같은 크기가 되도록 높이·폭을 내용에 맞춘다.
+        height: 40,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: active ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 15, color: active ? Colors.white : AppColors.text),
             const SizedBox(width: 6),
