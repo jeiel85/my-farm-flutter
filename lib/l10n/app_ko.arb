@@ -993,7 +993,7 @@
   "dailyEggs": "하루 달걀",
   "dailyMilk": "하루 우유",
   "dataSection": "데이터",
-  "dataExplain": "모든 기록은 이 기기에만 저장되어 앱을 삭제하면 함께 지워집니다. 백업 파일을 내보내 두면 다른 기기나 PC·웹 버전에서도 복원할 수 있어요.",
+  "dataExplain": "기록은 이 기기에 저장되고 개발자에게 보내지 않아요. 앱을 삭제하면 지워지지만, Android 시스템 백업이 켜져 있으면 Google 계정 백업에서 복원될 수 있어요. 백업 파일을 내보내 두면 다른 기기나 PC·웹 버전에서도 복원할 수 있어요.",
   "lastBackupNever": "마지막 백업: 아직 없음",
   "lastBackupAt": "마지막 백업: {when}",
   "@lastBackupAt": {
