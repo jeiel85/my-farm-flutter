@@ -258,6 +258,10 @@ void main() {
     await pumpApp(tester, size: const Size(1440, 900));
     // 아래 탭 대신 옆 메뉴가 있고, 앱 이름이 메뉴 위에 보인다.
     expect(find.text('마이팜'), findsOneWidget);
+    // 옆 메뉴는 화면 위에서 아래까지 꽉 찬다(내용 높이로 줄어 가운데에 뜨지 않는다).
+    final sideBar = find.byWidgetPredicate((w) => w.runtimeType.toString() == '_SideBar');
+    expect(tester.getTopLeft(sideBar).dy, 0);
+    expect(tester.getSize(sideBar).height, 900);
     expect(find.text('오늘 할 일'), findsOneWidget);
     expect(find.text('오늘 확인할 것'), findsOneWidget);
     // 홈은 두 열이다: 오늘 할 일(왼쪽)과 확인할 것(오른쪽)이 나란히 있다.

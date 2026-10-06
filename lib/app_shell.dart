@@ -85,6 +85,8 @@ class _AppShellState extends State<AppShell> {
     final wide = isWide(context);
     return Scaffold(
       body: Row(
+        // 옆 메뉴(스크롤 가능)가 내용 높이로 줄어 가운데에 뜨지 않게 세로로 꽉 채운다.
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (wide) _SideBar(current: _tab, onSelect: _select),
           Expanded(key: const ValueKey('content'), child: content),
