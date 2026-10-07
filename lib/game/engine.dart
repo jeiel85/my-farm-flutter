@@ -1,12 +1,10 @@
-import 'zone.dart';
 import 'defs.dart';
+import 'lots.dart';
 import 'sky.dart';
 import 'state.dart';
 
 /// 행동을 할 수 없는 이유. 문구는 화면에서 만든다.
 enum GameError {
-  zoneLocked,
-  alreadyUnlocked,
   levelTooLow,
   notEnoughCoins,
   notEnoughWater,
@@ -20,6 +18,24 @@ enum GameError {
   notEnoughItems,
   siloFull,
   unknownAnimal,
+
+  /// 가진 땅이 아니다.
+  notOwned,
+
+  /// 이미 지은 칸이다.
+  lotOccupied,
+
+  /// 가진 땅에 붙어 있지 않거나 이미 가진 땅이다.
+  cannotExpand,
+
+  /// 지금 레벨에서는 더 넓힐 수 없다.
+  expansionLimit,
+
+  /// 그 칸에 맞는 건물이 아니다(예: 우리가 아닌 곳에 동물 들이기).
+  wrongBuilding,
+
+  /// 핵심 건물(농가·창고)이거나 비어 있지 않아 철거할 수 없다.
+  cannotDemolish,
 }
 
 class GameException implements Exception {
@@ -38,7 +54,7 @@ class AdvanceReport {
 
   /// 오프라인 상한을 넘어 계산하지 않고 버린 분.
   int skippedMinutes = 0;
-  final cropsReady = <ZoneId>{};
+  final cropsReady = <LotId>{};
   final produced = <Species, int>{};
   final born = <Species, int>{};
 
@@ -52,7 +68,7 @@ DateTime minuteFloor(DateTime t) => DateTime(t.year, t.month, t.day, t.hour, t.m
 
 /// 게임 규칙. 모든 함수는 순수 함수다(상태를 받아 새 상태를 돌려준다).
 abstract final class GameEngine {
-  /// 새 게임. docs/game-design.md §6 처음 상태.
+  /// 새 게임. docs/farm-lots-design.md §3 처음 땅: 농가·창고, 상추가 1분 남은 밭, 성체 닭 2마리가 있는 닭장, 빈 땅 2칸.
   static GameState newGame(DateTime now, {required String farmName}) {
     final lettuce = GameDefs.crops[CropId.lettuce]!;
     final hen = GameDefs.animals[Species.chicken]!;
@@ -64,18 +80,30 @@ abstract final class GameEngine {
       barn: const {},
       feedUnits: GameDefs.startFeed * GameDefs.feedUnit,
       water: GameDefs.startWater,
-      unlocked: {ZoneId.house, ZoneId.vegetable, ZoneId.animals, ZoneId.water, ZoneId.storage},
-      fields: {
-        for (final z in GameDefs.plotZones) z: FieldState.emptyField,
-        ZoneId.vegetable: FieldState(
-          crop: CropId.lettuce,
-          minutesLeft: lettuce.growMinutes - 1,
-          totalMinutes: lettuce.growMinutes,
+      owned: {...GameDefs.startLots},
+      lots: {
+        GameDefs.farmhouseLot: const Lot(BuildingId.farmhouse),
+        GameDefs.storehouseLot: const Lot(BuildingId.storehouse),
+        GameDefs.startFieldLot: Lot(
+          BuildingId.field,
+          field: FieldState(
+            crop: CropId.lettuce,
+            minutesLeft: lettuce.growMinutes - 1,
+            totalMinutes: lettuce.growMinutes,
+          ),
         ),
+        GameDefs.startCoopLot: const Lot(BuildingId.coop),
       },
+      expansions: 0,
       animals: [
         for (var i = 0; i < 2; i++)
-          GameAnimal(id: 'a$i', species: Species.chicken, ageMinutes: hen.growMinutes, stored: i == 0 ? 1 : 0),
+          GameAnimal(
+            id: 'a$i',
+            species: Species.chicken,
+            home: GameDefs.startCoopLot,
+            ageMinutes: hen.growMinutes,
+            stored: i == 0 ? 1 : 0,
+          ),
       ],
       breedProgress: const {},
       nextAnimalId: 2,
@@ -94,7 +122,15 @@ abstract final class GameEngine {
 
     var water = s.water;
     var feed = s.feedUnits;
-    final fields = Map.of(s.fields);
+    final lots = Map.of(s.lots);
+    final plots = [
+      for (final id in s.builtLots)
+        if (s.lots[id]!.field != null) id,
+    ];
+    final pens = [
+      for (final id in s.builtLots)
+        if (s.lots[id]!.def.species != null) id,
+    ];
     final animals = [...s.animals];
     final breed = Map.of(s.breedProgress);
     var nextId = s.nextAnimalId;
@@ -103,27 +139,26 @@ abstract final class GameEngine {
       final minute = s.simTime.add(Duration(minutes: m));
       water = (water + GameSky.waterRefillAt(minute)).clamp(0, GameDefs.waterCapacity);
 
-      for (final e in fields.entries.toList()) {
-        final f = e.value;
+      for (final id in plots) {
+        final lot = lots[id]!;
+        final f = lot.field!;
         if (f.crop == null || f.ready) continue;
         final def = GameDefs.crops[f.crop]!;
         if (f.waitingWater) {
           if (water >= def.waterL) {
             water -= def.waterL;
-            fields[e.key] = f.copyWith(
-              waitingWater: false,
-              minutesLeft: def.regrowMinutes,
-              totalMinutes: def.regrowMinutes,
+            lots[id] = lot.copyWith(
+              field: f.copyWith(waitingWater: false, minutesLeft: def.regrowMinutes, totalMinutes: def.regrowMinutes),
             );
           }
           continue;
         }
         final left = f.minutesLeft - 1;
         if (left <= 0) {
-          fields[e.key] = f.copyWith(minutesLeft: 0, ready: true);
-          report.cropsReady.add(e.key);
+          lots[id] = lot.copyWith(field: f.copyWith(minutesLeft: 0, ready: true));
+          report.cropsReady.add(id);
         } else {
-          fields[e.key] = f.copyWith(minutesLeft: left);
+          lots[id] = lot.copyWith(field: f.copyWith(minutesLeft: left));
         }
       }
 
@@ -155,21 +190,23 @@ abstract final class GameEngine {
         }
       }
 
-      for (final species in Species.values) {
-        final adults = animals.where((a) => a.species == species && a.adult).length;
-        if (adults < 2) {
-          breed.remove(species);
+      // 번식: 같은 우리에 성체가 2마리 이상이고 자리가 있으면 진행한다.
+      for (final pen in pens) {
+        final species = lots[pen]!.def.species!;
+        final here = animals.where((a) => a.home == pen);
+        if (here.where((a) => a.adult).length < 2) {
+          breed.remove(pen);
           continue;
         }
-        if (animals.length >= GameDefs.penCapacity) continue; // 자리가 날 때까지 진행을 멈춘다
-        final progress = (breed[species] ?? 0) + 1;
+        if (here.length >= _capacity(lots[pen]!)) continue; // 자리가 날 때까지 진행을 멈춘다
+        final progress = (breed[pen] ?? 0) + 1;
         if (progress >= GameDefs.animals[species]!.breedEveryMinutes) {
-          animals.add(GameAnimal(id: 'a$nextId', species: species));
+          animals.add(GameAnimal(id: 'a$nextId', species: species, home: pen));
           nextId++;
-          breed[species] = 0;
+          breed[pen] = 0;
           report.born[species] = (report.born[species] ?? 0) + 1;
         } else {
-          breed[species] = progress;
+          breed[pen] = progress;
         }
       }
     }
@@ -180,7 +217,7 @@ abstract final class GameEngine {
         simTime: target,
         water: water,
         feedUnits: feed,
-        fields: fields,
+        lots: lots,
         animals: animals,
         breedProgress: breed,
         nextAnimalId: nextId,
@@ -189,36 +226,84 @@ abstract final class GameEngine {
     );
   }
 
-  // ---------------------------------------------------------------- 행동
+  static int _capacity(Lot lot) {
+    final caps = lot.def.capacity;
+    return caps.isEmpty ? 0 : caps[(lot.level - 1).clamp(0, caps.length - 1)];
+  }
 
-  static GameState unlockZone(GameState s, ZoneId zone) {
-    final def = GameDefs.zones[zone];
-    if (def == null || s.unlocked.contains(zone)) throw const GameException(GameError.alreadyUnlocked);
-    if (s.level < def.unlockLevel) throw const GameException(GameError.levelTooLow);
-    if (s.coins < def.unlockCost) throw const GameException(GameError.notEnoughCoins);
+  // ---------------------------------------------------------------- 땅·건물
+
+  /// 가진 땅에 붙은 장애물 칸을 치워 빈 땅으로 만든다.
+  static GameState clearLand(GameState s, LotId lot) {
+    if (!s.touchesOwned(lot)) throw const GameException(GameError.cannotExpand);
+    if (s.expansionsLeft <= 0) throw const GameException(GameError.expansionLimit);
+    final cost = s.nextExpansionCost!;
+    if (s.coins < cost) throw const GameException(GameError.notEnoughCoins);
     return _log(
-      s.copyWith(coins: s.coins - def.unlockCost, unlocked: {...s.unlocked, zone}),
-      LogKind.unlock,
-      -def.unlockCost,
-      zone.name,
+      s.copyWith(coins: s.coins - cost, owned: {...s.owned, lot}, expansions: s.expansions + 1),
+      LogKind.expand,
+      -cost,
+      lot.key,
     );
   }
 
-  /// 작물 구역 [zone]에 심을 수 있는 작물(레벨과 무관하게 구역 종류만 맞는 것).
-  static List<CropDef> cropsFor(ZoneId zone) {
-    final plot = GameDefs.zones[zone]?.plot;
+  /// 빈 땅에 [building]을 짓는다. 작물 건물은 빈 밭으로 시작한다.
+  static GameState build(GameState s, LotId lot, BuildingId building) {
+    final def = GameDefs.buildings[building]!;
+    if (def.core) throw const GameException(GameError.wrongBuilding);
+    if (!s.owned.contains(lot)) throw const GameException(GameError.notOwned);
+    if (s.lots.containsKey(lot)) throw const GameException(GameError.lotOccupied);
+    if (s.level < def.unlockLevel) throw const GameException(GameError.levelTooLow);
+    if (s.coins < def.cost) throw const GameException(GameError.notEnoughCoins);
+    return _log(
+      s.copyWith(
+        coins: s.coins - def.cost,
+        lots: {
+          ...s.lots,
+          lot: Lot(building, field: def.plot != null ? FieldState.emptyField : null),
+        },
+      ),
+      LogKind.build,
+      -def.cost,
+      building.name,
+    );
+  }
+
+  /// 비어 있는 건물(작물이 없는 밭, 동물이 없는 우리)을 헐고 짓기 비용의 절반을 돌려받는다.
+  static GameState demolish(GameState s, LotId lot) {
+    final l = s.lots[lot];
+    if (l == null || l.def.core) throw const GameException(GameError.cannotDemolish);
+    if (l.field != null && !l.field!.empty) throw const GameException(GameError.cannotDemolish);
+    if (s.animals.any((a) => a.home == lot)) throw const GameException(GameError.cannotDemolish);
+    final refund = GameDefs.demolishRefund(l.building);
+    return _log(
+      s.copyWith(
+        coins: s.coins + refund,
+        lots: {...s.lots}..remove(lot),
+        breedProgress: {...s.breedProgress}..remove(lot),
+      ),
+      LogKind.demolish,
+      refund,
+      l.building.name,
+    );
+  }
+
+  // ---------------------------------------------------------------- 작물
+
+  /// 작물 건물 [lot]에 심을 수 있는 작물(레벨과 무관하게 건물 종류만 맞는 것).
+  static List<CropDef> cropsFor(GameState s, LotId lot) {
+    final plot = s.lots[lot]?.def.plot;
     return [
       for (final c in GameDefs.crops.values)
-        if (c.plot == plot) c,
+        if (plot != null && c.plot == plot) c,
     ];
   }
 
-  static GameState plant(GameState s, ZoneId zone, CropId crop) {
-    final zoneDef = GameDefs.zones[zone];
+  static GameState plant(GameState s, LotId lot, CropId crop) {
+    final l = s.lots[lot];
     final def = GameDefs.crops[crop]!;
-    if (zoneDef == null || zoneDef.plot != def.plot) throw const GameException(GameError.wrongPlot);
-    if (!s.unlocked.contains(zone)) throw const GameException(GameError.zoneLocked);
-    if (!(s.fields[zone] ?? FieldState.emptyField).empty) throw const GameException(GameError.fieldNotEmpty);
+    if (l == null || l.field == null || l.def.plot != def.plot) throw const GameException(GameError.wrongPlot);
+    if (!l.field!.empty) throw const GameException(GameError.fieldNotEmpty);
     if (s.level < def.unlockLevel) throw const GameException(GameError.levelTooLow);
     if (s.coins < def.seedCost) throw const GameException(GameError.notEnoughCoins);
     if (s.water < def.waterL) throw const GameException(GameError.notEnoughWater);
@@ -226,9 +311,11 @@ abstract final class GameEngine {
       s.copyWith(
         coins: s.coins - def.seedCost,
         water: s.water - def.waterL,
-        fields: {
-          ...s.fields,
-          zone: FieldState(crop: crop, minutesLeft: def.growMinutes, totalMinutes: def.growMinutes),
+        lots: {
+          ...s.lots,
+          lot: l.copyWith(
+            field: FieldState(crop: crop, minutesLeft: def.growMinutes, totalMinutes: def.growMinutes),
+          ),
         },
       ),
       LogKind.seed,
@@ -237,9 +324,10 @@ abstract final class GameEngine {
     );
   }
 
-  static GameState harvest(GameState s, ZoneId zone) {
-    final f = s.fields[zone] ?? FieldState.emptyField;
-    if (f.crop == null || !f.ready) throw const GameException(GameError.notReady);
+  static GameState harvest(GameState s, LotId lot) {
+    final l = s.lots[lot];
+    final f = l?.field ?? FieldState.emptyField;
+    if (l == null || f.crop == null || !f.ready) throw const GameException(GameError.notReady);
     final def = GameDefs.crops[f.crop]!;
     final count = GameSky.yieldAt(def, s.simTime);
     if (s.barnFree < count) throw const GameException(GameError.barnFull);
@@ -259,13 +347,20 @@ abstract final class GameEngine {
       barn: _add(s.barn, def.item, count),
       xp: s.xp + def.xp,
       water: water,
-      fields: {...s.fields, zone: next},
+      lots: {
+        ...s.lots,
+        lot: l.copyWith(field: next),
+      },
     );
   }
 
-  /// [species]의 쌓인 생산물을 창고로 옮긴다(창고에 들어가는 만큼). 옮긴 개수를 함께 돌려준다.
-  static (GameState, int) collect(GameState s, Species species) {
-    final total = s.animals.where((a) => a.species == species).fold(0, (n, a) => n + a.stored);
+  // ---------------------------------------------------------------- 가축
+
+  /// 우리 [pen]의 쌓인 생산물을 창고로 옮긴다(창고에 들어가는 만큼). 옮긴 개수를 함께 돌려준다.
+  static (GameState, int) collect(GameState s, LotId pen) {
+    final species = s.lots[pen]?.def.species;
+    if (species == null) throw const GameException(GameError.wrongBuilding);
+    final total = s.animals.where((a) => a.home == pen).fold(0, (n, a) => n + a.stored);
     if (total == 0) throw const GameException(GameError.nothingToCollect);
     final take = total < s.barnFree ? total : s.barnFree;
     if (take <= 0) throw const GameException(GameError.barnFull);
@@ -273,7 +368,7 @@ abstract final class GameEngine {
     var remaining = take;
     final animals = [
       for (final a in s.animals)
-        if (a.species != species || remaining == 0 || a.stored == 0)
+        if (a.home != pen || remaining == 0 || a.stored == 0)
           a
         else
           () {
@@ -285,17 +380,20 @@ abstract final class GameEngine {
     return (s.copyWith(animals: animals, barn: _add(s.barn, def.product, take), xp: s.xp + def.collectXp * take), take);
   }
 
-  static GameState buyAnimal(GameState s, Species species) {
+  /// 우리 [pen]에 새끼를 들인다(종은 우리가 정한다).
+  static GameState buyAnimal(GameState s, LotId pen) {
+    final species = s.lots[pen]?.def.species;
+    if (species == null) throw const GameException(GameError.wrongBuilding);
     final def = GameDefs.animals[species]!;
     if (s.level < def.unlockLevel) throw const GameException(GameError.levelTooLow);
-    if (s.animals.length >= GameDefs.penCapacity) throw const GameException(GameError.penFull);
+    if (s.animalsIn(pen).length >= s.penCapacity(pen)) throw const GameException(GameError.penFull);
     if (s.coins < def.buyCost) throw const GameException(GameError.notEnoughCoins);
     return _log(
       s.copyWith(
         coins: s.coins - def.buyCost,
         animals: [
           ...s.animals,
-          GameAnimal(id: 'a${s.nextAnimalId}', species: species),
+          GameAnimal(id: 'a${s.nextAnimalId}', species: species, home: pen),
         ],
         nextAnimalId: s.nextAnimalId + 1,
       ),
@@ -327,6 +425,8 @@ abstract final class GameEngine {
       a.species.name,
     );
   }
+
+  // ---------------------------------------------------------------- 창고
 
   static GameState sell(GameState s, ItemId item, int count) {
     if (count <= 0 || s.countOf(item) < count) throw const GameException(GameError.notEnoughItems);

@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import '../../core/animal_painter.dart';
 import '../../game/defs.dart';
 import '../../game/sky.dart';
-import '../../game/zone.dart';
+import 'building_look.dart';
 import 'farm_world.dart';
 import 'sky_band.dart';
 import 'sky_layer.dart';
@@ -53,7 +53,7 @@ class FarmUprightPainter extends CustomPainter {
     final items = <(double, void Function())>[];
     final lights = <(Offset, double)>[];
     final look = _Look.of(sky);
-    for (final p in FarmWorld.props) {
+    for (final p in scene.props) {
       if (!frame.contains(local(p.base))) continue;
       final at = screen(p.base);
       final u = unit(p.base);
@@ -84,14 +84,14 @@ class FarmUprightPainter extends CustomPainter {
       c.restore();
     }
     if (labelOpacity > 0) {
-      for (final zone in ZoneId.values) {
-        final r = FarmWorld.zones[zone]!;
-        // 눕힌 지도에서는 구역 앞쪽 가운데에 세워, 안쪽의 구조물을 가리지 않게 한다.
+      for (final MapEntry(key: id, value: label) in scene.labels.entries) {
+        final r = FarmWorld.lotRect(id);
+        // 눕힌 지도에서는 칸 앞쪽 가운데에 세워, 안쪽의 구조물을 가리지 않게 한다.
         paintZoneTag(
           c,
           screen(Offset(r.center.dx, r.bottom - 4)),
-          scene.labels[zone] ?? zone.name,
-          zone.icon,
+          label,
+          scene.icons[id] ?? Icons.place_outlined,
           0.42,
           labelOpacity,
           bottomCenter: true,
@@ -218,7 +218,7 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
         wallH: 56,
         roofH: 34,
         wall: const Color(0xFF9A7650),
-        roof: const Color(0xFF6F8796),
+        roof: BuildingLook.cowBarnRoof,
         tin: true,
         snow: look.snow,
         front: (c, a, h) {
@@ -241,7 +241,7 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
         wallH: 26,
         roofH: 18,
         wall: const Color(0xFFE2C79A),
-        roof: const Color(0xFFB58A52),
+        roof: BuildingLook.coopRoof,
         snow: look.snow,
         front: (c, a, h) {
           c.drawOval(
@@ -252,6 +252,26 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
           light(const Offset(-4, -12), 3);
         },
       );
+    case PropKind.goatShed || PropKind.sheepShed:
+      // 염소·양 우리: 낮은 판자 헛간에 넓은 문. 양 우리는 이끼색 지붕.
+      final sheep = p.kind == PropKind.sheepShed;
+      _building(
+        c,
+        width: 96,
+        wallH: 40,
+        roofH: 26,
+        wall: sheep ? const Color(0xFFD8CBB0) : const Color(0xFFB99872),
+        roof: sheep ? BuildingLook.sheepRoof : BuildingLook.goatRoof,
+        snow: look.snow,
+        front: (c, a, h) {
+          final plank = pen(const Color(0x33000000), 1);
+          for (var x = -a + 8; x < a; x += 9) {
+            c.drawLine(Offset(x, -h + 2), Offset(x, -1), plank);
+          }
+          c.drawRect(const Rect.fromLTWH(-15, -30, 30, 30), fill(const Color(0xFF6B5038)));
+          light(const Offset(0, -34), 4);
+        },
+      );
     case PropKind.warehouse:
       _building(
         c,
@@ -259,7 +279,7 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
         wallH: 46,
         roofH: 26,
         wall: const Color(0xFFCFC2A8),
-        roof: const Color(0xFF8E7A68),
+        roof: BuildingLook.warehouseRoof,
         tin: true,
         snow: look.snow,
         front: (c, a, h) {

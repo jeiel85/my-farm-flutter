@@ -26,6 +26,8 @@ class GameStore extends ChangeNotifier {
     if (raw != null) {
       try {
         final json = (jsonDecode(raw) as Map).cast<String, Object?>();
+        // v5(정해진 구역 시절) 저장본은 부지(v6)로 옮겨 읽는다. 옮기기 전 원문을 따로 남긴다(docs/farm-lots-design.md §9).
+        if (json['schemaVersion'] == 5) await storage.keepCopy(raw, 'before_v6');
         try {
           state = GameState.fromJson(json);
         } on UnsupportedGameSchema catch (e) {

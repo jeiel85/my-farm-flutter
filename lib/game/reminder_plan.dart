@@ -100,8 +100,8 @@ List<PlannedReminder> planReminders(GameState state, DateTime now, ReminderSetti
     s = next;
     final at = _outsideQuietHours(s.simTime);
     if (settings.harvest) {
-      for (final zone in report.cropsReady) {
-        harvest.putIfAbsent(at, () => []).add(s.fields[zone]!.crop!);
+      for (final lot in report.cropsReady) {
+        harvest.putIfAbsent(at, () => []).add(s.lots[lot]!.field!.crop!);
       }
     }
     if (settings.animals) {

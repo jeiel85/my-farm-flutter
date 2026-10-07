@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../../game/zone.dart';
+import '../../game/lots.dart';
 import '../../l10n/l10n.dart';
 import 'farm_world.dart';
 import 'sky_band.dart';
@@ -23,8 +23,8 @@ class FarmMapView extends StatefulWidget {
     this.aspect = 0.8,
   });
 
-  final ZoneId? selected;
-  final ValueChanged<ZoneId> onZoneTap;
+  final LotId? selected;
+  final ValueChanged<LotId> onZoneTap;
   final FarmScene scene;
   final SkyView sky;
 
@@ -49,7 +49,7 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
   late Rect _from;
   late Rect _to;
 
-  Rect _targetFor(ZoneId? zone) {
+  Rect _targetFor(LotId? zone) {
     if (zone == null) return FarmWorld.overviewRect(widget.aspect);
     final r = FarmWorld.focusRect(zone, widget.aspect);
     // 눕힌 지도에서는 화면 가운데가 원근 때문에 아래(60% 높이 근처)로 내려가 보이므로 조금 더 올린다.
