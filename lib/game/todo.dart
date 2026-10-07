@@ -2,7 +2,7 @@ import 'defs.dart';
 import 'lots.dart';
 import 'state.dart';
 
-enum TodoKind { harvest, collect, barnFull, feedEmpty, feedLow, plant, build, expand }
+enum TodoKind { harvest, collect, craftDone, barnFull, feedEmpty, feedLow, plant, craftIdle, build, expand }
 
 /// 지금 할 수 있는(또는 해야 하는) 일 하나. 문구는 화면에서 만든다.
 class GameTodo {
@@ -38,7 +38,17 @@ List<GameTodo> todosFor(GameState s) {
     if (stored > 0) out.add(GameTodo(TodoKind.collect, lot: id, species: species, count: stored));
   }
   for (final id in built) {
+    if (s.lots[id]!.job?.done ?? false) out.add(GameTodo(TodoKind.craftDone, lot: id));
+  }
+  for (final id in built) {
     if (s.lots[id]!.field?.empty ?? false) out.add(GameTodo(TodoKind.plant, lot: id));
+  }
+  // 재료가 모인 쉬는 공방.
+  for (final id in built) {
+    final lot = s.lots[id]!;
+    final recipe = lot.def.recipe;
+    if (recipe == null || lot.job != null) continue;
+    if (recipe.inputs.entries.every((e) => s.countOf(e.key) >= e.value)) out.add(GameTodo(TodoKind.craftIdle, lot: id));
   }
   // 빈 땅이 있고 지을 수 있는 건물이 하나라도 있으면 알린다(가장 싼 건물을 지을 코인이 있을 때).
   final empty = s.emptyLots;

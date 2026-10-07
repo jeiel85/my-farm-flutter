@@ -4,9 +4,27 @@ library;
 import 'lots.dart';
 
 /// 창고에 들어가는 물건.
-enum ItemId { lettuce, carrot, tomato, corn, strawberry, apple, egg, goatMilk, wool, milk }
+enum ItemId {
+  lettuce,
+  carrot,
+  tomato,
+  corn,
+  strawberry,
+  apple,
+  egg,
+  goatMilk,
+  wool,
+  milk,
+  wheat,
+  potato,
+  pumpkin,
+  flour,
+  jam,
+  cheese,
+  bread,
+}
 
-enum CropId { lettuce, carrot, tomato, corn, strawberry, apple }
+enum CropId { lettuce, carrot, tomato, corn, strawberry, apple, wheat, potato, pumpkin }
 
 enum Species { chicken, goat, sheep, cow }
 
@@ -14,7 +32,33 @@ enum Species { chicken, goat, sheep, cow }
 enum PlotKind { field, greenhouse, orchard }
 
 /// 부지에 짓는 건물. docs/farm-lots-design.md §4. 이름은 저장 형식(v6)에 그대로 들어가므로 바꾸지 않는다.
-enum BuildingId { farmhouse, storehouse, field, coop, goatPen, sheepPen, cowBarn, greenhouse, orchard }
+enum BuildingId {
+  farmhouse,
+  storehouse,
+  field,
+  coop,
+  goatPen,
+  sheepPen,
+  cowBarn,
+  greenhouse,
+  orchard,
+  mill,
+  jamKitchen,
+  dairy,
+  bakery,
+}
+
+/// 공방 레시피: 재료를 넣으면 시간이 지나 가공품 하나가 나온다. docs/farm-lots-design.md §10.
+class Recipe {
+  const Recipe({required this.inputs, required this.output, required this.minutes, required this.xp});
+
+  final Map<ItemId, int> inputs;
+  final ItemId output;
+  final int minutes;
+
+  /// 가공품을 꺼낼 때 받는 경험치.
+  final int xp;
+}
 
 class CropDef {
   const CropDef({
@@ -89,6 +133,7 @@ class BuildingDef {
     this.species,
     this.capacity = const [],
     this.upgradeCosts = const [],
+    this.recipe,
     this.core = false,
   });
 
@@ -109,6 +154,9 @@ class BuildingDef {
 
   /// Lv2·Lv3으로 올리는 비용(올릴 수 없는 건물은 비어 있다).
   final List<int> upgradeCosts;
+
+  /// 공방이면 그 레시피(공방마다 하나).
+  final Recipe? recipe;
 
   /// 처음부터 있고 철거할 수 없는 건물(농가·창고).
   final bool core;
@@ -147,6 +195,13 @@ abstract final class GameDefs {
     ItemId.goatMilk: 9,
     ItemId.wool: 35,
     ItemId.milk: 22,
+    ItemId.wheat: 3,
+    ItemId.potato: 5,
+    ItemId.pumpkin: 14,
+    ItemId.flour: 14,
+    ItemId.jam: 55,
+    ItemId.cheese: 70,
+    ItemId.bread: 60,
   };
 
   static const crops = <CropId, CropDef>{
@@ -216,6 +271,39 @@ abstract final class GameDefs {
       unlockLevel: 8,
       plot: PlotKind.orchard,
       regrowMinutes: 90,
+    ),
+    CropId.wheat: CropDef(
+      id: CropId.wheat,
+      item: ItemId.wheat,
+      growMinutes: 8,
+      seedCost: 6,
+      waterL: 20,
+      yieldCount: 6,
+      xp: 2,
+      unlockLevel: 4,
+      plot: PlotKind.field,
+    ),
+    CropId.potato: CropDef(
+      id: CropId.potato,
+      item: ItemId.potato,
+      growMinutes: 15,
+      seedCost: 12,
+      waterL: 30,
+      yieldCount: 6,
+      xp: 3,
+      unlockLevel: 5,
+      plot: PlotKind.field,
+    ),
+    CropId.pumpkin: CropDef(
+      id: CropId.pumpkin,
+      item: ItemId.pumpkin,
+      growMinutes: 45,
+      seedCost: 30,
+      waterL: 60,
+      yieldCount: 4,
+      xp: 8,
+      unlockLevel: 7,
+      plot: PlotKind.field,
     ),
   };
 
@@ -346,6 +434,34 @@ abstract final class GameDefs {
       plot: PlotKind.orchard,
       upgradeCosts: [2500, 4000],
     ),
+    BuildingId.mill: BuildingDef(
+      id: BuildingId.mill,
+      cost: 300,
+      unlockLevel: 4,
+      upgradeCosts: [600, 1500],
+      recipe: Recipe(inputs: {ItemId.wheat: 3}, output: ItemId.flour, minutes: 10, xp: 2),
+    ),
+    BuildingId.jamKitchen: BuildingDef(
+      id: BuildingId.jamKitchen,
+      cost: 700,
+      unlockLevel: 6,
+      upgradeCosts: [1400, 3000],
+      recipe: Recipe(inputs: {ItemId.strawberry: 3}, output: ItemId.jam, minutes: 30, xp: 6),
+    ),
+    BuildingId.dairy: BuildingDef(
+      id: BuildingId.dairy,
+      cost: 900,
+      unlockLevel: 7,
+      upgradeCosts: [1800, 3600],
+      recipe: Recipe(inputs: {ItemId.milk: 2}, output: ItemId.cheese, minutes: 40, xp: 8),
+    ),
+    BuildingId.bakery: BuildingDef(
+      id: BuildingId.bakery,
+      cost: 1200,
+      unlockLevel: 9,
+      upgradeCosts: [2400, 4800],
+      recipe: Recipe(inputs: {ItemId.flour: 2, ItemId.egg: 2}, output: ItemId.bread, minutes: 25, xp: 6),
+    ),
   };
 
   /// 종을 기르는 우리.
@@ -376,6 +492,9 @@ abstract final class GameDefs {
 
   /// 작물 건물·우리가 저절로 돌아가는 레벨(자동 수확·다시 심기·자동 줍기). 창고는 이 레벨에서 자동 출하.
   static const autoLevel = 3;
+
+  /// 공방 레벨에 따른 만드는 시간(Lv2부터 25% 빠르게, 올림).
+  static int craftMinutes(Recipe recipe, int level) => level >= 2 ? (recipe.minutes * 3 + 3) ~/ 4 : recipe.minutes;
 
   /// 철거하면 돌려받는 코인(짓기 비용의 절반).
   static int demolishRefund(BuildingId id) => buildings[id]!.cost ~/ 2;

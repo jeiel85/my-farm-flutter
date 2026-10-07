@@ -16,6 +16,8 @@ Future<void> showAwayDialog(BuildContext context, AdvanceReport r) {
     if (r.autoHarvests > 0) ('🚜', l.awayAutoHarvests(r.autoHarvests)),
     if (r.autoCollected > 0) ('🧺', l.awayAutoCollected(r.autoCollected)),
     if (r.autoSoldCoins > 0) ('🪙', l.awayAutoSold(r.autoSoldCoins)),
+    if (r.craftsDone.isNotEmpty) ('🏭', l.awayCraftsDone(r.craftsDone.length)),
+    if (r.autoCrafted > 0) ('📦', l.awayAutoCrafted(r.autoCrafted)),
     if (r.feedRanOut) ('⚠️', l.awayFeedRanOut),
   ];
   return showDialog<void>(

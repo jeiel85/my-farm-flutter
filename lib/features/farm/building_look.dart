@@ -11,6 +11,10 @@ abstract final class BuildingLook {
   static const sheepRoof = Color(0xFF7E8C6A);
   static const cowBarnRoof = Color(0xFF6F8796);
   static const warehouseRoof = Color(0xFF8E7A68);
+  static const millRoof = Color(0xFF9A6A4A);
+  static const jamRoof = Color(0xFFB5566A);
+  static const dairyRoof = Color(0xFF5E86A8);
+  static const bakeryRoof = Color(0xFFB06A3A);
 
   static IconData icon(BuildingId b) => switch (b) {
     BuildingId.farmhouse => Icons.home_outlined,
@@ -20,6 +24,10 @@ abstract final class BuildingLook {
     BuildingId.goatPen || BuildingId.sheepPen || BuildingId.cowBarn => Icons.pets_outlined,
     BuildingId.greenhouse => Icons.wb_sunny_outlined,
     BuildingId.orchard => Icons.park_outlined,
+    BuildingId.mill => Icons.grain,
+    BuildingId.jamKitchen => Icons.kitchen_outlined,
+    BuildingId.dairy => Icons.local_drink_outlined,
+    BuildingId.bakery => Icons.bakery_dining_outlined,
   };
 
   /// 짓기 목록에 보이는 그림 문자.
@@ -33,5 +41,9 @@ abstract final class BuildingLook {
     BuildingId.cowBarn => '🐄',
     BuildingId.greenhouse => '🍓',
     BuildingId.orchard => '🍎',
+    BuildingId.mill => '🌾',
+    BuildingId.jamKitchen => '🫙',
+    BuildingId.dairy => '🧀',
+    BuildingId.bakery => '🍞',
   };
 }

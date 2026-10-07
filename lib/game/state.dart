@@ -145,9 +145,25 @@ class GameLogEntry {
   );
 }
 
+/// 공방에서 만드는 중인 것(레시피는 공방이 정한다).
+class WorkshopJob {
+  const WorkshopJob({required this.minutesLeft, required this.totalMinutes});
+
+  final int minutesLeft;
+  final int totalMinutes;
+
+  /// 다 만들어 꺼내기를 기다린다.
+  bool get done => minutesLeft <= 0;
+
+  Map<String, Object?> toJson() => {'minutesLeft': minutesLeft, 'totalMinutes': totalMinutes};
+
+  factory WorkshopJob.fromJson(Map<String, Object?> j) =>
+      WorkshopJob(minutesLeft: j['minutesLeft'] as int, totalMinutes: j['totalMinutes'] as int);
+}
+
 /// 지은 건물 한 칸.
 class Lot {
-  const Lot(this.building, {this.level = 1, this.field});
+  const Lot(this.building, {this.level = 1, this.field, this.job});
 
   final BuildingId building;
   final int level;
@@ -155,17 +171,26 @@ class Lot {
   /// 작물 건물(밭·온실·과수원)의 작물 상태. 그 밖의 건물은 null.
   final FieldState? field;
 
+  /// 공방에서 만드는 중이거나 다 만든 것(없으면 null).
+  final WorkshopJob? job;
+
   BuildingDef get def => GameDefs.buildings[building]!;
 
-  Lot copyWith({int? level, FieldState? field}) =>
-      Lot(building, level: level ?? this.level, field: field ?? this.field);
+  Lot copyWith({int? level, FieldState? field, WorkshopJob? job, bool clearJob = false}) =>
+      Lot(building, level: level ?? this.level, field: field ?? this.field, job: clearJob ? null : job ?? this.job);
 
-  Map<String, Object?> toJson() => {'building': building.name, 'level': level, 'field': ?field?.toJson()};
+  Map<String, Object?> toJson() => {
+    'building': building.name,
+    'level': level,
+    'field': ?field?.toJson(),
+    'job': ?job?.toJson(),
+  };
 
   factory Lot.fromJson(Map<String, Object?> j) => Lot(
     _enum(BuildingId.values, j['building']),
     level: j['level'] as int? ?? 1,
     field: j['field'] == null ? null : FieldState.fromJson((j['field'] as Map).cast<String, Object?>()),
+    job: j['job'] == null ? null : WorkshopJob.fromJson((j['job'] as Map).cast<String, Object?>()),
   );
 }
 
