@@ -17,7 +17,17 @@ import 'farm_world.dart';
 import 'storybook.dart';
 
 /// 날씨 그림 미리 보기(설정이 아니라 시트에서 잠깐 보는 용도). 게임 효과는 바꾸지 않는다.
-enum SkyPreview { clear, cloudy, windy, rain, snow, fog, heat, rainbow, dusk, night }
+enum SkyPreview { clear, cloudy, windy, rain, snow, fog, heat, rainbow, dusk, night, spring, summer, autumn, winter }
+
+/// 계절. 지평선 능선과 땅 빛깔, 꽃잎·낙엽·서리가 달라진다(게임 규칙에는 영향 없음).
+enum Season { spring, summer, autumn, winter }
+
+Season seasonOf(int month) => switch (month) {
+  3 || 4 || 5 => Season.spring,
+  6 || 7 || 8 => Season.summer,
+  9 || 10 || 11 => Season.autumn,
+  _ => Season.winter,
+};
 
 /// 지도 한 장에 그릴 하늘 상태.
 @immutable
@@ -71,7 +81,13 @@ class SkyView {
         _ => 12 * 60,
       },
       // 반딧불은 여름 밤에만 나온다. 밤 미리 보기에서는 보이게 한다.
-      month: p == SkyPreview.night ? 7 : now.month,
+      month: switch (p) {
+        SkyPreview.night || SkyPreview.summer => 7,
+        SkyPreview.spring => 4,
+        SkyPreview.autumn => 10,
+        SkyPreview.winter => 1,
+        _ => now.month,
+      },
       previewing: true,
     );
   }
@@ -87,6 +103,8 @@ class SkyView {
   final double minuteOfDay;
   final int month;
   final bool previewing;
+
+  Season get season => seasonOf(month);
 
   /// [k] 날씨가 지금 얼마나 보이는지(0~1).
   double weight(SkyKind k) => (k == kind ? blend : 0) + (k == previous ? 1 - blend : 0);
@@ -131,7 +149,7 @@ class SkyView {
 
 double _hash(double x) => (math.sin(x) * 43758.5453).abs() % 1;
 
-/// 처음 한 번 구운 부드러운 얼룩(구름 그림자·안개). 흰색으로 구워 두고 그릴 때 색을 입힌다.
+/// 처음 한 번 구운 부드러운 얼룩(구름 그림자·안개·하늘 구름). 흰색으로 구워 두고 그릴 때 색을 입힌다.
 ui.Image? _puff;
 
 ui.Image get _puffImage => _puff ??= bake(const Rect.fromLTWH(0, 0, 320, 200), 0.5, (c) {
@@ -144,7 +162,7 @@ ui.Image get _puffImage => _puff ??= bake(const Rect.fromLTWH(0, 0, 320, 200), 0
   }
 });
 
-void _puffAt(Canvas c, Rect dst, Color color) {
+void puffAt(Canvas c, Rect dst, Color color) {
   final img = _puffImage;
   c.drawImageRect(
     img,
@@ -164,6 +182,7 @@ void paintWeather(Canvas c, SkyView sky, Rect view, double t) {
   final density = (area.width * area.height) / (FarmWorld.size.width * FarmWorld.size.height);
 
   _washes(c, sky, area);
+  _season(c, sky, area, t, density);
   _cloudShadows(c, sky, t);
   final rain = sky.weight(SkyKind.rain);
   if (rain > 0) _rain(c, area, t, rain, density);
@@ -229,6 +248,55 @@ void _washes(Canvas c, SkyView sky, Rect area) {
   }
 }
 
+/// 계절의 땅 빛깔과 꽃잎·낙엽·서리.
+void _season(Canvas c, SkyView sky, Rect area, double t, double density) {
+  switch (sky.season) {
+    case Season.spring:
+      c.drawRect(area, fill(const Color(0xFFF7E6EC).withValues(alpha: 0.07)));
+      _drift(c, area, t, (34 * density).round(), const [Color(0xFFF3BFD0), Color(0xFFFBE3EA)], 22, 5);
+    case Season.summer:
+      c.drawRect(area, fill(const Color(0xFF4F8A3C).withValues(alpha: 0.07)));
+    case Season.autumn:
+      c.drawRect(area, fill(const Color(0xFFE2A04E).withValues(alpha: 0.13)));
+      _drift(
+        c,
+        area,
+        t,
+        (30 * density).round(),
+        const [Color(0xFFD9573F), Color(0xFFE9A23E), Color(0xFFB8643A)],
+        16,
+        7,
+      );
+    case Season.winter:
+      // 이른 아침(5~9시)에는 서리가 더 하얗게 내려앉는다.
+      final frost = sky.minuteOfDay >= 300 && sky.minuteOfDay < 540 ? 0.2 : 0.1;
+      c.drawRect(area, fill(const Color(0xFFEAF0F4).withValues(alpha: frost)));
+      final speck = (90 * density).round();
+      for (var i = 0; i < speck; i++) {
+        final seed = i * 1.77 + 0.3;
+        c.drawCircle(
+          Offset(area.left + _hash(seed) * area.width, area.top + _hash(seed * 6.1) * area.height),
+          1.2 + _hash(seed * 2.9) * 1.6,
+          fill(Colors.white.withValues(alpha: frost * 2.5)),
+        );
+      }
+  }
+}
+
+/// 천천히 흩날리는 꽃잎·낙엽.
+void _drift(Canvas c, Rect area, double t, int count, List<Color> colors, double speed, double size) {
+  for (var i = 0; i < count; i++) {
+    final seed = i * 2.53 + 0.8;
+    final x = area.left + (_hash(seed) * area.width + t * speed * (0.6 + _hash(seed * 1.4) * 0.8)) % area.width;
+    final y = area.top + (_hash(seed * 4.6) * area.height + t * speed * 0.5) % area.height;
+    c.save();
+    c.translate(x + math.sin(t * 1.4 + seed) * 10, y);
+    c.rotate(t * 1.2 + seed);
+    c.drawOval(Rect.fromCenter(center: Offset.zero, width: size, height: size * 0.55), fill(colors[i % colors.length]));
+    c.restore();
+  }
+}
+
 /// 밭 위를 천천히 지나가는 구름 그림자.
 void _cloudShadows(Canvas c, SkyView sky, double t) {
   var count = 0.0;
@@ -255,7 +323,7 @@ void _cloudShadows(Canvas c, SkyView sky, double t) {
         FarmWorld.bakeArea.left - 600 + (_hash(seed * 7.1) * span + t * speed * (0.8 + _hash(seed * 2.3) * 0.4)) % span;
     final y = FarmWorld.bakeArea.top + _hash(seed * 5.3) * FarmWorld.bakeArea.height - w * 0.3;
     final fade = i < count.floor() ? 1.0 : count - count.floor();
-    _puffAt(c, Rect.fromLTWH(x, y, w, w * 0.62), const Color(0xFF29384A).withValues(alpha: alpha * fade));
+    puffAt(c, Rect.fromLTWH(x, y, w, w * 0.62), const Color(0xFF29384A).withValues(alpha: alpha * fade));
   }
 }
 
@@ -387,7 +455,7 @@ void _fog(Canvas c, double t, double k) {
     final x =
         b.left - w * 0.6 + ((i % 3) / 3 * b.width + _hash(seed * 3.1) * 120 + t * (6 + _hash(seed * 2) * 5)) % span;
     final y = b.top + (i ~/ 3) / 4 * b.height + _hash(seed * 7.7) * 120 - w * 0.2;
-    _puffAt(c, Rect.fromLTWH(x, y, w, w * 0.55), const Color(0xFFFBF9F4).withValues(alpha: 0.55 * k));
+    puffAt(c, Rect.fromLTWH(x, y, w, w * 0.55), const Color(0xFFFBF9F4).withValues(alpha: 0.55 * k));
   }
 }
 
@@ -409,30 +477,8 @@ void _heat(Canvas c, Rect area, double t, double k) {
 
 // ---------------------------------------------------------------- 무지개
 
-/// 비가 갠 뒤 지도를 가로지르는 물감 무지개와, 수확 보너스를 알리는 밭 위 반짝임.
+/// 무지개가 떠 있는 동안 수확 보너스를 알리는 밭 위 반짝임(무지개 띠는 하늘에 그린다, sky_band.dart).
 void _rainbow(Canvas c, double t, double k) {
-  const colors = [
-    Color(0xFFE07A6A),
-    Color(0xFFEFA65E),
-    Color(0xFFF1D26E),
-    Color(0xFF9CC77E),
-    Color(0xFF7DB4C9),
-    Color(0xFF8A93C9),
-    Color(0xFFB08BC2),
-  ];
-  final center = Offset(FarmWorld.size.width + 160, FarmWorld.size.height * 0.92);
-  const band = 18.0;
-  for (var i = 0; i < colors.length; i++) {
-    final r = 1060.0 - i * band;
-    c.drawCircle(
-      center,
-      r,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = band + 4
-        ..color = colors[i].withValues(alpha: 0.24 * k),
-    );
-  }
   for (final zone in GameDefs.plotZones) {
     final r = FarmWorld.zones[zone]!;
     for (var i = 0; i < 4; i++) {

@@ -4,6 +4,8 @@ import 'package:flutter/scheduler.dart';
 import '../../game/zone.dart';
 import '../../l10n/l10n.dart';
 import 'farm_world.dart';
+import 'sky_band.dart';
+import 'upright.dart';
 import 'sky_layer.dart';
 
 /// 선택한 구역으로 카메라가 부드럽게 이동하는 농장 지도.
@@ -78,13 +80,16 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final size = constraints.biggest;
-      return GestureDetector(
-        onTapUp: (d) => _handleTap(d, size),
-        child: AnimatedBuilder(
-          animation: _camera,
-          builder: (context, _) {
-            final focusT = widget.selected == null ? 1 - _camera.value : _camera.value;
-            return RepaintBoundary(
+      return AnimatedBuilder(
+        animation: _camera,
+        builder: (context, _) {
+          final focusT = widget.selected == null ? 1 - _camera.value : _camera.value;
+          // 전체 지도에서는 지도판을 눕혀 하늘을 보이고, 구역을 확대할수록 평평하게 편다.
+          final k = Curves.easeInOutCubic.transform(widget.selected == null ? _camera.value : 1 - _camera.value);
+          final horizon = FarmTilt.horizonY(size, k);
+          final map = GestureDetector(
+            onTapUp: (d) => _handleTap(d, size),
+            child: RepaintBoundary(
               child: Semantics(
                 label: context.l10n.farmMap,
                 container: true,
@@ -100,14 +105,46 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
                     labelOpacity: widget.selected == null ? Curves.easeIn.transform(1 - focusT.clamp(0.0, 1.0)) : 0,
                     scene: widget.scene,
                     sky: widget.sky,
+                    upright: k,
                     onZoneTap: widget.onZoneTap,
                     textDirection: Directionality.of(context),
                   ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+          if (k <= 0) return map;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              RepaintBoundary(
+                child: CustomPaint(
+                  painter: SkyBackPainter(sky: widget.sky, time: _time, horizon: horizon, k: k),
+                ),
+              ),
+              Transform(transform: FarmTilt.matrix(size, k), child: map),
+              IgnorePointer(
+                child: CustomPaint(
+                  painter: HorizonFrontPainter(sky: widget.sky, horizon: horizon, k: k),
+                ),
+              ),
+              IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: FarmUprightPainter(
+                      view: _view,
+                      time: _time,
+                      k: k,
+                      scene: widget.scene,
+                      sky: widget.sky,
+                      labelOpacity: widget.selected == null ? Curves.easeIn.transform(1 - focusT.clamp(0.0, 1.0)) : 0,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       );
     },
   );

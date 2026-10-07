@@ -21,6 +21,10 @@ IconData _previewIcon(SkyPreview p) => switch (p) {
   SkyPreview.rainbow => Icons.looks_rounded,
   SkyPreview.dusk => Icons.wb_twilight_rounded,
   SkyPreview.night => Icons.nightlight_round,
+  SkyPreview.spring => Icons.local_florist_rounded,
+  SkyPreview.summer => Icons.park_rounded,
+  SkyPreview.autumn => Icons.eco_rounded,
+  SkyPreview.winter => Icons.ac_unit_rounded,
   _ => skyIcon(SkyKind.values.byName(p.name)),
 };
 

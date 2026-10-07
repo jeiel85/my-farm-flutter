@@ -316,7 +316,7 @@
   "skyRules": "The weather changes every 2 hours. Rain fills the water tank twice as fast and a heatwave slows it. When a rainbow comes out after rain, harvests give 20% more for 40 minutes.",
   "skyPreviewTitle": "Preview the look",
   "skyPreviewHint": "Shown on the map for a moment. Game effects follow the current sky.",
-  "skyPreview": "{look, select, clear{Clear} cloudy{Cloudy} windy{Windy} rain{Rain} snow{Snow} fog{Fog} heat{Heatwave} rainbow{Rainbow} dusk{Dusk} night{Night} other{Clear}}",
+  "skyPreview": "{look, select, clear{Clear} cloudy{Cloudy} windy{Windy} rain{Rain} snow{Snow} fog{Fog} heat{Heatwave} rainbow{Rainbow} dusk{Dusk} night{Night} spring{Spring} summer{Summer} autumn{Autumn} winter{Winter} other{Clear}}",
   "skyPreviewing": "Preview",
   "skyChipLabel": "Farm sky: {state}"
 }
