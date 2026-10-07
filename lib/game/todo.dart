@@ -2,7 +2,7 @@ import 'defs.dart';
 import 'lots.dart';
 import 'state.dart';
 
-enum TodoKind { harvest, collect, craftDone, barnFull, feedEmpty, feedLow, plant, craftIdle, build, expand }
+enum TodoKind { harvest, collect, craftDone, order, barnFull, feedEmpty, feedLow, plant, craftIdle, build, expand }
 
 /// 지금 할 수 있는(또는 해야 하는) 일 하나. 문구는 화면에서 만든다.
 class GameTodo {
@@ -39,6 +39,13 @@ List<GameTodo> todosFor(GameState s) {
   }
   for (final id in built) {
     if (s.lots[id]!.job?.done ?? false) out.add(GameTodo(TodoKind.craftDone, lot: id));
+  }
+  // 지금 가진 물건으로 보낼 수 있는 주문([GameTodo.count]는 게시판 칸 번호).
+  for (final (i, slot) in s.orders.indexed) {
+    final order = slot.order;
+    if (order != null && order.items.entries.every((e) => s.countOf(e.key) >= e.value)) {
+      out.add(GameTodo(TodoKind.order, count: i));
+    }
   }
   for (final id in built) {
     if (s.lots[id]!.field?.empty ?? false) out.add(GameTodo(TodoKind.plant, lot: id));

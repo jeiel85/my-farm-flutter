@@ -389,5 +389,16 @@
   "awayCraftsDone": "{count} workshops finished",
   "awayAutoCrafted": "Made {count} goods on their own",
   "mapWorkshopWorking": "{name}, working",
-  "mapWorkshopDone": "{name}, ready"
+  "mapWorkshopDone": "{name}, ready",
+  "ordersTitle": "Village orders",
+  "ordersHint": "Deliveries pay more than selling. Skip one and a new order arrives later.",
+  "orderReward": "🪙{coins} · {xp} XP",
+  "orderDeliver": "Deliver",
+  "orderSkip": "Skip",
+  "orderWaiting": "New order in {time}",
+  "orderDelivered": "Order delivered · 🪙{coins}",
+  "orderSkipped": "Waiting for a new order",
+  "errNoOrder": "No order here right now",
+  "todoOrder": "You can deliver an order",
+  "logOrder": "Order delivered"
 }

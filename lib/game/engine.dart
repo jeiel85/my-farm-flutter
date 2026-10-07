@@ -1,5 +1,6 @@
 import 'defs.dart';
 import 'lots.dart';
+import 'orders.dart';
 import 'sky.dart';
 import 'state.dart';
 
@@ -42,6 +43,9 @@ enum GameError {
 
   /// 공방이 이미 만드는 중이다(다 만든 것을 꺼내야 다시 만들 수 있다).
   workshopBusy,
+
+  /// 그 칸에 주문이 없다(새 주문을 기다리는 중).
+  noOrder,
 }
 
 class GameException implements Exception {
@@ -131,6 +135,8 @@ abstract final class GameEngine {
       breedProgress: const {},
       nextAnimalId: 2,
       log: const [],
+      orders: [for (var i = 0; i < OrderBook.slotsFor(1); i++) OrderSlot.order(OrderBook.make(i, 1))],
+      orderSeq: OrderBook.slotsFor(1),
     );
   }
 
@@ -138,7 +144,7 @@ abstract final class GameEngine {
   /// 시간은 버린다.
   ///
   /// 분마다 같은 순서로 처리한다: 물 충전 → 작물 성장 → Lv3 작물 건물 자동 수확·다시 심기 → 가축 성장·생산 →
-  /// Lv3 우리 자동 줍기 → 공방(진행, Lv3 자동 꺼내기·다시 만들기) → 번식. 그래서 나눠 진행한 결과와 한 번에 진행한 결과가 같다. 자동 판매·씨앗 기록도
+  /// Lv3 우리 자동 줍기 → 공방(진행, Lv3 자동 꺼내기·다시 만들기) → 번식 → 주문 게시판(칸 늘리기, 새 주문). 그래서 나눠 진행한 결과와 한 번에 진행한 결과가 같다. 자동 판매·씨앗 기록도
   /// 그 분의 시각으로 남는다.
   static (GameState, AdvanceReport) advance(GameState s, DateTime to, {int? capMinutes}) {
     final report = AdvanceReport();
@@ -174,6 +180,8 @@ abstract final class GameEngine {
     final animals = [...s.animals];
     final breed = Map.of(s.breedProgress);
     var nextId = s.nextAnimalId;
+    final orders = [...s.orders];
+    var orderSeq = s.orderSeq;
 
     /// 자동으로 거둔 [count]개를 창고에 넣는다. 다 들어가지 않으면 창고 Lv3은 남는 몫을 팔고, 아니면 들어가는
     /// 만큼만 넣는다. 넣거나 판 개수를 돌려준다.
@@ -347,6 +355,21 @@ abstract final class GameEngine {
           breed[pen] = progress;
         }
       }
+
+      // 주문 게시판: 레벨이 오르면 칸을 늘리고, 기다리던 칸에는 새 주문을 붙인다.
+      final level = GameDefs.levelForXp(xp);
+      while (orders.length < OrderBook.slotsFor(level)) {
+        orders.add(const OrderSlot.waiting(0));
+      }
+      for (var i = 0; i < orders.length; i++) {
+        final slot = orders[i];
+        if (slot.order != null) continue;
+        if (slot.wait > 1) {
+          orders[i] = OrderSlot.waiting(slot.wait - 1);
+        } else {
+          orders[i] = OrderSlot.order(OrderBook.make(orderSeq++, level));
+        }
+      }
     }
 
     barn.removeWhere((_, n) => n == 0);
@@ -364,6 +387,8 @@ abstract final class GameEngine {
         breedProgress: breed,
         nextAnimalId: nextId,
         log: log.length > GameState.maxLog ? log.sublist(log.length - GameState.maxLog) : log,
+        orders: orders,
+        orderSeq: orderSeq,
       ),
       report,
     );
@@ -568,6 +593,35 @@ abstract final class GameEngine {
       xp: s.xp + recipe.xp,
       lots: {...s.lots, lot: l.copyWith(clearJob: true)},
     );
+  }
+
+  // ---------------------------------------------------------------- 주문
+
+  /// [index]번 칸의 주문을 보낸다(물건을 창고에서 꺼내고 코인·경험치를 받는다). 새 주문은 조금 뒤 온다.
+  static GameState deliverOrder(GameState s, int index) {
+    final order = index < s.orders.length ? s.orders[index].order : null;
+    if (order == null) throw const GameException(GameError.noOrder);
+    if (!order.items.entries.every((e) => s.countOf(e.key) >= e.value)) {
+      throw const GameException(GameError.notEnoughItems);
+    }
+    var barn = s.barn;
+    for (final e in order.items.entries) {
+      barn = _add(barn, e.key, -e.value);
+    }
+    final orders = [...s.orders]..[index] = const OrderSlot.waiting(OrderBook.refillAfterDelivery);
+    return _log(
+      s.copyWith(barn: barn, coins: s.coins + order.coins, xp: s.xp + order.xp, orders: orders),
+      LogKind.order,
+      order.coins,
+      'order',
+    );
+  }
+
+  /// [index]번 칸의 주문을 넘긴다. 새 주문은 더 오래 기다린다.
+  static GameState skipOrder(GameState s, int index) {
+    if (index >= s.orders.length || s.orders[index].order == null) throw const GameException(GameError.noOrder);
+    final orders = [...s.orders]..[index] = const OrderSlot.waiting(OrderBook.refillAfterSkip);
+    return s.copyWith(orders: orders);
   }
 
   // ---------------------------------------------------------------- 가축

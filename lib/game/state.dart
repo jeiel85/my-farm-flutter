@@ -1,6 +1,7 @@
 import 'defs.dart';
 import 'lots.dart';
 import 'migrate_v5.dart';
+import 'orders.dart';
 
 T _enum<T extends Enum>(List<T> values, Object? name) =>
     values.asNameMap()[name] ?? (throw FormatException('Unknown ${T.toString()}', name));
@@ -117,7 +118,7 @@ class GameAnimal {
 }
 
 /// 기록 종류. [unlock]은 v5(정해진 구역을 열던 때) 기록이다.
-enum LogKind { sale, slaughter, seed, animal, feed, unlock, build, expand, demolish, upgrade }
+enum LogKind { sale, slaughter, seed, animal, feed, unlock, build, expand, demolish, upgrade, order }
 
 /// 수입·지출 기록 한 건(기록 탭 차트용). [amount]는 수입이면 양수, 지출이면 음수.
 class GameLogEntry {
@@ -211,6 +212,8 @@ class GameState {
     required this.breedProgress,
     required this.nextAnimalId,
     required this.log,
+    this.orders = const [],
+    this.orderSeq = 0,
   });
 
   static const schemaVersion = 6;
@@ -242,6 +245,10 @@ class GameState {
   final Map<LotId, int> breedProgress;
   final int nextAnimalId;
   final List<GameLogEntry> log;
+
+  /// 마을 주문 게시판 칸(L4)과 다음 주문 순번. 이 칸이 없는 v6 저장본(L1~L3 개발판)은 비어 있다가 시간이 흐르면 찬다.
+  final List<OrderSlot> orders;
+  final int orderSeq;
 
   int get level => GameDefs.levelForXp(xp);
   int get barnUsed => barn.values.fold(0, (s, n) => s + n);
@@ -316,6 +323,8 @@ class GameState {
     Map<LotId, int>? breedProgress,
     int? nextAnimalId,
     List<GameLogEntry>? log,
+    List<OrderSlot>? orders,
+    int? orderSeq,
     String? farmName,
   }) => GameState(
     farmName: farmName ?? this.farmName,
@@ -332,6 +341,8 @@ class GameState {
     breedProgress: breedProgress ?? this.breedProgress,
     nextAnimalId: nextAnimalId ?? this.nextAnimalId,
     log: log ?? this.log,
+    orders: orders ?? this.orders,
+    orderSeq: orderSeq ?? this.orderSeq,
   );
 
   Map<String, Object?> toJson() => {
@@ -351,6 +362,8 @@ class GameState {
     'breedProgress': {for (final e in breedProgress.entries) e.key.key: e.value},
     'nextAnimalId': nextAnimalId,
     'log': [for (final l in log) l.toJson()],
+    'orders': [for (final o in orders) o.toJson()],
+    'orderSeq': orderSeq,
   };
 
   /// v6을 읽는다. v5(정해진 구역 시절 개발판)는 부지로 옮긴다(migrate_v5.dart). 관리 앱 시절(v1~v4) 저장본은
@@ -377,6 +390,10 @@ class GameState {
       breedProgress: {for (final e in map('breedProgress').entries) LotId.parse(e.key): e.value as int},
       nextAnimalId: j['nextAnimalId'] as int,
       log: [for (final l in j['log'] as List) GameLogEntry.fromJson((l as Map).cast<String, Object?>())],
+      orders: [
+        for (final o in j['orders'] as List? ?? const []) OrderSlot.fromJson((o as Map).cast<String, Object?>()),
+      ],
+      orderSeq: j['orderSeq'] as int? ?? 0,
     );
   }
 }
