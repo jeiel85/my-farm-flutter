@@ -23,12 +23,13 @@ void main() {
     expect(bottom.dy, closeTo(size.height, 0.01));
   });
 
-  testWidgets('눕힌 지도에서 구역이 보이는 자리를 누르면 그 구역이 열린다', (tester) async {
+  Future<(List<ZoneId>, List<String>)> pumpMap(WidgetTester tester, {required bool skyMode}) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final now = DateTime(2026, 10, 6, 12);
     final scene = FarmScene.of(GameEngine.newGame(now, farmName: 'x'), AppLocalizationsKo());
     final tapped = <ZoneId>[];
+    final events = <String>[];
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('ko'),
@@ -41,6 +42,8 @@ void main() {
             child: FarmMapView(
               selected: null,
               onZoneTap: tapped.add,
+              onSkyTap: () => events.add('sky'),
+              skyMode: skyMode,
               scene: scene,
               sky: SkyView.at(now),
               aspect: size.width / size.height,
@@ -50,23 +53,35 @@ void main() {
       ),
     );
     await tester.pump(const Duration(seconds: 1));
+    return (tapped, events);
+  }
 
+  Offset flatCenter(ZoneId zone) {
     final view = FarmWorld.overviewRect(size.width / size.height);
     final scale = FarmMapPainter.scaleFor(view, size);
-    final matrix = FarmTilt.matrix(size, 1);
-    Offset onScreen(ZoneId zone) {
-      final local = (FarmWorld.zones[zone]!.center - view.center) * scale + size.center(Offset.zero);
-      return MatrixUtils.transformPoint(matrix, local);
-    }
+    return (FarmWorld.zones[zone]!.center - view.center) * scale + size.center(Offset.zero);
+  }
 
-    // 먼 줄(집)·가운데(가축 우리)·앞줄(과수원)을 원근을 거친 화면 위치로 누른다.
+  testWidgets('평소에는 평면 지도라 구역 자리를 누르면 그 구역이 열린다', (tester) async {
+    final (tapped, events) = await pumpMap(tester, skyMode: false);
     for (final zone in [ZoneId.house, ZoneId.animals, ZoneId.orchard]) {
-      await tester.tapAt(onScreen(zone));
+      await tester.tapAt(flatCenter(zone));
       await tester.pump();
     }
     expect(tapped, [ZoneId.house, ZoneId.animals, ZoneId.orchard]);
-    // 가장 먼 줄(집)도 하늘이 아니라 지평선 아래 지도판 위에 있다.
-    expect(onScreen(ZoneId.house).dy, greaterThan(FarmTilt.horizonY(size, 1)));
+    expect(events, isEmpty);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('하늘 보기에서는 지도판을 눕히고, 어디를 눌러도 구역 대신 평면으로 돌아가기를 부른다', (tester) async {
+    final (tapped, events) = await pumpMap(tester, skyMode: true);
+    // 지도판 위(가축 우리)와 하늘(맨 위)을 누른다.
+    await tester.tapAt(MatrixUtils.transformPoint(FarmTilt.matrix(size, 1), flatCenter(ZoneId.animals)));
+    await tester.pump();
+    await tester.tapAt(const Offset(200, 20));
+    await tester.pump();
+    expect(tapped, isEmpty);
+    expect(events, ['sky', 'sky']);
     await tester.pumpWidget(const SizedBox());
   });
 }

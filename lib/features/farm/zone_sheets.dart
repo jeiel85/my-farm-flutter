@@ -12,26 +12,79 @@ import '../../game/zone.dart';
 import '../../l10n/l10n.dart';
 import 'game_actions.dart';
 
-/// 구역을 눌렀을 때 아래에서 올라오는 시트. 상태가 바뀌면 바로 다시 그린다.
+/// 구역 상세를 띄운 곳(휴대폰 시트, 넓은 화면 오른쪽 패널). 수확·심기를 마치면 [close]로 닫는다.
+class ZoneHost extends InheritedWidget {
+  const ZoneHost({super.key, required this.close, required super.child});
+
+  final VoidCallback close;
+
+  static void closeOf(BuildContext context) => context.getInheritedWidgetOfExactType<ZoneHost>()?.close();
+
+  @override
+  bool updateShouldNotify(ZoneHost oldWidget) => false;
+}
+
+/// 휴대폰에서 구역을 눌렀을 때 아래에서 올라오는 시트. 상태가 바뀌면 바로 다시 그린다.
+///
+/// 지도는 고른 구역으로 다가가 시트 위쪽에 보이므로, 배경을 어둡게 하지 않고 처음 높이를 낮게 둔다.
 Future<void> showZoneSheet(BuildContext context, ZoneId zone) => showModalBottomSheet<void>(
   context: context,
   isScrollControlled: true,
   backgroundColor: AppColors.bg,
+  barrierColor: Colors.transparent,
+  elevation: 8,
   shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-  builder: (_) => DraggableScrollableSheet(
-    expand: false,
-    initialChildSize: zone == ZoneId.animals ? 0.75 : 0.55,
-    minChildSize: 0.3,
-    maxChildSize: 0.92,
-    builder: (context, controller) => _SheetFrame(controller: controller, zone: zone),
+  builder: (sheetContext) => ZoneHost(
+    close: () => Navigator.of(sheetContext).maybePop(),
+    child: DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: zone == ZoneId.animals ? 0.6 : 0.42,
+      minChildSize: 0.25,
+      maxChildSize: 0.92,
+      builder: (context, controller) => ListView(
+        controller: controller,
+        padding: EdgeInsets.fromLTRB(20, 10, 20, 24 + MediaQuery.viewPaddingOf(context).bottom),
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(color: AppColors.line, borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ZoneDetail(zone: zone),
+        ],
+      ),
+    ),
   ),
 );
 
-class _SheetFrame extends StatelessWidget {
-  const _SheetFrame({required this.controller, required this.zone});
+/// 넓은 화면에서 지도 옆(오른쪽 열)에 띄우는 구역 상세. 지도를 가리지 않는다.
+class ZonePanel extends StatelessWidget {
+  const ZonePanel({super.key, required this.zone, required this.onClose});
 
-  final ScrollController controller;
   final ZoneId zone;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) => ZoneHost(
+    close: onClose,
+    child: Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 8),
+      padding: const EdgeInsets.fromLTRB(20, 12, 12, 20),
+      decoration: BoxDecoration(color: AppColors.surfaceSoft, borderRadius: BorderRadius.circular(24)),
+      child: ZoneDetail(zone: zone, onClose: onClose),
+    ),
+  );
+}
+
+/// 구역 이름과 구역별 내용(잠김·밭·가축 우리·물탱크·집·창고).
+class ZoneDetail extends StatelessWidget {
+  const ZoneDetail({super.key, required this.zone, this.onClose});
+
+  final ZoneId zone;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -45,23 +98,17 @@ class _SheetFrame extends StatelessWidget {
       ZoneId.storage => const _StorageBody(),
       _ => _FieldBody(zone: zone),
     };
-    return ListView(
-      controller: controller,
-      padding: EdgeInsets.fromLTRB(20, 10, 20, 24 + MediaQuery.viewPaddingOf(context).bottom),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Center(
-          child: Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(color: AppColors.line, borderRadius: BorderRadius.circular(2)),
-          ),
-        ),
-        const SizedBox(height: 14),
         Row(
           children: [
             Icon(zone.icon, color: AppColors.primary),
             const SizedBox(width: 8),
-            Text(context.l10n.zone(zone), style: AppText.h2),
+            Expanded(child: Text(context.l10n.zone(zone), style: AppText.h2)),
+            if (onClose != null)
+              IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded), tooltip: context.l10n.close),
           ],
         ),
         const SizedBox(height: 12),
@@ -209,7 +256,7 @@ class _FieldBody extends StatelessWidget {
                     (st) => GameEngine.harvest(st, zone),
                     done: l.harvested(l.crop(crop)),
                   );
-                  if (ok && !def.perennial && context.mounted) Navigator.of(context).maybePop();
+                  if (ok && !def.perennial && context.mounted) ZoneHost.closeOf(context);
                 }
               : null,
         ),
@@ -292,7 +339,7 @@ class _CropOption extends StatelessWidget {
                               (st) => GameEngine.plant(st, zone, def.id),
                               done: l.planted(l.crop(def.id)),
                             );
-                            if (ok && context.mounted) Navigator.of(context).maybePop();
+                            if (ok && context.mounted) ZoneHost.closeOf(context);
                           }
                         : null,
                     child: Text('🪙 ${def.seedCost}'),

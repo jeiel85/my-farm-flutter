@@ -32,6 +32,9 @@ class FarmScreen extends StatefulWidget {
 
 class _FarmScreenState extends State<FarmScreen> {
   ZoneId? _zone;
+
+  /// 하늘 보기(지도판을 눕혀 하늘을 연 상태). 날씨 표시를 누르면 켜지고, 지도나 카드의 닫기를 누르면 꺼진다.
+  bool _sky = false;
   SkyPreview? _preview;
   Timer? _previewTimer;
 
@@ -50,15 +53,22 @@ class _FarmScreenState extends State<FarmScreen> {
     super.dispose();
   }
 
+  /// 구역을 연다. 넓은 화면은 지도 옆(오른쪽 열)에, 휴대폰은 아래 시트로 띄운다(지도를 가리지 않게).
   Future<void> _open(ZoneId zone) async {
-    setState(() => _zone = zone);
     if (zone == ZoneId.storage) {
       AppShell.goTo(context, AppTab.barn);
-    } else {
-      await showZoneSheet(context, zone);
+      return;
     }
+    setState(() {
+      _sky = false;
+      _zone = zone;
+    });
+    if (isWide(context)) return;
+    await showZoneSheet(context, zone);
     if (mounted) setState(() => _zone = null);
   }
+
+  void _closeZone() => setState(() => _zone = null);
 
   @override
   Widget build(BuildContext context) {
@@ -79,16 +89,36 @@ class _FarmScreenState extends State<FarmScreen> {
               sky: _preview == null ? SkyView.at(now) : SkyView.preview(_preview!, now),
               selected: _zone,
               onZoneTap: _open,
+              skyMode: _sky,
+              onSkyTap: () => setState(() => _sky = false),
+              // 휴대폰 시트는 화면 아래 40% 남짓을 덮으므로, 고른 구역을 지도 위쪽으로 올린다.
+              focusBias: wide ? 0 : 0.18,
               aspect: wide ? 0.9 : 0.86,
             ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: SkyChip(now: now, preview: _preview, onPreview: _showPreview),
-            ),
+            if (!_sky)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: SkyChip(
+                  now: now,
+                  preview: _preview,
+                  onTap: () => setState(() {
+                    _zone = null;
+                    _sky = true;
+                  }),
+                ),
+              ),
           ],
         ),
       ),
+    );
+    // 날씨 카드는 눕힌 지도(서 있는 구조물·동물)를 가리지 않게 지도 밖에 둔다: 휴대폰은 지도 바로 아래, 넓은 화면은
+    // 오른쪽 열 맨 위.
+    final skyCard = SkyCard(
+      now: now,
+      preview: _preview,
+      onPreview: _showPreview,
+      onClose: () => setState(() => _sky = false),
     );
     final update = UpdateScope.of(context);
     final todoList = [
@@ -147,9 +177,16 @@ class _FarmScreenState extends State<FarmScreen> {
           const ResourceBar(),
           const SizedBox(height: 12),
           map,
+          if (_sky && !wide) Padding(padding: const EdgeInsets.only(top: 10), child: skyCard),
           if (!wide) ...todoList,
         ],
-        secondary: [if (wide) ...todoList],
+        secondary: [
+          if (wide) ...[
+            if (_sky) Padding(padding: const EdgeInsets.only(top: 8), child: skyCard),
+            if (_zone case final zone?) ZonePanel(key: ValueKey(zone), zone: zone, onClose: _closeZone),
+            ...todoList,
+          ],
+        ],
       ),
     );
   }

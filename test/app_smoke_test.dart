@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_farm/data/app_update.dart';
+import 'package:my_farm/features/farm/farm_map_view.dart';
+import 'package:my_farm/features/farm/sky_sheet.dart';
 import 'package:my_farm/game/defs.dart';
 import 'package:my_farm/game/game_store.dart';
 import 'package:my_farm/main.dart';
@@ -139,16 +141,26 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('지도 위 날씨 표시를 누르면 농장 하늘 시트가 열리고, 미리 보기는 잠깐 뒤 돌아온다', (tester) async {
+  testWidgets('날씨 표시를 누르면 하늘이 열리고 날씨 카드가 뜨며, 닫으면 평면으로 돌아오고 미리 보기는 잠깐 뒤 끝난다', (tester) async {
     await pumpApp(tester); // 10월 5일 14시 30분: 구름 많음(game_sky_test가 영향 없는 날씨임을 확인한다)
     expect(find.text('구름 많음'), findsOneWidget);
     await tapAndSettle(tester, find.text('구름 많음'));
-    expect(find.text('농장 하늘'), findsOneWidget);
+    expect(find.text('농장 하늘 · 구름 많음'), findsOneWidget);
     expect(find.text('앞으로 12시간'), findsOneWidget);
     expect(find.text('16시에 날씨가 바뀌어요'), findsOneWidget);
 
-    await tapAndSettle(tester, find.widgetWithText(ActionChip, '비'));
-    expect(find.text('농장 하늘'), findsNothing);
+    // 미리 보기 칩은 가로로 넘기는 목록이라 '비'가 보일 때까지 넘긴다.
+    final rain = find.widgetWithText(ChoiceChip, '비');
+    await tester.scrollUntilVisible(
+      rain,
+      80,
+      scrollable: find.descendant(of: find.byType(SkyCard), matching: find.byType(Scrollable)),
+    );
+    await tapAndSettle(tester, rain);
+    // 미리 보기를 골라도 카드는 남아 하늘에서 바로 볼 수 있다.
+    expect(find.text('앞으로 12시간'), findsOneWidget);
+    await tapAndSettle(tester, find.byTooltip('닫기'));
+    expect(find.text('앞으로 12시간'), findsNothing);
     expect(find.text('미리 보기 · 비'), findsOneWidget);
     await tester.pump(const Duration(seconds: 13));
     expect(find.text('미리 보기 · 비'), findsNothing);
@@ -157,13 +169,47 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('스크린리더로 날씨 표시를 두 번 탭하면 농장 하늘 시트가 열린다', (tester) async {
+  testWidgets('하늘 보기 중에 지도를 누르면 구역을 열지 않고 평면으로 돌아온다', (tester) async {
+    await pumpApp(tester);
+    await tapAndSettle(tester, find.text('구름 많음'));
+    expect(find.text('앞으로 12시간'), findsOneWidget);
+    // 하늘(지도 위쪽)을 누른다. 지도판 위를 누르는 경우는 farm_map_view_test가 확인한다.
+    await tester.tapAt(tester.getRect(find.byType(FarmMapView)).topCenter + const Offset(0, 40));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('앞으로 12시간'), findsNothing);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.text('구름 많음'), findsOneWidget);
+    await _unmount(tester);
+  });
+
+  testWidgets('스크린리더로 날씨 표시를 두 번 탭하면 하늘이 열리고 날씨 카드가 뜬다', (tester) async {
     final semantics = tester.ensureSemantics();
     await pumpApp(tester);
     tester.semantics.tap(find.semantics.byLabel('농장 하늘: 구름 많음'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('앞으로 12시간'), findsOneWidget);
+    semantics.dispose();
+    await _unmount(tester);
+  });
+
+  testWidgets('넓은 화면에서는 구역을 고르면 지도를 가리지 않고 오른쪽 열에 상세가 뜬다', (tester) async {
+    final semantics = tester.ensureSemantics();
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.reset);
+    await pumpApp(tester, size: const Size(1440, 900));
+    tester.semantics.tap(find.semantics.byLabel('밭 2, 잠김 (레벨 2)'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(BottomSheet), findsNothing);
+    final need = find.text('레벨 2 필요');
+    expect(need, findsOneWidget);
+    expect(tester.getTopLeft(need).dx, greaterThan(tester.getTopRight(find.bySemanticsLabel('농장 지도')).dx));
+    await tapAndSettle(tester, find.byTooltip('닫기'));
+    expect(find.text('레벨 2 필요'), findsNothing);
     semantics.dispose();
     await _unmount(tester);
   });

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
-import '../../game/game_store.dart';
 import '../../game/sky.dart';
 import '../../l10n/l10n.dart';
 import 'sky_layer.dart';
@@ -28,13 +27,13 @@ IconData _previewIcon(SkyPreview p) => switch (p) {
   _ => skyIcon(SkyKind.values.byName(p.name)),
 };
 
-/// 지도 위 지금 날씨 표시. 누르면 [showSkySheet].
+/// 지도 위 지금 날씨 표시. 누르면 지도판이 눕고 하늘이 열린다([SkyCard]).
 class SkyChip extends StatelessWidget {
-  const SkyChip({super.key, required this.now, required this.preview, required this.onPreview});
+  const SkyChip({super.key, required this.now, required this.preview, required this.onTap});
 
   final DateTime now;
   final SkyPreview? preview;
-  final ValueChanged<SkyPreview> onPreview;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -53,15 +52,14 @@ class SkyChip extends StatelessWidget {
         },
       ),
     };
-    void open() => showSkySheet(context, onPreview: onPreview);
     // 아이콘·글자를 한 덩어리로 읽히게 하위 시맨틱스를 빼므로, 스크린리더 두 번 탭은 여기서 받는다.
     return Semantics(
       button: true,
       label: l.skyChipLabel(text),
-      onTap: open,
+      onTap: onTap,
       excludeSemantics: true,
       child: Pressable(
-        onTap: open,
+        onTap: onTap,
         child: Container(
           padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
           decoration: BoxDecoration(
@@ -86,117 +84,103 @@ class SkyChip extends StatelessWidget {
   }
 }
 
-/// 지금 날씨·효과·앞으로 12시간 날씨와 그림 미리 보기.
-Future<void> showSkySheet(BuildContext context, {required ValueChanged<SkyPreview> onPreview}) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.bg,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        minChildSize: 0.3,
-        maxChildSize: 0.92,
-        builder: (context, controller) => _SkyBody(controller: controller, onPreview: onPreview),
-      ),
-    );
+/// 하늘이 열린 동안 지도 옆(휴대폰은 지도 바로 아래)에 뜨는 날씨 카드: 지금 날씨·효과, 앞으로 12시간, 그림 미리 보기.
+/// 눕힌 지도를 가리지 않도록 시트 대신 지도 밖에 둔다.
+class SkyCard extends StatelessWidget {
+  const SkyCard({super.key, required this.now, required this.preview, required this.onPreview, required this.onClose});
 
-class _SkyBody extends StatelessWidget {
-  const _SkyBody({required this.controller, required this.onPreview});
-
-  final ScrollController controller;
+  final DateTime now;
+  final SkyPreview? preview;
   final ValueChanged<SkyPreview> onPreview;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
-    final now = GameScope.of(context).now;
     final kind = GameSky.kindAt(now);
     final next = GameSky.blockStart(now).add(const Duration(hours: GameSky.blockHours));
     final rainbowLeft = GameSky.rainbowMinutesLeft(now);
-    final forecast = GameSky.forecast(now, 6);
-    return ListView(
-      controller: controller,
-      padding: EdgeInsets.fromLTRB(20, 10, 20, 24 + MediaQuery.viewPaddingOf(context).bottom),
-      children: [
-        Center(
-          child: Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(color: AppColors.line, borderRadius: BorderRadius.circular(2)),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(l.skyTitle, style: AppText.title),
-        const SizedBox(height: 12),
-        AppCard(
-          child: Row(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 12, offset: Offset(0, 4))],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              IconBubble(
-                color: AppTints.slate,
-                child: Icon(skyIcon(kind), color: AppColors.primary),
-              ),
-              const SizedBox(width: 12),
+              Icon(skyIcon(kind), color: AppColors.primary, size: 22),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(l.skyKind(kind.name), style: AppText.h2),
-                    Text(l.skyEffect(kind.name), style: AppText.caption),
-                    if (rainbowLeft > 0)
-                      Text(l.skyRainbowEffect(rainbowLeft), style: AppText.caption.copyWith(color: AppColors.orange)),
+                    Text('${l.skyTitle} · ${l.skyKind(kind.name)}', style: AppText.h3),
+                    Text(
+                      rainbowLeft > 0 ? l.skyRainbowEffect(rainbowLeft) : l.skyEffect(kind.name),
+                      style: AppText.caption.copyWith(color: rainbowLeft > 0 ? AppColors.orange : null),
+                    ),
                     Text(l.skyNextChange(l.skyHour(next.hour)), style: AppText.tiny),
                   ],
                 ),
               ),
+              Tooltip(
+                message: l.skyRules,
+                triggerMode: TooltipTriggerMode.tap,
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(Icons.info_outline_rounded, size: 20, color: AppColors.muted),
+                ),
+              ),
+              IconButton(onPressed: onClose, icon: const Icon(Icons.close_rounded), tooltip: l.close),
             ],
           ),
-        ),
-        SectionTitle(l.skyForecastTitle),
-        AppCard(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-          child: Row(
+          const SizedBox(height: 6),
+          Text(l.skyForecastTitle, style: AppText.tiny),
+          const SizedBox(height: 4),
+          Row(
             children: [
-              for (final (start, k) in forecast)
+              for (final (start, k) in GameSky.forecast(now, 6))
                 Expanded(
                   child: Column(
                     children: [
                       Text(l.skyHour(start.hour), style: AppText.tiny),
-                      const SizedBox(height: 6),
-                      Icon(skyIcon(k), color: k == SkyKind.rain ? AppColors.blue : AppColors.primary, size: 22),
-                      const SizedBox(height: 4),
-                      Text(
-                        l.skyKind(k.name),
-                        style: AppText.tiny.copyWith(color: AppColors.text),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                      ),
+                      Icon(skyIcon(k), color: k == SkyKind.rain ? AppColors.blue : AppColors.primary, size: 18),
                     ],
                   ),
                 ),
             ],
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(l.skyRules, style: AppText.caption),
-        SectionTitle(l.skyPreviewTitle, subtitle: l.skyPreviewHint),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final p in SkyPreview.values)
-              ActionChip(
-                avatar: Icon(_previewIcon(p), size: 18, color: AppColors.primary),
-                label: Text(l.skyPreview(p.name)),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  onPreview(p);
-                },
-              ),
-          ],
-        ),
-      ],
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 34,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Center(child: Text(l.skyPreviewTitle, style: AppText.tiny)),
+                ),
+                for (final p in SkyPreview.values)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      avatar: Icon(_previewIcon(p), size: 16, color: AppColors.primary),
+                      label: Text(l.skyPreview(p.name)),
+                      selected: preview == p,
+                      onSelected: (_) => onPreview(p),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
