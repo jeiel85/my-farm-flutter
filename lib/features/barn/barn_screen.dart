@@ -86,6 +86,7 @@ class BarnScreen extends StatelessWidget {
                 Text('🌾 ${s.feed.floor()} / ${GameDefs.feedCapacity}', style: AppText.h2),
                 const SizedBox(height: 4),
                 Text(l.feedHint, style: AppText.caption),
+                if (l.feedLastsText(s) case final lasts?) Text(lasts, style: AppText.caption),
                 const SizedBox(height: 12),
                 PrimaryButton(
                   label: l.buyFeedFor(GameDefs.feedPackAmount, GameDefs.feedPackCost),

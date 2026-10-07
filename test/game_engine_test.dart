@@ -27,6 +27,18 @@ void main() {
       expect(s.unlocked.contains(ZoneId.tomato), isFalse);
     });
 
+    test('사료 소비량은 성체는 시간당 전부, 새끼는 절반으로 센다', () {
+      final s = fresh();
+      expect(s.feedPerHourAll, 4); // 성체 닭 2마리 × 2
+      final withChick = GameEngine.buyAnimal(s, Species.chicken);
+      expect(withChick.feedPerHourAll, 5); // 병아리는 2의 절반
+      expect(s.copyWith(animals: []).feedPerHourAll, 0);
+    });
+
+    test('2레벨은 첫 몇 분 안에 오른다: 상추 수확 3번과 달걀 2개', () {
+      expect(GameDefs.xpForLevel(2), lessThanOrEqualTo(3 * GameDefs.crops[CropId.lettuce]!.xp + 2));
+    });
+
     test('1분 뒤 상추가 다 자라고 수확하면 창고에 5개, 경험치 1', () {
       final (s, report) = GameEngine.advance(fresh(), t0.add(const Duration(minutes: 1)));
       expect(s.fields[ZoneId.vegetable]!.ready, isTrue);
@@ -191,7 +203,7 @@ void main() {
       final lv2 = s.copyWith(xp: GameDefs.xpForLevel(2));
       final opened = GameEngine.unlockZone(lv2, ZoneId.tomato);
       expect(opened.unlocked.contains(ZoneId.tomato), isTrue);
-      expect(opened.coins, s.coins - 50);
+      expect(opened.coins, s.coins - 30);
       expect(() => GameEngine.unlockZone(opened, ZoneId.tomato), fails(GameError.alreadyUnlocked));
     });
 
@@ -281,7 +293,7 @@ void main() {
     });
 
     test('레벨 경계', () {
-      expect([0, 14, 15, 44, 45, 1599, 1600, 2099, 2100].map(GameDefs.levelForXp), [1, 1, 2, 2, 3, 9, 10, 10, 11]);
+      expect([0, 4, 5, 14, 15, 1199, 1200, 1699, 1700].map(GameDefs.levelForXp), [1, 1, 2, 2, 3, 9, 10, 10, 11]);
       for (var level = 1; level < 15; level++) {
         expect(GameDefs.levelForXp(GameDefs.xpForLevel(level)), level, reason: '$level');
       }

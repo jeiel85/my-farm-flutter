@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import '../game/defs.dart';
 import '../game/engine.dart';
+import '../game/state.dart';
 import '../game/zone.dart';
 import 'app_localizations.dart';
 
@@ -106,6 +107,16 @@ extension Labels on AppLocalizations {
     if (m > 0) return s == 0 ? durationM(m) : durationMS(m, s);
     return durationS(s);
   }
+
+  /// 사료가 버티는 시간과 한 묶음의 분량. 동물이 없으면 null.
+  String? feedLastsText(GameState s) {
+    final perHour = s.feedPerHourAll;
+    if (perHour == 0) return null;
+    return feedLasts(_roughSpan(s.feed / perHour), _roughSpan(GameDefs.feedPackAmount / perHour));
+  }
+
+  /// 대략적인 길이(1시간 이상은 시간, 미만은 분 단위로 버림).
+  String _roughSpan(double hours) => hours >= 1 ? spanHours(hours.floor()) : spanMinutes((hours * 60).floor());
 
   /// "3시간 후", "2 days ago" 같은 상대 시간.
   String relative(DateTime target, DateTime now) {

@@ -183,6 +183,11 @@ class GameState {
   int get barnUsed => barn.values.fold(0, (s, n) => s + n);
   int get barnFree => GameDefs.barnCapacity - barnUsed;
   double get feed => feedUnits / GameDefs.feedUnit;
+
+  /// 지금 있는 동물이 모두 먹는다고 칠 때 시간당 사료. 생산물이 가득 찬 성체는 실제로는
+  /// 먹지 않으므로, 사료가 가장 빨리 줄어드는 경우의 값이다.
+  int get feedPerHourAll => animals.fold(0, (sum, a) => sum + (a.adult ? a.def.feedPerHour : a.def.feedPerHour ~/ 2));
+
   int countOf(ItemId item) => barn[item] ?? 0;
 
   GameState copyWith({

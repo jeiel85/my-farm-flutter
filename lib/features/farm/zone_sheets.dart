@@ -334,6 +334,7 @@ class _PenBody extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(l.feedHint, style: AppText.tiny),
+        if (l.feedLastsText(s) case final lasts?) Text(lasts, style: AppText.tiny),
         for (final species in Species.values) _SpeciesSection(species: species),
       ],
     );
