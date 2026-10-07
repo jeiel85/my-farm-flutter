@@ -119,6 +119,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('병아리 들이기 · 🪙30'), findsOneWidget);
+    expect(find.text('지금 사료로 약 15시간 버텨요 · 한 묶음은 약 5시간 분량'), findsOneWidget);
     expect(tester.takeException(), isNull);
     semantics.dispose();
     await _unmount(tester);

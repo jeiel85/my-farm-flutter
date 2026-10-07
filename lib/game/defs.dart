@@ -254,8 +254,8 @@ abstract final class GameDefs {
   /// 구역을 여는 조건. 표에 없는 구역(농가·가축 우리·물탱크·창고)은 처음부터 열려 있다.
   static const zones = <ZoneId, ZoneDef>{
     ZoneId.vegetable: ZoneDef(zone: ZoneId.vegetable, unlockLevel: 1, unlockCost: 0, plot: PlotKind.field),
-    ZoneId.tomato: ZoneDef(zone: ZoneId.tomato, unlockLevel: 2, unlockCost: 50, plot: PlotKind.field),
-    ZoneId.corn: ZoneDef(zone: ZoneId.corn, unlockLevel: 3, unlockCost: 150, plot: PlotKind.field),
+    ZoneId.tomato: ZoneDef(zone: ZoneId.tomato, unlockLevel: 2, unlockCost: 30, plot: PlotKind.field),
+    ZoneId.corn: ZoneDef(zone: ZoneId.corn, unlockLevel: 3, unlockCost: 100, plot: PlotKind.field),
     ZoneId.greenhouse: ZoneDef(zone: ZoneId.greenhouse, unlockLevel: 6, unlockCost: 600, plot: PlotKind.greenhouse),
     ZoneId.orchard: ZoneDef(zone: ZoneId.orchard, unlockLevel: 8, unlockCost: 1500, plot: PlotKind.orchard),
   };
@@ -264,7 +264,8 @@ abstract final class GameDefs {
   static Iterable<ZoneId> get plotZones => zones.keys;
 
   /// 레벨 경계(누적 경험치). 인덱스 i는 (i+2)레벨이 되는 경험치. 10레벨 이후는 레벨마다 +500.
-  static const levelThresholds = [15, 45, 100, 190, 330, 530, 800, 1150, 1600];
+  /// 초반은 몇 분 만에 오르고 갈수록 완만해지게, 레벨당 필요량이 대략 두 배씩 늘다가 1.4배 안팎으로 줄어든다.
+  static const levelThresholds = [5, 15, 35, 75, 150, 280, 480, 780, 1200];
 
   static int levelForXp(int xp) {
     var level = 1;

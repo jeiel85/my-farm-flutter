@@ -515,6 +515,17 @@
     }
   },
   "feedHint": "동물은 시간마다 사료를 먹어요. 떨어지면 성장과 생산이 멈춰요.",
+  "feedLasts": "지금 사료로 약 {span} 버텨요 · 한 묶음은 약 {pack} 분량",
+  "@feedLasts": {
+    "placeholders": {
+      "span": {
+        "type": "String"
+      },
+      "pack": {
+        "type": "String"
+      }
+    }
+  },
   "sellAnimalTitle": "{species} 한 마리를 출하할까요?",
   "@sellAnimalTitle": {
     "placeholders": {

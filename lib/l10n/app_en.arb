@@ -187,6 +187,7 @@
   "penSpace": "Pen space",
   "buyFeedShort": "Feed · 🪙{cost}",
   "feedHint": "Animals eat feed every hour. Without it they stop growing and producing.",
+  "feedLasts": "Current feed lasts about {span} · one pack is about {pack}",
   "sellAnimalTitle": "Sell this {species}?",
   "sellAnimalBody": "You'll get 🪙{coins}. Anything it was holding goes to the barn. This can't be undone.",
   "sellAnimal": "Sell",
