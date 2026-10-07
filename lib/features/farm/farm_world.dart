@@ -619,7 +619,7 @@ class FarmMapPainter extends CustomPainter {
     _fading(canvas, flat, () => _drawAnimals(canvas, t));
     _drawTractor(canvas, t);
     paintWeather(canvas, sky, view, t);
-    paintDaylight(canvas, sky, view, t);
+    paintDaylight(canvas, sky, view, t, buildingLights: flat);
     _drawLocked(canvas);
     _fading(canvas, flat, () => _drawBubbles(canvas, t));
 

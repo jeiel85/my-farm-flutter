@@ -198,7 +198,10 @@ void paintWeather(Canvas c, SkyView sky, Rect view, double t) {
 }
 
 /// 하루의 빛깔(새벽·노을·밤)과 밤의 불빛. 날씨 위에 덮는다.
-void paintDaylight(Canvas c, SkyView sky, Rect view, double t) {
+///
+/// [buildingLights]는 평면 건물(창문) 불빛의 진하기다. 지도판을 눕혀 건물을 세워 그리는 동안에는 세운 건물에 불을
+/// 켜므로(upright.dart) 바닥의 평면 불빛은 그만큼 흐린다.
+void paintDaylight(Canvas c, SkyView sky, Rect view, double t, {double buildingLights = 1}) {
   final area = view.intersect(FarmWorld.bakeArea);
   if (area.isEmpty) return;
   if (sky.dawnGlow > 0) {
@@ -215,7 +218,7 @@ void paintDaylight(Canvas c, SkyView sky, Rect view, double t) {
       ..color = const Color(0xFF4F5F94).withValues(alpha: 0.62 * d)
       ..blendMode = BlendMode.multiply,
   );
-  _nightLights(c, sky, t, d);
+  _nightLights(c, sky, t, d, buildingLights);
 }
 
 // ---------------------------------------------------------------- 빛깔
@@ -504,7 +507,7 @@ void _sparkle(Canvas c, Offset p, double r, Color color) {
 
 // ---------------------------------------------------------------- 밤
 
-void _nightLights(Canvas c, SkyView sky, double t, double d) {
+void _nightLights(Canvas c, SkyView sky, double t, double d, double buildingLights) {
   void glow(Offset p, double radius, Color color, double alpha) {
     c.drawCircle(
       p,
@@ -514,9 +517,14 @@ void _nightLights(Canvas c, SkyView sky, double t, double d) {
   }
 
   const lamp = Color(0xFFFFD27A);
-  for (final p in FarmWorld.windows) {
-    glow(p, 46, lamp, 0.55 * d);
-    c.drawRect(Rect.fromCenter(center: p, width: 10, height: 8), fill(const Color(0xFFFFE6A8).withValues(alpha: d)));
+  if (buildingLights > 0) {
+    for (final p in FarmWorld.windows) {
+      glow(p, 46, lamp, 0.55 * d * buildingLights);
+      c.drawRect(
+        Rect.fromCenter(center: p, width: 10, height: 8),
+        fill(const Color(0xFFFFE6A8).withValues(alpha: d * buildingLights)),
+      );
+    }
   }
   final greenhouse = FarmWorld.zones[ZoneId.greenhouse]!;
   glow(greenhouse.center, 150, const Color(0xFFFFE9B0), 0.18 * d);

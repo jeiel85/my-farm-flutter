@@ -8,7 +8,6 @@ import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_farm/data/app_update.dart';
 import 'package:my_farm/features/farm/farm_map_view.dart';
-import 'package:my_farm/features/farm/sky_sheet.dart';
 import 'package:my_farm/game/defs.dart';
 import 'package:my_farm/game/game_store.dart';
 import 'package:my_farm/main.dart';
@@ -149,13 +148,12 @@ void main() {
     expect(find.text('앞으로 12시간'), findsOneWidget);
     expect(find.text('16시에 날씨가 바뀌어요'), findsOneWidget);
 
-    // 미리 보기 칩은 가로로 넘기는 목록이라 '비'가 보일 때까지 넘긴다.
+    // 미리 보기 칩은 넘기지 않아도 모두 보인다(PC에서는 가로 목록을 마우스로 넘길 수 없었다).
+    final winter = find.widgetWithText(ChoiceChip, '겨울');
+    await tester.ensureVisible(winter);
+    await tester.pump();
+    expect(winter.hitTestable(), findsOneWidget);
     final rain = find.widgetWithText(ChoiceChip, '비');
-    await tester.scrollUntilVisible(
-      rain,
-      80,
-      scrollable: find.descendant(of: find.byType(SkyCard), matching: find.byType(Scrollable)),
-    );
     await tapAndSettle(tester, rain);
     // 미리 보기를 골라도 카드는 남아 하늘에서 바로 볼 수 있다.
     expect(find.text('앞으로 12시간'), findsOneWidget);

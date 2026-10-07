@@ -156,28 +156,22 @@ class SkyCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          SizedBox(
-            height: 34,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Center(child: Text(l.skyPreviewTitle, style: AppText.tiny)),
+          // 가로로 넘기는 목록은 PC에서 마우스 휠·끌기로 넘길 수 없어서, 칩을 여러 줄로 감아 모두 보이게 한다.
+          Text(l.skyPreviewTitle, style: AppText.tiny),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final p in SkyPreview.values)
+                ChoiceChip(
+                  visualDensity: VisualDensity.compact,
+                  avatar: Icon(_previewIcon(p), size: 16, color: AppColors.primary),
+                  label: Text(l.skyPreview(p.name)),
+                  selected: preview == p,
+                  onSelected: (_) => onPreview(p),
                 ),
-                for (final p in SkyPreview.values)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      visualDensity: VisualDensity.compact,
-                      avatar: Icon(_previewIcon(p), size: 16, color: AppColors.primary),
-                      label: Text(l.skyPreview(p.name)),
-                      selected: preview == p,
-                      onSelected: (_) => onPreview(p),
-                    ),
-                  ),
-              ],
-            ),
+            ],
           ),
         ],
       ),
