@@ -28,7 +28,8 @@ class FarmMapView extends StatefulWidget {
   final FarmScene scene;
   final SkyView sky;
 
-  /// 하늘 보기. 이 동안 지도를 누르면 구역을 고르지 않고 [onSkyTap]을 부른다(평면으로 돌아가기).
+  /// 하늘 보기. 지도판을 눕힌 채로 구역을 고르고 다가갈 수 있다. 구역이 아닌 곳(하늘·길 등)을 누르면 [onSkyTap]을
+  /// 부른다(한 단계 돌아가기: 다가간 구역에서 전체로, 전체에서 평면으로).
   final bool skyMode;
   final VoidCallback? onSkyTap;
 
@@ -51,7 +52,9 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
   Rect _targetFor(ZoneId? zone) {
     if (zone == null) return FarmWorld.overviewRect(widget.aspect);
     final r = FarmWorld.focusRect(zone, widget.aspect);
-    return r.shift(Offset(0, r.height * widget.focusBias));
+    // 눕힌 지도에서는 화면 가운데가 원근 때문에 아래(60% 높이 근처)로 내려가 보이므로 조금 더 올린다.
+    final bias = widget.focusBias + (widget.skyMode ? 0.12 : 0);
+    return r.shift(Offset(0, r.height * bias));
   }
 
   Rect get _view => Rect.lerp(_from, _to, Curves.easeInOutCubic.transform(_camera.value))!;
@@ -72,7 +75,10 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
   @override
   void didUpdateWidget(FarmMapView old) {
     super.didUpdateWidget(old);
-    if (old.selected != widget.selected || old.aspect != widget.aspect || old.focusBias != widget.focusBias) {
+    if (old.selected != widget.selected ||
+        old.aspect != widget.aspect ||
+        old.focusBias != widget.focusBias ||
+        (old.skyMode != widget.skyMode && widget.selected != null)) {
       _from = _view;
       _to = _targetFor(widget.selected);
       _camera.forward(from: 0);
@@ -96,7 +102,11 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
     final scale = FarmMapPainter.scaleFor(view, size);
     final world = view.center + (d.localPosition - size.center(Offset.zero)) / scale;
     final zone = FarmWorld.hitTest(world);
-    if (zone != null) widget.onZoneTap(zone);
+    if (zone != null) {
+      widget.onZoneTap(zone);
+    } else if (widget.skyMode) {
+      widget.onSkyTap?.call();
+    }
   }
 
   @override
@@ -113,7 +123,7 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
           final horizon = FarmTilt.horizonY(size, k);
           final map = GestureDetector(
             key: const ValueKey('map'),
-            onTapUp: widget.skyMode ? null : (d) => _handleTap(d, size),
+            onTapUp: (d) => _handleTap(d, size),
             child: RepaintBoundary(
               child: Semantics(
                 label: context.l10n.farmMap,
@@ -131,7 +141,7 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
                     scene: widget.scene,
                     sky: widget.sky,
                     upright: k,
-                    onZoneTap: widget.skyMode ? (_) => widget.onSkyTap?.call() : widget.onZoneTap,
+                    onZoneTap: widget.onZoneTap,
                     textDirection: Directionality.of(context),
                   ),
                 ),
@@ -139,7 +149,7 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
             ),
           );
           return GestureDetector(
-            // 하늘 보기 중에는 어디를 눌러도 평면으로 돌아간다(하늘·능선 부분 포함).
+            // 지도판 밖(하늘·능선)을 누르면 한 단계 돌아간다. 지도판 위는 안쪽 GestureDetector가 먼저 받는다.
             onTap: widget.skyMode ? widget.onSkyTap : null,
             behavior: HitTestBehavior.opaque,
             child: Stack(

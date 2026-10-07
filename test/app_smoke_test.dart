@@ -167,7 +167,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('하늘 보기 중에 지도를 누르면 구역을 열지 않고 평면으로 돌아온다', (tester) async {
+  testWidgets('하늘 보기 중에 하늘을 누르면 평면으로 돌아온다', (tester) async {
     await pumpApp(tester);
     await tapAndSettle(tester, find.text('구름 많음'));
     expect(find.text('앞으로 12시간'), findsOneWidget);
@@ -188,6 +188,34 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('앞으로 12시간'), findsOneWidget);
+    semantics.dispose();
+    await _unmount(tester);
+  });
+
+  testWidgets('하늘 보기에서 구역을 고르면 눕힌 채로 다가가고, 하늘을 누를 때마다 한 단계씩 돌아온다', (tester) async {
+    final semantics = tester.ensureSemantics();
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.reset);
+    await pumpApp(tester, size: const Size(1440, 900));
+    await tapAndSettle(tester, find.text('구름 많음'));
+    tester.semantics.tap(find.semantics.byLabel('밭 2, 잠김 (레벨 2)'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    // 구역 상세가 뜨고 하늘 보기(날씨 카드)는 그대로다.
+    expect(find.text('레벨 2 필요'), findsOneWidget);
+    expect(find.text('앞으로 12시간'), findsOneWidget);
+    final sky = tester.getRect(find.byType(FarmMapView)).topCenter + const Offset(0, 30);
+    await tester.tapAt(sky);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('레벨 2 필요'), findsNothing);
+    expect(find.text('앞으로 12시간'), findsOneWidget);
+    await tester.tapAt(sky);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('앞으로 12시간'), findsNothing);
     semantics.dispose();
     await _unmount(tester);
   });

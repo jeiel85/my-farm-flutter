@@ -59,10 +59,8 @@ class _FarmScreenState extends State<FarmScreen> {
       AppShell.goTo(context, AppTab.barn);
       return;
     }
-    setState(() {
-      _sky = false;
-      _zone = zone;
-    });
+    // 하늘 보기 중이면 지도판을 눕힌 채로 다가간다.
+    setState(() => _zone = zone);
     if (isWide(context)) return;
     await showZoneSheet(context, zone);
     if (mounted) setState(() => _zone = null);
@@ -90,7 +88,8 @@ class _FarmScreenState extends State<FarmScreen> {
               selected: _zone,
               onZoneTap: _open,
               skyMode: _sky,
-              onSkyTap: () => setState(() => _sky = false),
+              // 한 단계 돌아가기: 다가간 구역에서 전체 하늘 보기로, 전체에서 평면으로.
+              onSkyTap: () => setState(() => _zone == null ? _sky = false : _zone = null),
               // 휴대폰 시트는 화면 아래 40% 남짓을 덮으므로, 고른 구역을 지도 위쪽으로 올린다.
               focusBias: wide ? 0 : 0.18,
               aspect: wide ? 0.9 : 0.86,

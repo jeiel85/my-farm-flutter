@@ -73,15 +73,15 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('하늘 보기에서는 지도판을 눕히고, 어디를 눌러도 구역 대신 평면으로 돌아가기를 부른다', (tester) async {
+  testWidgets('하늘 보기에서는 눕힌 지도판 위 구역을 누르면 그 구역을, 하늘을 누르면 돌아가기를 부른다', (tester) async {
     final (tapped, events) = await pumpMap(tester, skyMode: true);
-    // 지도판 위(가축 우리)와 하늘(맨 위)을 누른다.
+    // 원근을 거친 화면 위치로 가축 우리를 누르고, 맨 위 하늘을 누른다.
     await tester.tapAt(MatrixUtils.transformPoint(FarmTilt.matrix(size, 1), flatCenter(ZoneId.animals)));
     await tester.pump();
     await tester.tapAt(const Offset(200, 20));
     await tester.pump();
-    expect(tapped, isEmpty);
-    expect(events, ['sky', 'sky']);
+    expect(tapped, [ZoneId.animals]);
+    expect(events, ['sky']);
     await tester.pumpWidget(const SizedBox());
   });
 }

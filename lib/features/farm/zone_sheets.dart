@@ -38,7 +38,7 @@ Future<void> showZoneSheet(BuildContext context, ZoneId zone) => showModalBottom
     close: () => Navigator.of(sheetContext).maybePop(),
     child: DraggableScrollableSheet(
       expand: false,
-      initialChildSize: zone == ZoneId.animals ? 0.6 : 0.42,
+      initialChildSize: zone == ZoneId.animals ? 0.5 : 0.42,
       minChildSize: 0.25,
       maxChildSize: 0.92,
       builder: (context, controller) => ListView(
