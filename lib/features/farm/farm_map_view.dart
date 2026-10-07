@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import '../../game/zone.dart';
 import '../../l10n/l10n.dart';
 import 'farm_world.dart';
+import 'sky_layer.dart';
 
 /// 선택한 구역으로 카메라가 부드럽게 이동하는 농장 지도.
 /// [selected]가 null이면 전체 지도를 보여 준다.
@@ -13,12 +14,14 @@ class FarmMapView extends StatefulWidget {
     required this.selected,
     required this.onZoneTap,
     required this.scene,
+    required this.sky,
     this.aspect = 0.8,
   });
 
   final ZoneId? selected;
   final ValueChanged<ZoneId> onZoneTap;
   final FarmScene scene;
+  final SkyView sky;
   final double aspect;
 
   @override
@@ -96,6 +99,7 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
                     selectionT: widget.selected == null ? 0 : Curves.easeOut.transform(focusT.clamp(0, 1)),
                     labelOpacity: widget.selected == null ? Curves.easeIn.transform(1 - focusT.clamp(0.0, 1.0)) : 0,
                     scene: widget.scene,
+                    sky: widget.sky,
                     onZoneTap: widget.onZoneTap,
                     textDirection: Directionality.of(context),
                   ),

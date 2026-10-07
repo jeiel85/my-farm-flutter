@@ -139,6 +139,24 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('지도 위 날씨 표시를 누르면 농장 하늘 시트가 열리고, 미리 보기는 잠깐 뒤 돌아온다', (tester) async {
+    await pumpApp(tester); // 10월 5일 14시 30분: 구름 많음(game_sky_test가 영향 없는 날씨임을 확인한다)
+    expect(find.text('구름 많음'), findsOneWidget);
+    await tapAndSettle(tester, find.text('구름 많음'));
+    expect(find.text('농장 하늘'), findsOneWidget);
+    expect(find.text('앞으로 12시간'), findsOneWidget);
+    expect(find.text('16시에 날씨가 바뀌어요'), findsOneWidget);
+
+    await tapAndSettle(tester, find.widgetWithText(ActionChip, '비'));
+    expect(find.text('농장 하늘'), findsNothing);
+    expect(find.text('미리 보기 · 비'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 13));
+    expect(find.text('미리 보기 · 비'), findsNothing);
+    expect(find.text('구름 많음'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await _unmount(tester);
+  });
+
   testWidgets('관리 앱(1.x) 기록이 있으면 보관했다고 알린다', (tester) async {
     final legacy = jsonEncode({
       'schemaVersion': 4,
