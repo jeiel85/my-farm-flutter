@@ -16,6 +16,9 @@ class AnimalAvatar extends StatelessWidget {
   Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _AnimalPainter(kind, variant));
 }
 
+/// 옆모습 동물을 100×100 상자 안에 그린다(지도에 세워 그릴 때).
+void paintAnimalSide(Canvas canvas, Species kind, {int variant = 0}) => _AnimalPainter(kind, variant).paintBox(canvas);
+
 class _AnimalPainter extends CustomPainter {
   _AnimalPainter(this.kind, this.variant);
 
@@ -26,6 +29,12 @@ class _AnimalPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / 100, size.height / 100);
+    paintBox(canvas);
+    canvas.restore();
+  }
+
+  /// 100×100 상자 안에 그린다(오른쪽을 보고, 발은 y 84 근처).
+  void paintBox(Canvas canvas) {
     switch (kind) {
       case Species.cow:
         _cow(canvas);
@@ -36,7 +45,6 @@ class _AnimalPainter extends CustomPainter {
       case Species.goat:
         _goat(canvas);
     }
-    canvas.restore();
   }
 
   Paint _p(Color c) => Paint()..color = c;

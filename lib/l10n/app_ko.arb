@@ -268,6 +268,7 @@
   "tabRecords": "기록",
   "tabSettings": "설정",
   "migratedNotice": "마이팜이 방치형 농장 게임으로 바뀌었어요. 이전 관리 기록은 보관해 두었고 설정에서 내보낼 수 있어요.",
+  "close": "닫기",
   "ok": "확인",
   "coins": "코인",
   "barn": "창고",
@@ -1046,7 +1047,7 @@
   "skyRules": "날씨는 2시간마다 바뀌어요. 비가 오면 물탱크가 두 배로 차고, 폭염에는 천천히 차요. 비가 갠 뒤 무지개가 뜨면 40분 동안 수확량이 20% 늘어요.",
   "skyPreviewTitle": "그림 미리 보기",
   "skyPreviewHint": "지도에서 잠깐 보여 줘요. 게임 효과는 지금 날씨 그대로예요.",
-  "skyPreview": "{look, select, clear{맑음} cloudy{구름} windy{바람} rain{비} snow{눈} fog{안개} heat{폭염} rainbow{무지개} dusk{노을} night{밤} other{맑음}}",
+  "skyPreview": "{look, select, clear{맑음} cloudy{구름} windy{바람} rain{비} snow{눈} fog{안개} heat{폭염} rainbow{무지개} dusk{노을} night{밤} spring{봄} summer{여름} autumn{가을} winter{겨울} other{맑음}}",
   "@skyPreview": {
     "placeholders": {
       "look": {
