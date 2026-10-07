@@ -272,6 +272,8 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
           light(const Offset(0, -34), 4);
         },
       );
+    case PropKind.mill || PropKind.jamKitchen || PropKind.dairy || PropKind.bakery:
+      _workshop(c, p.kind, look, light);
     case PropKind.warehouse:
       _building(
         c,
@@ -300,6 +302,66 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
       _tree(c, p.footprint.width / 2, p.seed, p.deep, look);
   }
   c.restore();
+}
+
+/// 공방: 방앗간 물레방아, 잼 공방 줄무늬 차양, 치즈 공방 둥근 창, 빵집 굴뚝.
+void _workshop(Canvas c, PropKind kind, _Look look, void Function(Offset, double) light) {
+  final (wall, roof) = switch (kind) {
+    PropKind.mill => (const Color(0xFFEDE3CF), BuildingLook.millRoof),
+    PropKind.jamKitchen => (const Color(0xFFF3DCDD), BuildingLook.jamRoof),
+    PropKind.dairy => (const Color(0xFFF4EFE3), BuildingLook.dairyRoof),
+    _ => (const Color(0xFFC98A64), BuildingLook.bakeryRoof),
+  };
+  _building(
+    c,
+    width: 132,
+    wallH: 52,
+    roofH: 34,
+    wall: wall,
+    roof: roof,
+    snow: look.snow,
+    front: (c, a, h) {
+      c.drawRect(Rect.fromLTWH(-12, -32, 24, 32), fill(Tint.wood));
+      switch (kind) {
+        case PropKind.jamKitchen:
+          _window(c, Offset(a * 0.55, -30), 20, 14);
+          for (var i = 0; i < 4; i++) {
+            c.drawRect(
+              Rect.fromLTWH(a * 0.55 - 14 + i * 7, -44, 7, 7),
+              fill(i.isEven ? const Color(0xFFD9573F) : Colors.white),
+            );
+          }
+        case PropKind.dairy:
+          c.drawCircle(Offset(a * 0.55, -30), 9, fill(const Color(0xFFCFE0E6)));
+          c.drawCircle(Offset(a * 0.55, -30), 9, pen(Tint.wood, 2));
+        case PropKind.bakery:
+          _window(c, Offset(a * 0.55, -28), 20, 16);
+          for (var x = -a + 6; x < a; x += 12) {
+            c.drawLine(Offset(x, -h + 4), Offset(x, -2), pen(const Color(0x22000000), 1));
+          }
+        default:
+          _window(c, Offset(a * 0.55, -30), 18, 16);
+      }
+      light(const Offset(0, -36), 5);
+    },
+    extra: (c, a, h, ridge) {
+      if (kind == PropKind.bakery) {
+        final chimney = Rect.fromLTWH(a * 0.4, ridge + 2, 14, 28);
+        c.drawRect(chimney, fill(const Color(0xFF8C5A44)));
+        c.drawRect(chimney, pen(Tint.line.withValues(alpha: 0.5), 1.2));
+      }
+      if (kind == PropKind.mill) {
+        // 왼쪽 옆 물레방아.
+        final wheel = Offset(-a - 16, -26);
+        c.drawCircle(wheel, 24, fill(Tint.wood));
+        for (var i = 0; i < 8; i++) {
+          final ang = i * math.pi / 4;
+          c.drawLine(wheel, wheel + Offset(math.cos(ang), math.sin(ang)) * 24, pen(const Color(0xFF5E4630), 2.2));
+        }
+        c.drawCircle(wheel, 24, pen(Tint.line.withValues(alpha: 0.5), 1.4));
+      }
+    },
+  );
 }
 
 void _window(Canvas c, Offset center, double w, double h) {

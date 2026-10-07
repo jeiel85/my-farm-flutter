@@ -39,6 +39,9 @@ enum GameError {
 
   /// 이미 최고 레벨이다.
   maxLevel,
+
+  /// 공방이 이미 만드는 중이다(다 만든 것을 꺼내야 다시 만들 수 있다).
+  workshopBusy,
 }
 
 class GameException implements Exception {
@@ -69,13 +72,19 @@ class AdvanceReport {
   int autoCollected = 0;
   int autoSoldCoins = 0;
 
+  /// 공방에서 다 만든 것(손으로 꺼내야 하는 것 포함)과 Lv3 공방이 저절로 꺼낸 개수.
+  final craftsDone = <LotId>{};
+  int autoCrafted = 0;
+
   bool get eventful =>
       cropsReady.isNotEmpty ||
       produced.isNotEmpty ||
       born.isNotEmpty ||
       feedRanOut ||
       autoHarvests > 0 ||
-      autoCollected > 0;
+      autoCollected > 0 ||
+      craftsDone.isNotEmpty ||
+      autoCrafted > 0;
 }
 
 DateTime minuteFloor(DateTime t) => DateTime(t.year, t.month, t.day, t.hour, t.minute);
@@ -129,7 +138,7 @@ abstract final class GameEngine {
   /// 시간은 버린다.
   ///
   /// 분마다 같은 순서로 처리한다: 물 충전 → 작물 성장 → Lv3 작물 건물 자동 수확·다시 심기 → 가축 성장·생산 →
-  /// Lv3 우리 자동 줍기 → 번식. 그래서 나눠 진행한 결과와 한 번에 진행한 결과가 같다. 자동 판매·씨앗 기록도
+  /// Lv3 우리 자동 줍기 → 공방(진행, Lv3 자동 꺼내기·다시 만들기) → 번식. 그래서 나눠 진행한 결과와 한 번에 진행한 결과가 같다. 자동 판매·씨앗 기록도
   /// 그 분의 시각으로 남는다.
   static (GameState, AdvanceReport) advance(GameState s, DateTime to, {int? capMinutes}) {
     final report = AdvanceReport();
@@ -157,6 +166,10 @@ abstract final class GameEngine {
     final pens = [
       for (final id in s.builtLots)
         if (s.lots[id]!.def.species != null) id,
+    ];
+    final workshops = [
+      for (final id in s.builtLots)
+        if (s.lots[id]!.def.recipe != null) id,
     ];
     final animals = [...s.animals];
     final breed = Map.of(s.breedProgress);
@@ -283,6 +296,38 @@ abstract final class GameEngine {
         report.autoCollected += took;
       }
 
+      // 공방: 만드는 중이면 진행하고, 다 되면 Lv3은 꺼내고(창고가 차면 기다리거나 창고 Lv3이면 판다) 재료가
+      // 있으면 다시 만든다.
+      for (final id in workshops) {
+        final lot = lots[id]!;
+        final job = lot.job;
+        if (job == null) continue;
+        final recipe = lot.def.recipe!;
+        if (!job.done) {
+          final next = WorkshopJob(minutesLeft: job.minutesLeft - 1, totalMinutes: job.totalMinutes);
+          lots[id] = lot.copyWith(job: next);
+          if (!next.done) continue;
+          report.craftsDone.add(id);
+        }
+        if (lot.level < GameDefs.autoLevel) continue;
+        if (store(recipe.output, 1, minute, partial: false) == 0) continue;
+        xp += recipe.xp;
+        report.autoCrafted++;
+        report.craftsDone.remove(id);
+        if (recipe.inputs.entries.every((e) => (barn[e.key] ?? 0) >= e.value)) {
+          for (final e in recipe.inputs.entries) {
+            barn[e.key] = barn[e.key]! - e.value;
+            barnUsed -= e.value;
+          }
+          final minutes = GameDefs.craftMinutes(recipe, lot.level);
+          lots[id] = lots[id]!.copyWith(
+            job: WorkshopJob(minutesLeft: minutes, totalMinutes: minutes),
+          );
+        } else {
+          lots[id] = lots[id]!.copyWith(clearJob: true);
+        }
+      }
+
       // 번식: 같은 우리에 성체가 2마리 이상이고 자리가 있으면 진행한다.
       for (final pen in pens) {
         final species = lots[pen]!.def.species!;
@@ -402,7 +447,7 @@ abstract final class GameEngine {
   /// 비어 있는 건물(작물이 없는 밭, 동물이 없는 우리)을 헐고 짓기 비용의 절반을 돌려받는다.
   static GameState demolish(GameState s, LotId lot) {
     final l = s.lots[lot];
-    if (l == null || l.def.core) throw const GameException(GameError.cannotDemolish);
+    if (l == null || l.def.core || l.job != null) throw const GameException(GameError.cannotDemolish);
     if (l.field != null && !l.field!.empty) throw const GameException(GameError.cannotDemolish);
     if (s.animals.any((a) => a.home == lot)) throw const GameException(GameError.cannotDemolish);
     final refund = GameDefs.demolishRefund(l.building);
@@ -481,6 +526,47 @@ abstract final class GameEngine {
         ...s.lots,
         lot: l.copyWith(field: next),
       },
+    );
+  }
+
+  // ---------------------------------------------------------------- 공방
+
+  /// 공방 [lot]에서 레시피대로 만들기 시작한다(재료를 창고에서 꺼낸다).
+  static GameState startCraft(GameState s, LotId lot) {
+    final l = s.lots[lot];
+    final recipe = l?.def.recipe;
+    if (l == null || recipe == null) throw const GameException(GameError.wrongBuilding);
+    if (l.job != null) throw const GameException(GameError.workshopBusy);
+    if (!recipe.inputs.entries.every((e) => s.countOf(e.key) >= e.value)) {
+      throw const GameException(GameError.notEnoughItems);
+    }
+    var barn = s.barn;
+    for (final e in recipe.inputs.entries) {
+      barn = _add(barn, e.key, -e.value);
+    }
+    final minutes = GameDefs.craftMinutes(recipe, l.level);
+    return s.copyWith(
+      barn: barn,
+      lots: {
+        ...s.lots,
+        lot: l.copyWith(
+          job: WorkshopJob(minutesLeft: minutes, totalMinutes: minutes),
+        ),
+      },
+    );
+  }
+
+  /// 다 만든 가공품을 창고로 꺼낸다.
+  static GameState collectCraft(GameState s, LotId lot) {
+    final l = s.lots[lot];
+    final recipe = l?.def.recipe;
+    if (l == null || recipe == null) throw const GameException(GameError.wrongBuilding);
+    if (l.job == null || !l.job!.done) throw const GameException(GameError.notReady);
+    if (s.barnFree < 1) throw const GameException(GameError.barnFull);
+    return s.copyWith(
+      barn: _add(s.barn, recipe.output, 1),
+      xp: s.xp + recipe.xp,
+      lots: {...s.lots, lot: l.copyWith(clearJob: true)},
     );
   }
 

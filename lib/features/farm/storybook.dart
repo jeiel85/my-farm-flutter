@@ -331,6 +331,55 @@ void _plant(Canvas c, Offset p, CropId crop, int stage, math.Random rng) {
       if (stage == 3) {
         c.drawOval(Rect.fromCenter(center: p + const Offset(4, -6), width: 6, height: 11), fill(Tint.corn));
       }
+    case CropId.wheat:
+      // 밀: 가는 줄기 다발, 자라면 금빛 이삭.
+      final h = big ? 16.0 : 10.0;
+      final stalk = stage == 3 ? const Color(0xFFD6B25A) : const Color(0xFF8DAE55);
+      for (final a in [-0.5, -0.2, 0.1, 0.4]) {
+        final tip = p + Offset(math.sin(a) * h * 0.6, -h);
+        c.drawLine(p, tip, pen(stalk, 1.6));
+        if (big) c.drawOval(Rect.fromCenter(center: tip, width: 3.4, height: 7), fill(stalk));
+      }
+    case CropId.potato:
+      // 감자: 낮게 퍼진 잎 덤불, 꽃이 피면 보랏빛.
+      final w = big ? 24.0 : 16.0;
+      final bush = wobblyOval(
+        Rect.fromCenter(center: p - const Offset(0, 4), width: w, height: w * 0.7),
+        rng,
+        jitter: 0.16,
+      );
+      c.drawPath(bush, fill(const Color(0xFF6F9A4C).withValues(alpha: 0.9)));
+      if (stage >= 2) {
+        for (var i = 0; i < 3; i++) {
+          c.drawCircle(
+            p + Offset(rng.nextDouble() * 14 - 7, -4 - rng.nextDouble() * 6),
+            2.2,
+            fill(const Color(0xFFB9A3D6)),
+          );
+        }
+      }
+      if (stage == 3) {
+        c.drawOval(Rect.fromCenter(center: p + const Offset(5, 3), width: 9, height: 7), fill(const Color(0xFFC8A56E)));
+      }
+    case CropId.pumpkin:
+      // 호박: 넓은 잎 덩굴, 자라면 주황 호박.
+      final w = big ? 26.0 : 18.0;
+      final leaf = wobblyOval(
+        Rect.fromCenter(center: p - const Offset(4, 6), width: w, height: w * 0.8),
+        rng,
+        jitter: 0.18,
+      );
+      c.drawPath(leaf, fill(const Color(0xFF5E8E3E).withValues(alpha: 0.9)));
+      c.drawPath(leaf, pen(Tint.line.withValues(alpha: 0.2), 1));
+      if (stage >= 2) {
+        final r = stage == 3 ? 7.5 : 4.0;
+        final q = p + const Offset(6, -2);
+        c.drawOval(
+          Rect.fromCenter(center: q, width: r * 2.3, height: r * 1.8),
+          fill(stage == 3 ? Tint.carrot : const Color(0xFFB9C66A)),
+        );
+        c.drawLine(q - Offset(0, r * 0.9), q - Offset(-2, r * 1.4), pen(Tint.wood, 1.6));
+      }
     case CropId.carrot:
       for (final a in [-0.6, 0.0, 0.6]) {
         c.drawLine(p, p + Offset(math.sin(a) * 9, -math.cos(a) * (big ? 12 : 8)), pen(const Color(0xFF6FA244), 2.2));

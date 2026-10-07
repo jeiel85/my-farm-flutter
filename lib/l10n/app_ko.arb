@@ -1263,5 +1263,131 @@
         "type": "int"
       }
     }
+  },
+  "itemWheat": "밀",
+  "itemPotato": "감자",
+  "itemPumpkin": "호박",
+  "itemFlour": "밀가루",
+  "itemJam": "딸기잼",
+  "itemCheese": "치즈",
+  "itemBread": "빵",
+  "buildingMill": "방앗간",
+  "buildingJamKitchen": "잼 공방",
+  "buildingDairy": "치즈 공방",
+  "buildingBakery": "빵집",
+  "buildingDescWorkshop": "{inputs} → {output}",
+  "@buildingDescWorkshop": {
+    "placeholders": {
+      "inputs": {
+        "type": "String"
+      },
+      "output": {
+        "type": "String"
+      }
+    }
+  },
+  "craftRecipe": "레시피",
+  "craftStart": "만들기 · {time}",
+  "@craftStart": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "craftWorking": "만드는 중 · {time} 남음",
+  "@craftWorking": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "craftReady": "다 만들었어요",
+  "craftCollect": "꺼내기",
+  "crafted": "{item} 완성!",
+  "@crafted": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "craftStarted": "{item} 만들기 시작",
+  "@craftStarted": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "craftInput": "{item} {have}/{need}",
+  "@craftInput": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      },
+      "have": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      }
+    }
+  },
+  "effectFaster": "만드는 시간 -25%",
+  "effectAutoCraft": "다 되면 저절로 꺼내고 다시 만들어요",
+  "errWorkshopBusy": "이미 만드는 중이에요",
+  "todoCraftDone": "{item} 꺼낼 수 있어요",
+  "@todoCraftDone": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "todoCraftIdle": "{building}에서 {item} 만들 수 있어요",
+  "@todoCraftIdle": {
+    "placeholders": {
+      "building": {
+        "type": "String"
+      },
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "actionCraft": "만들기",
+  "awayCraftsDone": "공방 {count}곳에서 다 만들었어요",
+  "@awayCraftsDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awayAutoCrafted": "가공품 {count}개를 저절로 만들었어요",
+  "@awayAutoCrafted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mapWorkshopWorking": "{name}, 만드는 중",
+  "@mapWorkshopWorking": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mapWorkshopDone": "{name}, 다 만듦",
+  "@mapWorkshopDone": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

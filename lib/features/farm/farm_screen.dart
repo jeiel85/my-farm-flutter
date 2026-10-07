@@ -230,6 +230,28 @@ class _TodoTile extends StatelessWidget {
         l.collectVerb(todo.species!),
         () => collectFrom(context, lot!, todo.species!),
       ),
+      TodoKind.craftDone => () {
+        final recipe = s.lots[lot]!.def.recipe!;
+        return (
+          Icons.outbox_rounded,
+          AppColors.sage,
+          l.todoCraftDone(l.item(recipe.output)),
+          name,
+          l.craftCollect,
+          () => runGame(context, (st) => GameEngine.collectCraft(st, lot!), done: l.crafted(l.item(recipe.output))),
+        );
+      }(),
+      TodoKind.craftIdle => () {
+        final recipe = s.lots[lot]!.def.recipe!;
+        return (
+          Icons.play_circle_outline_rounded,
+          AppColors.primary,
+          l.todoCraftIdle(name, l.item(recipe.output)),
+          l.recipeInputs(recipe),
+          l.actionCraft,
+          () => runGame(context, (st) => GameEngine.startCraft(st, lot!), done: l.craftStarted(l.item(recipe.output))),
+        );
+      }(),
       TodoKind.barnFull => (
         Icons.inventory_2_outlined,
         AppColors.orange,

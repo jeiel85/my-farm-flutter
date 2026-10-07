@@ -241,6 +241,17 @@ void paintLotBase(Canvas c, LotVisual v, Rect r) {
     case BuildingId.orchard:
       wash(c, wobblyRect(r, rng, radius: 22), const Color(0xFFBFD293), rng, layers: 2);
       paintOrchard(c, r.deflate(6), v.crop == null ? null : v.stage, rng);
+    case BuildingId.mill || BuildingId.jamKitchen || BuildingId.dairy || BuildingId.bakery:
+      // 공방: 다진 흙 마당과 앞길, 나무통.
+      wash(c, wobblyRect(r.deflate(4), rng, radius: 22), const Color(0xFFDCCFAE), rng, layers: 2, edge: false);
+      final shop = LotLayout.workshop(r);
+      paintRoad(c, Rect.fromLTWH(shop.center.dx - 16, shop.bottom - 6, 32, r.bottom - shop.bottom - 6), rng);
+      for (var i = 0; i < 3; i++) {
+        final barrel = Rect.fromCircle(center: Offset(r.right - 36, r.bottom - 44 - i * 26), radius: 11);
+        c.drawOval(barrel.shift(const Offset(2, 3)), fill(Tint.shadow));
+        c.drawOval(barrel, fill(Tint.wood));
+        c.drawOval(barrel.deflate(3), pen(const Color(0x55000000), 1.2));
+      }
     case BuildingId.coop || BuildingId.goatPen || BuildingId.sheepPen || BuildingId.cowBarn:
       wash(c, wobblyRect(r.deflate(4), rng, radius: 26), const Color(0xFFC9D99C), rng, layers: 2);
       final pasture = LotLayout.pasture(r, building);
@@ -273,11 +284,15 @@ abstract final class LotLayout {
       Rect.fromLTRB(r.left + 30, r.top + (b == BuildingId.coop ? 92 : 112), r.right - 30, r.bottom - 28);
   static Offset door(Rect r, BuildingId b) => shed(r, b).bottomCenter + const Offset(0, 14);
   static Rect trough(Rect r) => Rect.fromLTWH(r.right - 94, r.top + 30, 62, 18);
+  static Rect workshop(Rect r) => Rect.fromLTWH(r.left + 36, r.top + 40, 152, 104);
+
+  /// 공방 굴뚝 끝(연기가 나는 곳).
+  static Offset chimney(Rect r) => workshop(r).topRight + const Offset(-30, 12);
 }
 
 // ---------------------------------------------------------------- 서 있는 것들
 
-enum PropKind { house, barn, coop, goatShed, sheepShed, warehouse, silo, hay, tree }
+enum PropKind { house, barn, coop, goatShed, sheepShed, warehouse, silo, hay, tree, mill, jamKitchen, dairy, bakery }
 
 /// 땅 위에 서 있는 구조물·나무. [footprint]는 땅에 닿는 자리(월드 좌표)다.
 @immutable
@@ -318,6 +333,10 @@ List<FarmProp> propsForLot(LotId id, BuildingId building) {
     BuildingId.goatPen => [FarmProp(PropKind.goatShed, LotLayout.shed(r, building), seed: seed + 1)],
     BuildingId.sheepPen => [FarmProp(PropKind.sheepShed, LotLayout.shed(r, building), seed: seed + 1)],
     BuildingId.cowBarn => [FarmProp(PropKind.barn, LotLayout.shed(r, building), seed: seed + 1)],
+    BuildingId.mill => [FarmProp(PropKind.mill, LotLayout.workshop(r), seed: seed + 1)],
+    BuildingId.jamKitchen => [FarmProp(PropKind.jamKitchen, LotLayout.workshop(r), seed: seed + 1)],
+    BuildingId.dairy => [FarmProp(PropKind.dairy, LotLayout.workshop(r), seed: seed + 1)],
+    BuildingId.bakery => [FarmProp(PropKind.bakery, LotLayout.workshop(r), seed: seed + 1)],
     BuildingId.field || BuildingId.greenhouse || BuildingId.orchard => const [],
   };
 }
@@ -340,6 +359,22 @@ void paintPropFlat(Canvas c, FarmProp p) {
       paintGableHouse(c, r, rng, roof: BuildingLook.sheepRoof);
     case PropKind.warehouse:
       paintGableHouse(c, r, rng, roof: BuildingLook.warehouseRoof);
+    case PropKind.mill:
+      paintGableHouse(c, r, rng, roof: BuildingLook.millRoof);
+      // 옆에 물레방아.
+      final wheel = Offset(r.left - 6, r.center.dy);
+      c.drawCircle(wheel, 22, fill(Tint.wood));
+      for (var i = 0; i < 6; i++) {
+        final a = i * math.pi / 3;
+        c.drawLine(wheel, wheel + Offset(math.cos(a), math.sin(a)) * 22, pen(const Color(0xFF5E4630), 2));
+      }
+    case PropKind.jamKitchen:
+      paintGableHouse(c, r, rng, roof: BuildingLook.jamRoof);
+    case PropKind.dairy:
+      paintGableHouse(c, r, rng, roof: BuildingLook.dairyRoof);
+    case PropKind.bakery:
+      paintGableHouse(c, r, rng, roof: BuildingLook.bakeryRoof);
+      c.drawRect(Rect.fromLTWH(r.right - 38, r.top + 8, 16, 20), fill(const Color(0xFF8C5A44)));
     case PropKind.silo:
       paintSilo(c, r.center, r.width / 2, rng);
     case PropKind.hay:
@@ -361,6 +396,7 @@ class FarmScene {
     required this.animals,
     required this.stored,
     required this.ready,
+    required this.crafts,
     required this.expandable,
     required this.waterRatio,
     required this.barnRatio,
@@ -384,6 +420,9 @@ class FarmScene {
 
   /// 다 자란 작물이 있는 칸.
   final Map<LotId, CropId> ready;
+
+  /// 공방 칸 → (만드는 가공품, 다 만들었는지).
+  final Map<LotId, (ItemId, bool)> crafts;
 
   /// 지금 넓힐 수 있는 칸(가진 땅에 붙어 있고 레벨 한도가 남았다).
   final Set<LotId> expandable;
@@ -413,6 +452,7 @@ class FarmScene {
     final props = <FarmProp>[];
     final keyParts = <String>[];
     final expandable = <LotId>{};
+    final crafts = <LotId, (ItemId, bool)>{};
     final nextLevel = s.expansions ~/ 2 + 2;
     final cost = s.nextExpansionCost;
     for (final id in LotId.all) {
@@ -428,10 +468,15 @@ class FarmScene {
         labels[id] = lot.level > 1 ? l.lotLevelLabel(name, lot.level) : name;
         icons[id] = BuildingLook.icon(lot.building);
         if (f?.ready ?? false) ready[id] = f!.crop!;
+        if (lot.job case final job? when lot.def.recipe != null) crafts[id] = (lot.def.recipe!.output, job.done);
         semantics[id] = switch (f) {
           FieldState(ready: true, :final crop?) => l.mapZoneReady(name, l.crop(crop)),
           FieldState(:final crop?) => l.mapZoneGrowing(name, l.crop(crop)),
-          _ => name,
+          _ => switch (lot.job) {
+            WorkshopJob(done: true) => l.mapWorkshopDone(name),
+            WorkshopJob() => l.mapWorkshopWorking(name),
+            null => name,
+          },
         };
       } else if (s.owned.contains(id)) {
         visuals.add(LotVisual.empty(id));
@@ -470,6 +515,7 @@ class FarmScene {
       animals: [for (final a in s.animals) (a.species, !a.adult, a.home)],
       stored: stored,
       ready: ready,
+      crafts: crafts,
       expandable: expandable,
       waterRatio: s.water / s.waterCapacity,
       barnRatio: s.barnUsed / s.barnCapacity,
@@ -486,6 +532,7 @@ class FarmScene {
       listEquals(other.animals, animals) &&
       mapEquals(other.stored, stored) &&
       mapEquals(other.ready, ready) &&
+      mapEquals(other.crafts, crafts) &&
       other.expandable.length == expandable.length &&
       other.expandable.containsAll(expandable) &&
       other.waterRatio == waterRatio &&
@@ -526,6 +573,8 @@ SkySpots skySpotsOf(FarmScene scene) {
         plots.add(r);
       case BuildingId.field:
         plots.add(r);
+      case BuildingId.mill || BuildingId.jamKitchen || BuildingId.dairy || BuildingId.bakery:
+        windows.add(LotLayout.workshop(r).bottomCenter + const Offset(0, 8));
     }
   }
   return SkySpots(waters: waters, windows: windows, glows: glows, fireflies: fireflies, plots: plots);
@@ -574,6 +623,17 @@ List<MapBubble> mapBubbles(FarmScene scene) {
       count: '$n',
       highlight: false,
       bob: (t) => math.sin(t * 2.4 + phase) * 3,
+    ));
+  }
+  for (final MapEntry(key: id, value: (item, done)) in scene.crafts.entries) {
+    if (!done) continue;
+    final shop = LotLayout.workshop(FarmWorld.lotRect(id));
+    out.add((
+      at: shop.topCenter + const Offset(0, -14),
+      emoji: itemEmoji(item),
+      count: null,
+      highlight: true,
+      bob: (t) => math.sin(t * 3) * 4,
     ));
   }
   for (final MapEntry(key: id, value: crop) in scene.ready.entries) {
@@ -736,6 +796,7 @@ class FarmMapPainter extends CustomPainter {
 
     _drawWater(canvas, t);
     _drawSprinklers(canvas, t);
+    _drawSmoke(canvas, t);
     _drawCrates(canvas);
     _fading(canvas, flat, () => _drawAnimals(canvas, t));
     _drawTractor(canvas, t);
@@ -811,6 +872,22 @@ class FarmMapPainter extends CustomPainter {
         pen(const Color(0x99FFFFFF), 2),
       );
       c.restore();
+    }
+  }
+
+  /// 만드는 중인 공방 굴뚝 연기.
+  void _drawSmoke(Canvas c, double t) {
+    for (final MapEntry(key: id, value: (_, done)) in scene.crafts.entries) {
+      if (done) continue;
+      final p = LotLayout.chimney(FarmWorld.lotRect(id));
+      for (var i = 0; i < 4; i++) {
+        final u = (t * 0.5 + i / 4 + id.col * 0.13) % 1;
+        c.drawCircle(
+          p + Offset(math.sin(t + i) * 6 + u * 14, -u * 60),
+          6 + u * 10,
+          fill(const Color(0xFFF2EEE6).withValues(alpha: 0.55 * (1 - u))),
+        );
+      }
     }
   }
 

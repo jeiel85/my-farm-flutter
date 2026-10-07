@@ -107,6 +107,10 @@ class LotDetail extends StatelessWidget {
               BuildingId.storehouse => const _StorageBody(),
               BuildingId.field || BuildingId.greenhouse || BuildingId.orchard => _FieldBody(lot: lot),
               BuildingId.coop || BuildingId.goatPen || BuildingId.sheepPen || BuildingId.cowBarn => _PenBody(lot: lot),
+              BuildingId.mill ||
+              BuildingId.jamKitchen ||
+              BuildingId.dairy ||
+              BuildingId.bakery => _WorkshopBody(lot: lot),
             },
             if (b.def.upgradeCosts.isNotEmpty) _UpgradeSection(lot: lot),
             if (!b.def.core) _DemolishSection(lot: lot),
@@ -279,6 +283,9 @@ List<String> buildingEffects(AppLocalizations l, BuildingId building, int level)
   final auto = level >= GameDefs.autoLevel;
   if (def.species case final species?) {
     return [l.effectCapacity(def.capacity[level - 1]), if (auto) '${l.effectAutoCollect} (${l.collectVerb(species)})'];
+  }
+  if (def.recipe != null) {
+    return [if (level >= 2) l.effectFaster, if (auto) l.effectAutoCraft];
   }
   return switch (building) {
     BuildingId.farmhouse => [
@@ -568,6 +575,94 @@ class _CropOption extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------- 공방
+
+class _WorkshopBody extends StatelessWidget {
+  const _WorkshopBody({required this.lot});
+
+  final LotId lot;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final store = GameScope.of(context);
+    final s = store.state;
+    final b = s.lots[lot]!;
+    final recipe = b.def.recipe!;
+    final job = b.job;
+    final haveAll = recipe.inputs.entries.every((e) => s.countOf(e.key) >= e.value);
+    final minutes = GameDefs.craftMinutes(recipe, b.level);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppCard(
+          child: Row(
+            children: [
+              Text(itemEmoji(recipe.output), style: const TextStyle(fontSize: 40)),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.item(recipe.output), style: AppText.h2),
+                    Text(
+                      '${l.craftRecipe}: ${l.recipeInputs(recipe)} · 🪙${GameDefs.itemPrice[recipe.output]}',
+                      style: AppText.caption,
+                    ),
+                    if (job != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        job.done ? l.craftReady : l.craftWorking(l.duration(remainingFor(job.minutesLeft, store))),
+                        style: AppText.caption,
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: job.done ? 1 : 1 - job.minutesLeft / job.totalMinutes,
+                          minHeight: 10,
+                          color: job.done ? AppColors.sage : AppColors.yellow,
+                          backgroundColor: AppColors.line,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        for (final e in recipe.inputs.entries)
+          _Requirement(
+            ok: s.countOf(e.key) >= e.value,
+            text: l.craftInput('${itemEmoji(e.key)} ${l.item(e.key)}', s.countOf(e.key), e.value),
+          ),
+        const SizedBox(height: 12),
+        if (job?.done ?? false)
+          PrimaryButton(
+            label: l.craftCollect,
+            icon: Icons.outbox_rounded,
+            onTap: () =>
+                runGame(context, (st) => GameEngine.collectCraft(st, lot), done: l.crafted(l.item(recipe.output))),
+          )
+        else
+          PrimaryButton(
+            label: l.craftStart(l.duration(Duration(minutes: minutes))),
+            icon: Icons.play_arrow_rounded,
+            onTap: job == null && haveAll
+                ? () => runGame(
+                    context,
+                    (st) => GameEngine.startCraft(st, lot),
+                    done: l.craftStarted(l.item(recipe.output)),
+                  )
+                : null,
+          ),
+      ],
     );
   }
 }

@@ -26,12 +26,20 @@ extension Labels on AppLocalizations {
     BuildingId.cowBarn => buildingCowBarn,
     BuildingId.greenhouse => buildingGreenhouse,
     BuildingId.orchard => buildingOrchard,
+    BuildingId.mill => buildingMill,
+    BuildingId.jamKitchen => buildingJamKitchen,
+    BuildingId.dairy => buildingDairy,
+    BuildingId.bakery => buildingBakery,
   };
+
+  /// 레시피 재료(밀 3, 밀가루 2 + 달걀 2).
+  String recipeInputs(Recipe r) => [for (final e in r.inputs.entries) '${item(e.key)} ${e.value}'].join(' + ');
 
   /// 짓기 목록의 한 줄 쓰임.
   String buildingDesc(BuildingId b) {
     final def = GameDefs.buildings[b]!;
     if (def.species case final sp?) return buildingDescPen(species(sp), def.capacity.first);
+    if (def.recipe case final r?) return buildingDescWorkshop(recipeInputs(r), item(r.output));
     return switch (b) {
       BuildingId.greenhouse => buildingDescGreenhouse,
       BuildingId.orchard => buildingDescOrchard,
@@ -74,6 +82,13 @@ extension Labels on AppLocalizations {
     ItemId.goatMilk => itemGoatMilk,
     ItemId.wool => itemWool,
     ItemId.milk => itemMilk,
+    ItemId.wheat => itemWheat,
+    ItemId.potato => itemPotato,
+    ItemId.pumpkin => itemPumpkin,
+    ItemId.flour => itemFlour,
+    ItemId.jam => itemJam,
+    ItemId.cheese => itemCheese,
+    ItemId.bread => itemBread,
   };
 
   String crop(CropId c) => item(GameDefs.crops[c]!.item);
@@ -106,6 +121,7 @@ extension Labels on AppLocalizations {
     GameError.wrongBuilding => errWrongBuilding,
     GameError.cannotDemolish => errCannotDemolish,
     GameError.maxLevel => errMaxLevel,
+    GameError.workshopBusy => errWorkshopBusy,
   };
 
   /// 남은 시간 같은 길이(3시간 5분, 2시간, 4분 12초, 6분, 30초).
@@ -155,6 +171,13 @@ String itemEmoji(ItemId i) => switch (i) {
   ItemId.goatMilk => '🍼',
   ItemId.wool => '🧶',
   ItemId.milk => '🥛',
+  ItemId.wheat => '🌾',
+  ItemId.potato => '🥔',
+  ItemId.pumpkin => '🎃',
+  ItemId.flour => '🍚',
+  ItemId.jam => '🫙',
+  ItemId.cheese => '🧀',
+  ItemId.bread => '🍞',
 };
 
 String cropEmoji(CropId c) => itemEmoji(GameDefs.crops[c]!.item);
