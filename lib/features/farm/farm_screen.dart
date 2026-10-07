@@ -252,6 +252,17 @@ class _TodoTile extends StatelessWidget {
           () => runGame(context, (st) => GameEngine.startCraft(st, lot!), done: l.craftStarted(l.item(recipe.output))),
         );
       }(),
+      TodoKind.order => () {
+        final order = s.orders[todo.count].order!;
+        return (
+          Icons.local_shipping_outlined,
+          AppColors.orange,
+          l.todoOrder,
+          '${[for (final e in order.items.entries) '${itemEmoji(e.key)}${e.value}'].join(' ')} → ${l.orderReward(order.coins, order.xp)}',
+          l.orderDeliver,
+          () => runGame(context, (st) => GameEngine.deliverOrder(st, todo.count), done: l.orderDelivered(order.coins)),
+        );
+      }(),
       TodoKind.barnFull => (
         Icons.inventory_2_outlined,
         AppColors.orange,

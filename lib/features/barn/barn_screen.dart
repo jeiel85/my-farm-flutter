@@ -9,6 +9,7 @@ import '../../game/game_store.dart';
 import '../../game/state.dart';
 import '../../l10n/l10n.dart';
 import '../farm/game_actions.dart';
+import '../farm/orders_card.dart';
 
 /// 창고·시장: 물건을 팔고 사료를 마련한다.
 class BarnScreen extends StatelessWidget {
@@ -111,6 +112,7 @@ class BarnScreen extends StatelessWidget {
           ),
         ],
         secondary: [
+          const OrdersCard(),
           SectionTitle(
             l.marketTitle,
             trailing: items.isEmpty ? null : TextButton(onPressed: () => _sellAll(context), child: Text(l.sellAll)),

@@ -74,7 +74,11 @@ void main() {
     expect(find.text('상추 수확!'), findsOneWidget);
 
     await tapAndSettle(tester, find.text('창고').last);
-    expect(find.text('상추 × ${GameDefs.crops[CropId.lettuce]!.yieldCount}'), findsOneWidget);
+    // 휴대폰 창고 탭은 마을 주문 아래에 시장 목록이 있어 내려서 본다.
+    expect(find.text('마을 주문'), findsOneWidget);
+    final lettuce = find.text('상추 × ${GameDefs.crops[CropId.lettuce]!.yieldCount}');
+    await tester.scrollUntilVisible(lettuce, 200, scrollable: find.byType(Scrollable).last);
+    expect(lettuce, findsOneWidget);
     expect(find.text('달걀 × 1'), findsOneWidget);
     final coins = store.state.coins;
     await tapAndSettle(tester, find.text('모두 팔기'));

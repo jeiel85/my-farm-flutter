@@ -12,6 +12,7 @@ import '../../l10n/l10n.dart';
 import 'building_look.dart';
 import 'farm_world.dart';
 import 'game_actions.dart';
+import 'orders_card.dart';
 
 /// 칸 상세를 띄운 곳(휴대폰 시트, 넓은 화면 오른쪽 패널). 수확·심기를 마치면 [close]로 닫는다.
 class ZoneHost extends InheritedWidget {
@@ -880,6 +881,7 @@ class _HouseBody extends StatelessWidget {
             ],
           ),
         ),
+        const OrdersCard(),
         SectionTitle(l.nextUnlocks),
         if (next.isEmpty) Text(l.allUnlocked, style: AppText.caption),
         for (final (level, name) in next.take(8))

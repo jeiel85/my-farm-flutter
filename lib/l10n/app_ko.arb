@@ -1389,5 +1389,40 @@
         "type": "String"
       }
     }
-  }
+  },
+  "ordersTitle": "마을 주문",
+  "ordersHint": "보내면 판매가보다 넉넉히 받아요. 넘기면 조금 뒤 새 주문이 와요.",
+  "orderReward": "🪙{coins} · 경험치 {xp}",
+  "@orderReward": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      },
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "orderDeliver": "보내기",
+  "orderSkip": "넘기기",
+  "orderWaiting": "새 주문이 {time} 뒤에 와요",
+  "@orderWaiting": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "orderDelivered": "주문을 보냈어요 · 🪙{coins}",
+  "@orderDelivered": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "orderSkipped": "새 주문을 기다려요",
+  "errNoOrder": "지금은 주문이 없어요",
+  "todoOrder": "주문을 보낼 수 있어요",
+  "logOrder": "주문 보냄"
 }
