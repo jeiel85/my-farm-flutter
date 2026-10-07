@@ -117,7 +117,7 @@ class GameAnimal {
 }
 
 /// 기록 종류. [unlock]은 v5(정해진 구역을 열던 때) 기록이다.
-enum LogKind { sale, slaughter, seed, animal, feed, unlock, build, expand, demolish }
+enum LogKind { sale, slaughter, seed, animal, feed, unlock, build, expand, demolish, upgrade }
 
 /// 수입·지출 기록 한 건(기록 탭 차트용). [amount]는 수입이면 양수, 지출이면 음수.
 class GameLogEntry {
@@ -220,7 +220,23 @@ class GameState {
 
   int get level => GameDefs.levelForXp(xp);
   int get barnUsed => barn.values.fold(0, (s, n) => s + n);
-  int get barnFree => GameDefs.barnCapacity - barnUsed;
+  int get barnFree => barnCapacity - barnUsed;
+
+  int _level(LotId core) => lots[core]?.level ?? 1;
+
+  /// 농가 레벨: 자리 비운 동안 계산하는 시간, 우물 용량·충전 속도.
+  int get farmhouseLevel => _level(GameDefs.farmhouseLot);
+
+  /// 창고 레벨: 창고·사료통 용량, Lv3 자동 출하.
+  int get storehouseLevel => _level(GameDefs.storehouseLot);
+  int get offlineCapMinutes => GameDefs.offlineCapByLevel[farmhouseLevel - 1];
+  int get waterCapacity => GameDefs.waterCapacityByLevel[farmhouseLevel - 1];
+  int get waterRefillPerMinute => GameDefs.waterRefillByLevel[farmhouseLevel - 1];
+  int get barnCapacity => GameDefs.barnCapacityByLevel[storehouseLevel - 1];
+  int get feedCapacity => GameDefs.feedCapacityByLevel[storehouseLevel - 1];
+
+  /// 창고 Lv3: 자동으로 거둔 몫이 창고에 다 들어가지 않으면 그 자리에서 판다.
+  bool get autoShip => storehouseLevel >= GameDefs.autoLevel;
   double get feed => feedUnits / GameDefs.feedUnit;
 
   /// 지금 있는 동물이 모두 먹는다고 칠 때 시간당 사료. 생산물이 가득 찬 성체는 실제로는

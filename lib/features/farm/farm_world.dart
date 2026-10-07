@@ -425,7 +425,7 @@ class FarmScene {
         props.addAll(propsForLot(id, lot.building));
         keyParts.add('${id.key}:${lot.building.name}');
         final name = l.building(lot.building);
-        labels[id] = name;
+        labels[id] = lot.level > 1 ? l.lotLevelLabel(name, lot.level) : name;
         icons[id] = BuildingLook.icon(lot.building);
         if (f?.ready ?? false) ready[id] = f!.crop!;
         semantics[id] = switch (f) {
@@ -471,8 +471,8 @@ class FarmScene {
       stored: stored,
       ready: ready,
       expandable: expandable,
-      waterRatio: s.water / GameDefs.waterCapacity,
-      barnRatio: s.barnUsed / GameDefs.barnCapacity,
+      waterRatio: s.water / s.waterCapacity,
+      barnRatio: s.barnUsed / s.barnCapacity,
       labels: labels,
       icons: icons,
       semantics: semantics,
@@ -735,6 +735,7 @@ class FarmMapPainter extends CustomPainter {
     if (flat > 0) _blit(canvas, FarmWorld.propsFlat(scene.props, scene.propsKey), FarmWorld.bakeArea, opacity: flat);
 
     _drawWater(canvas, t);
+    _drawSprinklers(canvas, t);
     _drawCrates(canvas);
     _fading(canvas, flat, () => _drawAnimals(canvas, t));
     _drawTractor(canvas, t);
@@ -810,6 +811,30 @@ class FarmMapPainter extends CustomPainter {
         pen(const Color(0x99FFFFFF), 2),
       );
       c.restore();
+    }
+  }
+
+  /// Lv3 작물 건물(저절로 거두고 다시 심는 곳)의 회전 스프링클러.
+  void _drawSprinklers(Canvas c, double t) {
+    for (final v in scene.lots) {
+      if (v.level < GameDefs.autoLevel || v.building == null || GameDefs.buildings[v.building]!.plot == null) continue;
+      final r = FarmWorld.lotRect(v.id);
+      final p = Offset(r.center.dx, r.bottom - 22);
+      final spin = t * 1.6 + v.id.col * 1.3 + v.id.row;
+      for (var i = 0; i < 3; i++) {
+        final a = spin + i * 2.1;
+        final path = Path()
+          ..moveTo(p.dx, p.dy)
+          ..quadraticBezierTo(
+            p.dx + math.cos(a) * 46,
+            p.dy + math.sin(a) * 26 - 30,
+            p.dx + math.cos(a) * 80,
+            p.dy + math.sin(a) * 50,
+          );
+        c.drawPath(path, pen(const Color(0xFFDDEFF6).withValues(alpha: 0.55), 2.2));
+      }
+      c.drawCircle(p, 6, fill(const Color(0xFF7D8A8E)));
+      c.drawCircle(p, 6, pen(Tint.line.withValues(alpha: 0.5), 1.2));
     }
   }
 

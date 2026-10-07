@@ -10,7 +10,6 @@ import '../../data/app_update.dart';
 import '../../game/defs.dart';
 import '../../game/engine.dart';
 import '../../game/game_store.dart';
-import '../../game/sky.dart';
 import '../../game/todo.dart';
 import '../../game/lots.dart';
 import '../../l10n/l10n.dart';
@@ -218,7 +217,7 @@ class _TodoTile extends StatelessWidget {
           Icons.agriculture_rounded,
           AppColors.sage,
           l.todoHarvest(l.crop(crop), name),
-          l.todoHarvestHint(GameSky.yieldAt(GameDefs.crops[crop]!, GameScope.of(context).now)),
+          l.todoHarvestHint(GameEngine.yieldFor(GameDefs.crops[crop]!, s.lots[lot]!.level, GameScope.of(context).now)),
           l.harvest,
           () => runGame(context, (st) => GameEngine.harvest(st, lot!), done: l.harvested(l.crop(crop))),
         );

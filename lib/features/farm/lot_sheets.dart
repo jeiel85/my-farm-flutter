@@ -7,7 +7,6 @@ import '../../game/defs.dart';
 import '../../game/engine.dart';
 import '../../game/game_store.dart';
 import '../../game/lots.dart';
-import '../../game/sky.dart';
 import '../../game/state.dart';
 import '../../l10n/l10n.dart';
 import 'building_look.dart';
@@ -109,6 +108,7 @@ class LotDetail extends StatelessWidget {
               BuildingId.field || BuildingId.greenhouse || BuildingId.orchard => _FieldBody(lot: lot),
               BuildingId.coop || BuildingId.goatPen || BuildingId.sheepPen || BuildingId.cowBarn => _PenBody(lot: lot),
             },
+            if (b.def.upgradeCosts.isNotEmpty) _UpgradeSection(lot: lot),
             if (!b.def.core) _DemolishSection(lot: lot),
           ],
         ),
@@ -271,6 +271,85 @@ class _BuildPicker extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------- 업그레이드
+
+/// 레벨 [level]의 [building]이 가진 효과(문구). docs/farm-lots-design.md §4.
+List<String> buildingEffects(AppLocalizations l, BuildingId building, int level) {
+  final def = GameDefs.buildings[building]!;
+  final auto = level >= GameDefs.autoLevel;
+  if (def.species case final species?) {
+    return [l.effectCapacity(def.capacity[level - 1]), if (auto) '${l.effectAutoCollect} (${l.collectVerb(species)})'];
+  }
+  return switch (building) {
+    BuildingId.farmhouse => [
+      l.effectFarmhouse(
+        GameDefs.offlineCapByLevel[level - 1] ~/ 60,
+        GameDefs.waterCapacityByLevel[level - 1],
+        GameDefs.waterRefillByLevel[level - 1],
+      ),
+    ],
+    BuildingId.storehouse => [
+      l.effectStorehouse(GameDefs.barnCapacityByLevel[level - 1], GameDefs.feedCapacityByLevel[level - 1]),
+      if (auto) l.effectAutoShip,
+    ],
+    BuildingId.orchard => [if (level >= 2) l.effectYield(GameDefs.yieldBonusLv2), if (auto) l.effectAutoHarvest],
+    _ => [if (level >= 2) l.effectYield(GameDefs.yieldBonusLv2), if (auto) l.effectAutoReplant],
+  };
+}
+
+class _UpgradeSection extends StatelessWidget {
+  const _UpgradeSection({required this.lot});
+
+  final LotId lot;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = context.l10n;
+    final s = GameScope.of(context).state;
+    final b = s.lots[lot]!;
+    final def = b.def;
+    final now = buildingEffects(l, b.building, b.level);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionTitle(l.upgradeTitle, subtitle: l.upgradeNow(b.level)),
+        for (final e in now) Text('· $e', style: AppText.caption),
+        if (b.level >= def.maxLevel)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(l.maxLevelReached, style: AppText.caption),
+          )
+        else ...[
+          const SizedBox(height: 8),
+          AppCard(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Lv${b.level + 1}', style: AppText.h3),
+                for (final e in buildingEffects(l, b.building, b.level + 1))
+                  if (!now.contains(e)) Text('+ $e', style: AppText.body),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          PrimaryButton(
+            label: l.upgradeTo(def.upgradeCosts[b.level - 1], b.level + 1),
+            icon: Icons.upgrade_rounded,
+            onTap: s.coins >= def.upgradeCosts[b.level - 1]
+                ? () => runGame(
+                    context,
+                    (st) => GameEngine.upgrade(st, lot),
+                    done: l.upgraded(l.building(b.building), b.level + 1),
+                  )
+                : null,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 // ---------------------------------------------------------------- 철거
 
 class _DemolishSection extends StatelessWidget {
@@ -338,7 +417,9 @@ class _FieldBody extends StatelessWidget {
     final crop = f.crop;
     if (crop == null) return _CropPicker(lot: lot);
     final def = GameDefs.crops[crop]!;
-    final count = GameSky.yieldAt(def, store.now);
+    final level = s.lots[lot]!.level;
+    final count = GameEngine.yieldFor(def, level, store.now);
+    final base = GameEngine.baseYield(def, level);
     final total = Duration(minutes: f.totalMinutes);
     final left = remainingFor(f.minutesLeft, store);
     final progress = f.ready || total.inSeconds == 0 ? 1.0 : (1 - left.inSeconds / total.inSeconds).clamp(0.0, 1.0);
@@ -382,7 +463,7 @@ class _FieldBody extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(l.cropYield(count, l.crop(crop), GameDefs.itemPrice[def.item]! * count), style: AppText.caption),
-        if (count > def.yieldCount) Text(l.rainbowYieldHint(count - def.yieldCount), style: AppText.caption),
+        if (count > base) Text(l.rainbowYieldHint(count - base), style: AppText.caption),
         if (def.perennial)
           Text(l.perennialHint(l.duration(Duration(minutes: def.regrowMinutes!))), style: AppText.caption),
         const SizedBox(height: 14),
@@ -512,7 +593,7 @@ class _PenBody extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: StatBox(label: l.feed, value: '${s.feed.floor()}/${GameDefs.feedCapacity}'),
+              child: StatBox(label: l.feed, value: '${s.feed.floor()}/${s.feedCapacity}'),
             ),
             const SizedBox(width: 8),
             FilledButton.tonal(
@@ -653,7 +734,7 @@ class _HouseBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = context.l10n;
     final s = GameScope.of(context).state;
-    final missing = GameDefs.waterCapacity - s.water;
+    final missing = s.waterCapacity - s.water;
     final next = <(int, String)>[
       for (final c in GameDefs.crops.values)
         if (c.unlockLevel > s.level) (c.unlockLevel, '${cropEmoji(c.id)} ${l.crop(c.id)}'),
@@ -683,22 +764,22 @@ class _HouseBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('💧 ${s.water} / ${GameDefs.waterCapacity}L', style: AppText.h3),
+              Text('💧 ${s.water} / ${s.waterCapacity}L', style: AppText.h3),
               const SizedBox(height: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: LinearProgressIndicator(
-                  value: s.water / GameDefs.waterCapacity,
+                  value: s.water / s.waterCapacity,
                   minHeight: 8,
                   color: AppColors.blue,
                   backgroundColor: AppColors.line,
                 ),
               ),
               const SizedBox(height: 8),
-              Text(l.tankHint(GameDefs.waterRefillPerMinute), style: AppText.caption),
+              Text(l.tankHint(s.waterRefillPerMinute), style: AppText.caption),
               if (missing > 0)
                 Text(
-                  l.tankFullIn(l.duration(Duration(minutes: (missing / GameDefs.waterRefillPerMinute).ceil()))),
+                  l.tankFullIn(l.duration(Duration(minutes: (missing / s.waterRefillPerMinute).ceil()))),
                   style: AppText.caption,
                 ),
             ],
@@ -732,7 +813,7 @@ class _StorageBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('📦 ${s.barnUsed} / ${GameDefs.barnCapacity}', style: AppText.h2),
+        Text('📦 ${s.barnUsed} / ${s.barnCapacity}', style: AppText.h2),
         const SizedBox(height: 8),
         // 시트는 탭 화면 밖(루트 내비게이터)에 떠 있어 여기서 탭을 바꿀 수 없다. 농장 화면은 창고를 누르면 바로 창고 탭으로 간다.
         Text(l.barnTabHint, style: AppText.caption),

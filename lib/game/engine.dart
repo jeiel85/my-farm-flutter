@@ -36,6 +36,9 @@ enum GameError {
 
   /// 핵심 건물(농가·창고)이거나 비어 있지 않아 철거할 수 없다.
   cannotDemolish,
+
+  /// 이미 최고 레벨이다.
+  maxLevel,
 }
 
 class GameException implements Exception {
@@ -61,7 +64,18 @@ class AdvanceReport {
   /// 사료가 모자라 성장·생산이 멈춘 적이 있다.
   bool feedRanOut = false;
 
-  bool get eventful => cropsReady.isNotEmpty || produced.isNotEmpty || born.isNotEmpty || feedRanOut;
+  /// Lv3 건물이 저절로 수확한 횟수, 저절로 거둔 생산물 개수, 창고에 못 들어가 판 코인(자동 출하).
+  int autoHarvests = 0;
+  int autoCollected = 0;
+  int autoSoldCoins = 0;
+
+  bool get eventful =>
+      cropsReady.isNotEmpty ||
+      produced.isNotEmpty ||
+      born.isNotEmpty ||
+      feedRanOut ||
+      autoHarvests > 0 ||
+      autoCollected > 0;
 }
 
 DateTime minuteFloor(DateTime t) => DateTime(t.year, t.month, t.day, t.hour, t.minute);
@@ -111,17 +125,30 @@ abstract final class GameEngine {
     );
   }
 
-  /// [to]까지 시간을 진행한다. 온전한 분만 계산하고, [capMinutes]를 넘는 시간은 버린다.
-  static (GameState, AdvanceReport) advance(GameState s, DateTime to, {int capMinutes = GameDefs.offlineCapMinutes}) {
+  /// [to]까지 시간을 진행한다. 온전한 분만 계산하고, [capMinutes](없으면 농가 레벨에 따른 자리 비운 시간)를 넘는
+  /// 시간은 버린다.
+  ///
+  /// 분마다 같은 순서로 처리한다: 물 충전 → 작물 성장 → Lv3 작물 건물 자동 수확·다시 심기 → 가축 성장·생산 →
+  /// Lv3 우리 자동 줍기 → 번식. 그래서 나눠 진행한 결과와 한 번에 진행한 결과가 같다. 자동 판매·씨앗 기록도
+  /// 그 분의 시각으로 남는다.
+  static (GameState, AdvanceReport) advance(GameState s, DateTime to, {int? capMinutes}) {
     final report = AdvanceReport();
     final target = minuteFloor(to);
     final total = target.difference(s.simTime).inMinutes;
     if (total <= 0) return (s, report);
-    final run = total > capMinutes ? capMinutes : total;
+    final cap = capMinutes ?? s.offlineCapMinutes;
+    final run = total > cap ? cap : total;
     report.skippedMinutes = total - run;
 
     var water = s.water;
     var feed = s.feedUnits;
+    var coins = s.coins;
+    var xp = s.xp;
+    final barn = Map.of(s.barn);
+    var barnUsed = s.barnUsed;
+    final barnCap = s.barnCapacity;
+    final autoShip = s.autoShip;
+    final log = [...s.log];
     final lots = Map.of(s.lots);
     final plots = [
       for (final id in s.builtLots)
@@ -135,9 +162,33 @@ abstract final class GameEngine {
     final breed = Map.of(s.breedProgress);
     var nextId = s.nextAnimalId;
 
+    /// 자동으로 거둔 [count]개를 창고에 넣는다. 다 들어가지 않으면 창고 Lv3은 남는 몫을 팔고, 아니면 들어가는
+    /// 만큼만 넣는다. 넣거나 판 개수를 돌려준다.
+    int store(ItemId item, int count, DateTime at, {required bool partial}) {
+      final free = barnCap - barnUsed;
+      if (count <= free) {
+        barn[item] = (barn[item] ?? 0) + count;
+        barnUsed += count;
+        return count;
+      }
+      if (!autoShip && !partial) return 0;
+      final kept = free < 0 ? 0 : free;
+      if (kept > 0) {
+        barn[item] = (barn[item] ?? 0) + kept;
+        barnUsed += kept;
+      }
+      if (!autoShip) return kept;
+      final sold = count - kept;
+      final amount = GameDefs.itemPrice[item]! * sold;
+      coins += amount;
+      report.autoSoldCoins += amount;
+      log.add(GameLogEntry(at: at, kind: LogKind.sale, amount: amount, subject: item.name));
+      return count;
+    }
+
     for (var m = 0; m < run; m++) {
       final minute = s.simTime.add(Duration(minutes: m));
-      water = (water + GameSky.waterRefillAt(minute)).clamp(0, GameDefs.waterCapacity);
+      water = (water + GameSky.waterRefillAt(minute, base: s.waterRefillPerMinute)).clamp(0, s.waterCapacity);
 
       for (final id in plots) {
         final lot = lots[id]!;
@@ -160,6 +211,36 @@ abstract final class GameEngine {
         } else {
           lots[id] = lot.copyWith(field: f.copyWith(minutesLeft: left));
         }
+      }
+
+      // Lv3 작물 건물: 다 자랐으면 거두고(창고가 차면 기다리거나 창고 Lv3이면 판다), 다시 심는다.
+      for (final id in plots) {
+        final lot = lots[id]!;
+        final f = lot.field!;
+        if (lot.level < GameDefs.autoLevel || !f.ready || f.crop == null) continue;
+        final def = GameDefs.crops[f.crop]!;
+        final count = yieldFor(def, lot.level, minute);
+        if (store(def.item, count, minute, partial: false) == 0) continue;
+        xp += def.xp;
+        report.autoHarvests++;
+        report.cropsReady.remove(id);
+        final FieldState next;
+        if (def.perennial) {
+          if (water >= def.waterL) {
+            water -= def.waterL;
+            next = FieldState(crop: f.crop, minutesLeft: def.regrowMinutes!, totalMinutes: def.regrowMinutes!);
+          } else {
+            next = FieldState(crop: f.crop, waitingWater: true, totalMinutes: def.regrowMinutes!);
+          }
+        } else if (coins >= def.seedCost && water >= def.waterL) {
+          coins -= def.seedCost;
+          water -= def.waterL;
+          log.add(GameLogEntry(at: minute, kind: LogKind.seed, amount: -def.seedCost, subject: f.crop!.name));
+          next = FieldState(crop: f.crop, minutesLeft: def.growMinutes, totalMinutes: def.growMinutes);
+        } else {
+          next = FieldState.emptyField; // 씨앗값·물이 모자라면 그 칸만 멈춘다
+        }
+        lots[id] = lot.copyWith(field: next);
       }
 
       for (var i = 0; i < animals.length; i++) {
@@ -190,6 +271,18 @@ abstract final class GameEngine {
         }
       }
 
+      // Lv3 우리: 쌓인 생산물을 저절로 거둔다(창고에 들어가는 만큼, 창고 Lv3이면 남는 몫은 판다).
+      for (var i = 0; i < animals.length; i++) {
+        final a = animals[i];
+        if (a.stored == 0 || (lots[a.home]?.level ?? 1) < GameDefs.autoLevel) continue;
+        final def = a.def;
+        final took = store(def.product, a.stored, minute, partial: true);
+        if (took == 0) continue;
+        animals[i] = a.copyWith(stored: a.stored - took);
+        xp += def.collectXp * took;
+        report.autoCollected += took;
+      }
+
       // 번식: 같은 우리에 성체가 2마리 이상이고 자리가 있으면 진행한다.
       for (final pen in pens) {
         final species = lots[pen]!.def.species!;
@@ -211,19 +304,35 @@ abstract final class GameEngine {
       }
     }
 
+    barn.removeWhere((_, n) => n == 0);
     report.minutes = run;
     return (
       s.copyWith(
         simTime: target,
+        coins: coins,
+        xp: xp,
+        barn: barn,
         water: water,
         feedUnits: feed,
         lots: lots,
         animals: animals,
         breedProgress: breed,
         nextAnimalId: nextId,
+        log: log.length > GameState.maxLog ? log.sublist(log.length - GameState.maxLog) : log,
       ),
       report,
     );
+  }
+
+  /// [def]를 레벨 [level]의 건물에서 [t]에 거두면 얻는 개수. Lv2부터 +25%, 무지개가 떠 있으면 +20%(합쳐서, 올림).
+  static int yieldFor(CropDef def, int level, DateTime t) => _yield(def, level, rainbow: GameSky.rainbowAt(t));
+
+  /// 무지개 없이(건물 레벨 보너스만) 거두는 개수.
+  static int baseYield(CropDef def, int level) => _yield(def, level, rainbow: false);
+
+  static int _yield(CropDef def, int level, {required bool rainbow}) {
+    final bonus = (level >= 2 ? GameDefs.yieldBonusLv2 : 0) + (rainbow ? 20 : 0);
+    return (def.yieldCount * (100 + bonus) + 99) ~/ 100;
   }
 
   static int _capacity(Lot lot) {
@@ -266,6 +375,27 @@ abstract final class GameEngine {
       LogKind.build,
       -def.cost,
       building.name,
+    );
+  }
+
+  /// 건물을 한 단계 올린다(Lv3까지). docs/farm-lots-design.md §4.
+  static GameState upgrade(GameState s, LotId lot) {
+    final l = s.lots[lot];
+    if (l == null || l.def.upgradeCosts.isEmpty) throw const GameException(GameError.wrongBuilding);
+    if (l.level >= l.def.maxLevel) throw const GameException(GameError.maxLevel);
+    final cost = l.def.upgradeCosts[l.level - 1];
+    if (s.coins < cost) throw const GameException(GameError.notEnoughCoins);
+    return _log(
+      s.copyWith(
+        coins: s.coins - cost,
+        lots: {
+          ...s.lots,
+          lot: l.copyWith(level: l.level + 1),
+        },
+      ),
+      LogKind.upgrade,
+      -cost,
+      l.building.name,
     );
   }
 
@@ -329,7 +459,7 @@ abstract final class GameEngine {
     final f = l?.field ?? FieldState.emptyField;
     if (l == null || f.crop == null || !f.ready) throw const GameException(GameError.notReady);
     final def = GameDefs.crops[f.crop]!;
-    final count = GameSky.yieldAt(def, s.simTime);
+    final count = yieldFor(def, l.level, s.simTime);
     if (s.barnFree < count) throw const GameException(GameError.barnFull);
     final FieldState next;
     var water = s.water;
@@ -437,7 +567,7 @@ abstract final class GameEngine {
   static GameState buyFeed(GameState s) {
     if (s.coins < GameDefs.feedPackCost) throw const GameException(GameError.notEnoughCoins);
     final add = GameDefs.feedPackAmount * GameDefs.feedUnit;
-    if (s.feedUnits + add > GameDefs.feedCapacity * GameDefs.feedUnit) throw const GameException(GameError.siloFull);
+    if (s.feedUnits + add > s.feedCapacity * GameDefs.feedUnit) throw const GameException(GameError.siloFull);
     return _log(
       s.copyWith(coins: s.coins - GameDefs.feedPackCost, feedUnits: s.feedUnits + add),
       LogKind.feed,
@@ -449,7 +579,7 @@ abstract final class GameEngine {
   static GameState cornToFeed(GameState s, int count) {
     if (count <= 0 || s.countOf(ItemId.corn) < count) throw const GameException(GameError.notEnoughItems);
     final add = count * GameDefs.feedPerCorn * GameDefs.feedUnit;
-    if (s.feedUnits + add > GameDefs.feedCapacity * GameDefs.feedUnit) throw const GameException(GameError.siloFull);
+    if (s.feedUnits + add > s.feedCapacity * GameDefs.feedUnit) throw const GameException(GameError.siloFull);
     return s.copyWith(feedUnits: s.feedUnits + add, barn: _add(s.barn, ItemId.corn, -count));
   }
 
