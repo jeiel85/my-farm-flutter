@@ -49,12 +49,15 @@ class SkyChip extends StatelessWidget {
         },
       ),
     };
+    void open() => showSkySheet(context, onPreview: onPreview);
+    // 아이콘·글자를 한 덩어리로 읽히게 하위 시맨틱스를 빼므로, 스크린리더 두 번 탭은 여기서 받는다.
     return Semantics(
       button: true,
       label: l.skyChipLabel(text),
+      onTap: open,
       excludeSemantics: true,
       child: Pressable(
-        onTap: () => showSkySheet(context, onPreview: onPreview),
+        onTap: open,
         child: Container(
           padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
           decoration: BoxDecoration(

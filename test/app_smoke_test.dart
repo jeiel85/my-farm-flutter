@@ -157,6 +157,17 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('스크린리더로 날씨 표시를 두 번 탭하면 농장 하늘 시트가 열린다', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpApp(tester);
+    tester.semantics.tap(find.semantics.byLabel('농장 하늘: 구름 많음'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('앞으로 12시간'), findsOneWidget);
+    semantics.dispose();
+    await _unmount(tester);
+  });
+
   testWidgets('관리 앱(1.x) 기록이 있으면 보관했다고 알린다', (tester) async {
     final legacy = jsonEncode({
       'schemaVersion': 4,
