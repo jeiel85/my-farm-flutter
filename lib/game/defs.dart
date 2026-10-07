@@ -1,7 +1,7 @@
 /// 게임 정의 표. 수치는 docs/game-design.md(수치표 v1)와 같아야 한다.
 library;
 
-import 'zone.dart';
+import 'lots.dart';
 
 /// 창고에 들어가는 물건.
 enum ItemId { lettuce, carrot, tomato, corn, strawberry, apple, egg, goatMilk, wool, milk }
@@ -10,8 +10,11 @@ enum CropId { lettuce, carrot, tomato, corn, strawberry, apple }
 
 enum Species { chicken, goat, sheep, cow }
 
-/// 작물을 심는 구역 종류.
+/// 작물을 심는 건물 종류.
 enum PlotKind { field, greenhouse, orchard }
+
+/// 부지에 짓는 건물. docs/farm-lots-design.md §4. 이름은 저장 형식(v6)에 그대로 들어가므로 바꾸지 않는다.
+enum BuildingId { farmhouse, storehouse, field, coop, goatPen, sheepPen, cowBarn, greenhouse, orchard }
 
 class CropDef {
   const CropDef({
@@ -77,15 +80,34 @@ class AnimalDef {
   final int unlockLevel;
 }
 
-class ZoneDef {
-  const ZoneDef({required this.zone, required this.unlockLevel, required this.unlockCost, this.plot});
+class BuildingDef {
+  const BuildingDef({
+    required this.id,
+    required this.cost,
+    required this.unlockLevel,
+    this.plot,
+    this.species,
+    this.capacity = const [],
+    this.core = false,
+  });
 
-  final ZoneId zone;
+  final BuildingId id;
+
+  /// 짓는 비용(핵심 건물은 0).
+  final int cost;
   final int unlockLevel;
-  final int unlockCost;
 
-  /// 작물을 심는 구역이면 그 종류.
+  /// 작물을 심는 건물이면 그 종류.
   final PlotKind? plot;
+
+  /// 가축 우리면 기르는 종.
+  final Species? species;
+
+  /// 가축 우리의 레벨별 최대 마릿수(Lv1부터).
+  final List<int> capacity;
+
+  /// 처음부터 있고 철거할 수 없는 건물(농가·창고).
+  final bool core;
 }
 
 abstract final class GameDefs {
@@ -99,7 +121,6 @@ abstract final class GameDefs {
   static const feedCapacity = 200;
   static const waterCapacity = 500;
   static const waterRefillPerMinute = 5;
-  static const penCapacity = 6;
   static const offlineCapMinutes = 4 * 60;
 
   /// 옥수수 1개를 사료로 바꾸면 얻는 사료.
@@ -251,17 +272,60 @@ abstract final class GameDefs {
     ),
   };
 
-  /// 구역을 여는 조건. 표에 없는 구역(농가·가축 우리·물탱크·창고)은 처음부터 열려 있다.
-  static const zones = <ZoneId, ZoneDef>{
-    ZoneId.vegetable: ZoneDef(zone: ZoneId.vegetable, unlockLevel: 1, unlockCost: 0, plot: PlotKind.field),
-    ZoneId.tomato: ZoneDef(zone: ZoneId.tomato, unlockLevel: 2, unlockCost: 30, plot: PlotKind.field),
-    ZoneId.corn: ZoneDef(zone: ZoneId.corn, unlockLevel: 3, unlockCost: 100, plot: PlotKind.field),
-    ZoneId.greenhouse: ZoneDef(zone: ZoneId.greenhouse, unlockLevel: 6, unlockCost: 600, plot: PlotKind.greenhouse),
-    ZoneId.orchard: ZoneDef(zone: ZoneId.orchard, unlockLevel: 8, unlockCost: 1500, plot: PlotKind.orchard),
+  static const buildings = <BuildingId, BuildingDef>{
+    BuildingId.farmhouse: BuildingDef(id: BuildingId.farmhouse, cost: 0, unlockLevel: 1, core: true),
+    BuildingId.storehouse: BuildingDef(id: BuildingId.storehouse, cost: 0, unlockLevel: 1, core: true),
+    BuildingId.field: BuildingDef(id: BuildingId.field, cost: 25, unlockLevel: 1, plot: PlotKind.field),
+    BuildingId.coop: BuildingDef(
+      id: BuildingId.coop,
+      cost: 40,
+      unlockLevel: 1,
+      species: Species.chicken,
+      capacity: [4, 6, 8],
+    ),
+    BuildingId.goatPen: BuildingDef(
+      id: BuildingId.goatPen,
+      cost: 120,
+      unlockLevel: 3,
+      species: Species.goat,
+      capacity: [3, 5, 6],
+    ),
+    BuildingId.sheepPen: BuildingDef(
+      id: BuildingId.sheepPen,
+      cost: 200,
+      unlockLevel: 5,
+      species: Species.sheep,
+      capacity: [3, 5, 6],
+    ),
+    BuildingId.cowBarn: BuildingDef(
+      id: BuildingId.cowBarn,
+      cost: 400,
+      unlockLevel: 7,
+      species: Species.cow,
+      capacity: [3, 5, 6],
+    ),
+    BuildingId.greenhouse: BuildingDef(id: BuildingId.greenhouse, cost: 600, unlockLevel: 6, plot: PlotKind.greenhouse),
+    BuildingId.orchard: BuildingDef(id: BuildingId.orchard, cost: 1500, unlockLevel: 8, plot: PlotKind.orchard),
   };
 
-  /// 작물을 심을 수 있는 구역.
-  static Iterable<ZoneId> get plotZones => zones.keys;
+  /// 종을 기르는 우리.
+  static BuildingId penFor(Species species) => buildings.values.firstWhere((b) => b.species == species).id;
+
+  /// 처음 가진 땅(가운데 2열 × 위 3행)과 처음 지어진 건물.
+  static const farmhouseLot = LotId(1, 0);
+  static const storehouseLot = LotId(2, 0);
+  static const startFieldLot = LotId(1, 1);
+  static const startCoopLot = LotId(2, 1);
+  static const startLots = [farmhouseLot, storehouseLot, startFieldLot, startCoopLot, LotId(1, 2), LotId(2, 2)];
+
+  /// 몇 번째로 넓히는지에 따른 개간 비용.
+  static const expansionCosts = [30, 50, 80, 120, 170, 230, 300, 380, 470, 580, 700, 850, 1000, 1200];
+
+  /// 레벨 L에서 지금까지 넓힐 수 있는 칸 수: (L − 1) × 2, 최대 전부.
+  static int expansionsAllowed(int level) => ((level - 1) * 2).clamp(0, expansionCosts.length);
+
+  /// 철거하면 돌려받는 코인(짓기 비용의 절반).
+  static int demolishRefund(BuildingId id) => buildings[id]!.cost ~/ 2;
 
   /// 레벨 경계(누적 경험치). 인덱스 i는 (i+2)레벨이 되는 경험치. 10레벨 이후는 레벨마다 +500.
   /// 초반은 몇 분 만에 오르고 갈수록 완만해지게, 레벨당 필요량이 대략 두 배씩 늘다가 1.4배 안팎으로 줄어든다.

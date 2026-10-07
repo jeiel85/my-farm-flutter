@@ -10,6 +10,7 @@ import 'package:my_farm/data/app_update.dart';
 import 'package:my_farm/features/farm/farm_map_view.dart';
 import 'package:my_farm/game/defs.dart';
 import 'package:my_farm/game/game_store.dart';
+import 'package:my_farm/game/lots.dart';
 import 'package:my_farm/main.dart';
 
 import 'app_update_test.dart' show FakePlatform, MetaStorage;
@@ -68,7 +69,7 @@ void main() {
 
     // 1분 뒤 상추가 다 자란다.
     await wait(tester, const Duration(minutes: 1));
-    expect(find.text('밭 1 상추 수확'), findsOneWidget);
+    expect(find.text('밭 상추 수확'), findsOneWidget);
     await tapAndSettle(tester, find.text('수확').last);
     expect(find.text('상추 수확!'), findsOneWidget);
 
@@ -98,25 +99,33 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('스크린리더로 지도 구역을 읽고, 고르면 구역 시트가 열린다', (tester) async {
+  testWidgets('스크린리더로 지도 칸을 읽고, 빈 땅을 고르면 짓기 목록이, 짓고 나면 바로 그 건물 상세가 뜬다', (tester) async {
     final semantics = tester.ensureSemantics();
-    await pumpApp(tester);
+    final store = await pumpApp(tester);
     FinderBase<SemanticsNode> inMap(Pattern label) =>
         find.semantics.descendant(of: find.semantics.byLabel('농장 지도'), matching: find.semantics.byLabel(label));
 
-    expect(inMap('밭 1, 상추 자라는 중'), findsOne);
-    expect(inMap('밭 2, 잠김 (레벨 2)'), findsOne);
-    expect(inMap('가축 우리'), findsOne);
+    expect(inMap('밭, 상추 자라는 중'), findsOne);
+    expect(inMap('빈 땅, 지을 수 있어요'), findsExactly(2));
+    expect(inMap('닭장'), findsOne);
+    // 처음 땅에 붙은 장애물 칸은 2레벨에 넓힐 수 있다고 읽힌다.
+    expect(inMap(RegExp('레벨 2에 넓힐 수 있어요')), findsAtLeast(1));
 
-    tester.semantics.tap(inMap('밭 2, 잠김 (레벨 2)'));
+    tester.semantics.tap(inMap('빈 땅, 지을 수 있어요').first);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('레벨 2 필요'), findsOneWidget);
+    expect(find.text('무엇을 지을까요?'), findsOneWidget);
+    expect(find.text('염소 우리'), findsOneWidget); // 레벨이 모자란 건물도 다음 목표로 보인다
+    await tester.tap(find.text('🪙 25'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(store.state.lots[const LotId(1, 2)]?.building, BuildingId.field);
+    expect(find.text('심을 작물을 고르세요'), findsOneWidget);
     await tester.tapAt(const Offset(200, 40)); // 시트 밖을 눌러 닫는다
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
 
-    tester.semantics.tap(inMap('가축 우리'));
+    tester.semantics.tap(inMap('닭장'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('병아리 들이기 · 🪙30'), findsOneWidget);
@@ -200,17 +209,17 @@ void main() {
     addTearDown(tester.view.reset);
     await pumpApp(tester, size: const Size(1440, 900));
     await tapAndSettle(tester, find.text('구름 많음'));
-    tester.semantics.tap(find.semantics.byLabel('밭 2, 잠김 (레벨 2)'));
+    tester.semantics.tap(find.semantics.byLabel('빈 땅, 지을 수 있어요').first);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     // 구역 상세가 뜨고 하늘 보기(날씨 카드)는 그대로다.
-    expect(find.text('레벨 2 필요'), findsOneWidget);
+    expect(find.text('무엇을 지을까요?'), findsOneWidget);
     expect(find.text('앞으로 12시간'), findsOneWidget);
     final sky = tester.getRect(find.byType(FarmMapView)).topCenter + const Offset(0, 30);
     await tester.tapAt(sky);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('레벨 2 필요'), findsNothing);
+    expect(find.text('무엇을 지을까요?'), findsNothing);
     expect(find.text('앞으로 12시간'), findsOneWidget);
     await tester.tapAt(sky);
     await tester.pump();
@@ -227,15 +236,15 @@ void main() {
       ..physicalSize = const Size(1440, 900);
     addTearDown(tester.view.reset);
     await pumpApp(tester, size: const Size(1440, 900));
-    tester.semantics.tap(find.semantics.byLabel('밭 2, 잠김 (레벨 2)'));
+    tester.semantics.tap(find.semantics.byLabel('빈 땅, 지을 수 있어요').first);
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.byType(BottomSheet), findsNothing);
-    final need = find.text('레벨 2 필요');
+    final need = find.text('무엇을 지을까요?');
     expect(need, findsOneWidget);
     expect(tester.getTopLeft(need).dx, greaterThan(tester.getTopRight(find.bySemanticsLabel('농장 지도')).dx));
     await tapAndSettle(tester, find.byTooltip('닫기'));
-    expect(find.text('레벨 2 필요'), findsNothing);
+    expect(find.text('무엇을 지을까요?'), findsNothing);
     semantics.dispose();
     await _unmount(tester);
   });

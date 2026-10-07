@@ -1,15 +1,15 @@
 import 'defs.dart';
+import 'lots.dart';
 import 'state.dart';
-import 'zone.dart';
 
-enum TodoKind { harvest, collect, barnFull, feedEmpty, feedLow, plant, unlock }
+enum TodoKind { harvest, collect, barnFull, feedEmpty, feedLow, plant, build, expand }
 
 /// 지금 할 수 있는(또는 해야 하는) 일 하나. 문구는 화면에서 만든다.
 class GameTodo {
-  const GameTodo(this.kind, {this.zone, this.species, this.count = 0});
+  const GameTodo(this.kind, {this.lot, this.species, this.count = 0});
 
   final TodoKind kind;
-  final ZoneId? zone;
+  final LotId? lot;
   final Species? species;
   final int count;
 }
@@ -27,20 +27,32 @@ List<GameTodo> todosFor(GameState s) {
     out.add(const GameTodo(TodoKind.feedLow));
   }
   if (s.barnFree == 0) out.add(const GameTodo(TodoKind.barnFull));
-  for (final zone in GameDefs.plotZones) {
-    if (s.fields[zone]?.ready ?? false) out.add(GameTodo(TodoKind.harvest, zone: zone));
+  final built = s.builtLots;
+  for (final id in built) {
+    if (s.lots[id]!.field?.ready ?? false) out.add(GameTodo(TodoKind.harvest, lot: id));
   }
-  for (final species in Species.values) {
-    final stored = s.animals.where((a) => a.species == species).fold(0, (n, a) => n + a.stored);
-    if (stored > 0) out.add(GameTodo(TodoKind.collect, species: species, count: stored));
+  for (final id in built) {
+    final species = s.lots[id]!.def.species;
+    if (species == null) continue;
+    final stored = s.animalsIn(id).fold(0, (n, a) => n + a.stored);
+    if (stored > 0) out.add(GameTodo(TodoKind.collect, lot: id, species: species, count: stored));
   }
-  for (final zone in GameDefs.plotZones) {
-    if (s.unlocked.contains(zone) && (s.fields[zone]?.empty ?? true)) out.add(GameTodo(TodoKind.plant, zone: zone));
+  for (final id in built) {
+    if (s.lots[id]!.field?.empty ?? false) out.add(GameTodo(TodoKind.plant, lot: id));
   }
-  for (final e in GameDefs.zones.entries) {
-    if (!s.unlocked.contains(e.key) && s.level >= e.value.unlockLevel && s.coins >= e.value.unlockCost) {
-      out.add(GameTodo(TodoKind.unlock, zone: e.key));
-    }
+  // 빈 땅이 있고 지을 수 있는 건물이 하나라도 있으면 알린다(가장 싼 건물을 지을 코인이 있을 때).
+  final empty = s.emptyLots;
+  final cheapest = GameDefs.buildings.values
+      .where((b) => !b.core && b.unlockLevel <= s.level)
+      .fold<int?>(null, (m, b) => m == null || b.cost < m ? b.cost : m);
+  if (empty.isNotEmpty && cheapest != null && s.coins >= cheapest) {
+    out.add(GameTodo(TodoKind.build, lot: empty.first));
+  }
+  // 넓힐 수 있는 땅(레벨 한도·코인이 되고 가진 땅에 붙은 칸)이 있으면 알린다.
+  final cost = s.nextExpansionCost;
+  if (s.expansionsLeft > 0 && cost != null && s.coins >= cost) {
+    final edge = LotId.all.where(s.touchesOwned).firstOrNull;
+    if (edge != null) out.add(GameTodo(TodoKind.expand, lot: edge, count: cost));
   }
   return out;
 }

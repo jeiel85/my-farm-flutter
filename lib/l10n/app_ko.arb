@@ -2,24 +2,6 @@
   "@@locale": "ko",
   "appTitle": "마이팜",
   "tabFarm": "농장",
-  "zoneShortHouse": "집",
-  "zoneShortTomato": "밭 2",
-  "zoneShortVegetable": "밭 1",
-  "zoneShortCorn": "밭 3",
-  "zoneShortAnimals": "우리",
-  "zoneShortWater": "물",
-  "zoneShortStorage": "창고",
-  "zoneShortGreenhouse": "온실",
-  "zoneShortOrchard": "과수원",
-  "zoneHouse": "농가",
-  "zoneTomato": "밭 2",
-  "zoneVegetable": "밭 1",
-  "zoneCorn": "밭 3",
-  "zoneAnimals": "가축 우리",
-  "zoneWater": "물탱크",
-  "zoneStorage": "창고",
-  "zoneGreenhouse": "온실",
-  "zoneOrchard": "과수원",
   "kindCow": "소",
   "kindChicken": "닭",
   "kindSheep": "양",
@@ -363,14 +345,6 @@
       }
     }
   },
-  "todoUnlock": "열 수 있어요: {zone}",
-  "@todoUnlock": {
-    "placeholders": {
-      "zone": {
-        "type": "String"
-      }
-    }
-  },
   "harvest": "수확",
   "harvested": "{crop} 수확!",
   "@harvested": {
@@ -402,16 +376,6 @@
     }
   },
   "plant": "심기",
-  "unlock": "열기",
-  "unlockCost": "비용 🪙{coins}",
-  "@unlockCost": {
-    "placeholders": {
-      "coins": {
-        "type": "int"
-      }
-    }
-  },
-  "lockedZoneHint": "아직 잠긴 구역이에요.",
   "needLevel": "레벨 {level} 필요",
   "@needLevel": {
     "placeholders": {
@@ -425,22 +389,6 @@
     "placeholders": {
       "coins": {
         "type": "int"
-      }
-    }
-  },
-  "unlockFor": "🪙{coins}에 열기",
-  "@unlockFor": {
-    "placeholders": {
-      "coins": {
-        "type": "int"
-      }
-    }
-  },
-  "unlocked": "{zone} 열림!",
-  "@unlocked": {
-    "placeholders": {
-      "zone": {
-        "type": "String"
       }
     }
   },
@@ -848,17 +796,6 @@
       }
     }
   },
-  "mapZoneLocked": "{zone}, 잠김 (레벨 {level})",
-  "@mapZoneLocked": {
-    "placeholders": {
-      "zone": {
-        "type": "String"
-      },
-      "level": {
-        "type": "int"
-      }
-    }
-  },
   "mapZoneReady": "{zone}, {crop} 수확 가능",
   "@mapZoneReady": {
     "placeholders": {
@@ -928,8 +865,6 @@
   "collectEggs": "달걀 줍기",
   "collectMilk": "젖 짜기",
   "collectWool": "털 깎기",
-  "errZoneLocked": "아직 잠긴 구역이에요",
-  "errAlreadyUnlocked": "이미 열린 구역이에요",
   "errLevelTooLow": "레벨이 부족해요",
   "errNotEnoughCoins": "코인이 부족해요",
   "errNotEnoughWater": "물이 부족해요. 조금 기다리면 차요.",
@@ -1060,6 +995,150 @@
   "@skyChipLabel": {
     "placeholders": {
       "state": {
+        "type": "String"
+      }
+    }
+  },
+  "buildingFarmhouse": "농가",
+  "buildingStorehouse": "창고",
+  "buildingField": "밭",
+  "buildingCoop": "닭장",
+  "buildingGoatPen": "염소 우리",
+  "buildingSheepPen": "양 우리",
+  "buildingCowBarn": "외양간",
+  "buildingGreenhouse": "온실",
+  "buildingOrchard": "과수원",
+  "buildingDescField": "작물을 한 번에 한 가지 심어요",
+  "buildingDescPen": "{species} 최대 {count}마리",
+  "@buildingDescPen": {
+    "placeholders": {
+      "species": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "buildingDescGreenhouse": "딸기를 길러요",
+  "buildingDescOrchard": "사과나무를 심으면 계속 열려요",
+  "wildBush": "덤불",
+  "wildRocks": "돌무더기",
+  "wildStumps": "그루터기",
+  "wildReeds": "갈대밭",
+  "emptyLot": "빈 땅",
+  "mapLotEmpty": "빈 땅, 지을 수 있어요",
+  "mapLotExpand": "{name}, 🪙{cost}에 넓힐 수 있어요",
+  "@mapLotExpand": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "mapLotExpandLevel": "{name}, 레벨 {level}에 넓힐 수 있어요",
+  "@mapLotExpandLevel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "buildTitle": "무엇을 지을까요?",
+  "built": "{name} 완성!",
+  "@built": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "expandHint": "치우면 빈 땅이 생겨 무엇이든 지을 수 있어요.",
+  "expandFor": "🪙{cost}에 넓히기",
+  "@expandFor": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "expanded": "땅을 넓혔어요",
+  "expandNeedsNeighbor": "가진 땅에 붙은 칸부터 넓힐 수 있어요.",
+  "expandLimit": "{level}레벨이 되면 더 넓힐 수 있어요.",
+  "@expandLimit": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "expandProgress": "넓힌 땅 {done}/{allowed}칸 (레벨마다 2칸씩 늘어요)",
+  "@expandProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "allowed": {
+        "type": "int"
+      }
+    }
+  },
+  "demolish": "철거 · 🪙{refund} 돌려받기",
+  "@demolish": {
+    "placeholders": {
+      "refund": {
+        "type": "int"
+      }
+    }
+  },
+  "demolishTitle": "{name} 철거할까요?",
+  "@demolishTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "demolishBody": "빈 땅으로 돌아가고 짓기 비용의 절반을 돌려받아요.",
+  "demolishHint": "작물이나 동물이 있으면 철거할 수 없어요.",
+  "demolished": "철거했어요",
+  "errNotOwned": "아직 가진 땅이 아니에요",
+  "errLotOccupied": "이미 지은 곳이에요",
+  "errCannotExpand": "가진 땅에 붙은 칸만 넓힐 수 있어요",
+  "errExpansionLimit": "레벨이 오르면 더 넓힐 수 있어요",
+  "errWrongBuilding": "여기서는 할 수 없어요",
+  "errCannotDemolish": "지금은 철거할 수 없어요",
+  "todoBuild": "빈 땅에 지을 수 있어요",
+  "actionBuild": "짓기",
+  "todoExpand": "땅을 넓힐 수 있어요",
+  "todoExpandHint": "다음 개간 🪙{cost}",
+  "@todoExpandHint": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "actionExpand": "넓히기",
+  "logBuild": "{building} 짓기",
+  "@logBuild": {
+    "placeholders": {
+      "building": {
+        "type": "String"
+      }
+    }
+  },
+  "logExpand": "땅 넓히기",
+  "logDemolish": "{building} 철거",
+  "@logDemolish": {
+    "placeholders": {
+      "building": {
         "type": "String"
       }
     }
