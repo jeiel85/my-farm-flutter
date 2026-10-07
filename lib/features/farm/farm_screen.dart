@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app_shell.dart';
@@ -8,6 +10,7 @@ import '../../data/app_update.dart';
 import '../../game/defs.dart';
 import '../../game/engine.dart';
 import '../../game/game_store.dart';
+import '../../game/sky.dart';
 import '../../game/todo.dart';
 import '../../game/zone.dart';
 import '../../l10n/l10n.dart';
@@ -16,6 +19,8 @@ import 'farm_map_view.dart';
 import 'farm_world.dart';
 import 'game_actions.dart';
 import 'resource_bar.dart';
+import 'sky_layer.dart';
+import 'sky_sheet.dart';
 import 'zone_sheets.dart';
 
 class FarmScreen extends StatefulWidget {
@@ -27,6 +32,23 @@ class FarmScreen extends StatefulWidget {
 
 class _FarmScreenState extends State<FarmScreen> {
   ZoneId? _zone;
+  SkyPreview? _preview;
+  Timer? _previewTimer;
+
+  /// 날씨 그림을 잠깐 미리 보여 주고 지금 날씨로 돌아온다.
+  void _showPreview(SkyPreview p) {
+    _previewTimer?.cancel();
+    setState(() => _preview = p);
+    _previewTimer = Timer(const Duration(seconds: 12), () {
+      if (mounted) setState(() => _preview = null);
+    });
+  }
+
+  @override
+  void dispose() {
+    _previewTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _open(ZoneId zone) async {
     setState(() => _zone = zone);
@@ -44,15 +66,27 @@ class _FarmScreenState extends State<FarmScreen> {
     final s = store.state;
     final todos = todosFor(s);
     final wide = isWide(context);
+    final now = store.now;
     final map = ClipRRect(
       borderRadius: BorderRadius.circular(26),
       child: AspectRatio(
         aspectRatio: wide ? 0.9 : 0.86,
-        child: FarmMapView(
-          scene: FarmScene.of(s, context.l10n),
-          selected: _zone,
-          onZoneTap: _open,
-          aspect: wide ? 0.9 : 0.86,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            FarmMapView(
+              scene: FarmScene.of(s, context.l10n),
+              sky: _preview == null ? SkyView.at(now) : SkyView.preview(_preview!, now),
+              selected: _zone,
+              onZoneTap: _open,
+              aspect: wide ? 0.9 : 0.86,
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: SkyChip(now: now, preview: _preview, onPreview: _showPreview),
+            ),
+          ],
         ),
       ),
     );
@@ -145,7 +179,7 @@ class _TodoTile extends StatelessWidget {
           Icons.agriculture_rounded,
           AppColors.sage,
           l.todoHarvest(l.crop(crop), l.zone(todo.zone!)),
-          l.todoHarvestHint(GameDefs.crops[crop]!.yieldCount),
+          l.todoHarvestHint(GameSky.yieldAt(GameDefs.crops[crop]!, GameScope.of(context).now)),
           l.harvest,
           () => runGame(context, (st) => GameEngine.harvest(st, todo.zone!), done: l.harvested(l.crop(crop))),
         );

@@ -1,5 +1,6 @@
 import 'zone.dart';
 import 'defs.dart';
+import 'sky.dart';
 import 'state.dart';
 
 /// 행동을 할 수 없는 이유. 문구는 화면에서 만든다.
@@ -99,7 +100,8 @@ abstract final class GameEngine {
     var nextId = s.nextAnimalId;
 
     for (var m = 0; m < run; m++) {
-      water = (water + GameDefs.waterRefillPerMinute).clamp(0, GameDefs.waterCapacity);
+      final minute = s.simTime.add(Duration(minutes: m));
+      water = (water + GameSky.waterRefillAt(minute)).clamp(0, GameDefs.waterCapacity);
 
       for (final e in fields.entries.toList()) {
         final f = e.value;
@@ -239,7 +241,8 @@ abstract final class GameEngine {
     final f = s.fields[zone] ?? FieldState.emptyField;
     if (f.crop == null || !f.ready) throw const GameException(GameError.notReady);
     final def = GameDefs.crops[f.crop]!;
-    if (s.barnFree < def.yieldCount) throw const GameException(GameError.barnFull);
+    final count = GameSky.yieldAt(def, s.simTime);
+    if (s.barnFree < count) throw const GameException(GameError.barnFull);
     final FieldState next;
     var water = s.water;
     if (def.perennial) {
@@ -253,7 +256,7 @@ abstract final class GameEngine {
       next = FieldState.emptyField;
     }
     return s.copyWith(
-      barn: _add(s.barn, def.item, def.yieldCount),
+      barn: _add(s.barn, def.item, count),
       xp: s.xp + def.xp,
       water: water,
       fields: {...s.fields, zone: next},

@@ -6,6 +6,7 @@ import '../../core/widgets.dart';
 import '../../game/defs.dart';
 import '../../game/engine.dart';
 import '../../game/game_store.dart';
+import '../../game/sky.dart';
 import '../../game/state.dart';
 import '../../game/zone.dart';
 import '../../l10n/l10n.dart';
@@ -150,6 +151,7 @@ class _FieldBody extends StatelessWidget {
     final crop = f.crop;
     if (crop == null) return _CropPicker(zone: zone);
     final def = GameDefs.crops[crop]!;
+    final count = GameSky.yieldAt(def, store.now);
     final total = Duration(minutes: f.totalMinutes);
     final left = remainingFor(f.minutesLeft, store);
     final progress = f.ready || total.inSeconds == 0 ? 1.0 : (1 - left.inSeconds / total.inSeconds).clamp(0.0, 1.0);
@@ -192,10 +194,8 @@ class _FieldBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Text(
-          l.cropYield(def.yieldCount, l.crop(crop), GameDefs.itemPrice[def.item]! * def.yieldCount),
-          style: AppText.caption,
-        ),
+        Text(l.cropYield(count, l.crop(crop), GameDefs.itemPrice[def.item]! * count), style: AppText.caption),
+        if (count > def.yieldCount) Text(l.rainbowYieldHint(count - def.yieldCount), style: AppText.caption),
         if (def.perennial)
           Text(l.perennialHint(l.duration(Duration(minutes: def.regrowMinutes!))), style: AppText.caption),
         const SizedBox(height: 14),

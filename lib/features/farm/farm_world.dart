@@ -11,6 +11,7 @@ import '../../game/state.dart';
 import '../../game/todo.dart';
 import '../../game/zone.dart';
 import '../../l10n/l10n.dart';
+import 'sky_layer.dart';
 import 'storybook.dart';
 
 /// 위에서 내려다본 농장 지도. 좌표는 모두 월드 단위(1000 x 1250)다.
@@ -81,6 +82,36 @@ abstract final class FarmWorld {
   }
 
   static const tankRadius = 56.0;
+
+  static Rect get pond {
+    final r = zones[ZoneId.water]!;
+    return Rect.fromLTWH(r.left + 220, r.top + 18, 200, 118);
+  }
+
+  /// 밤에 불이 켜지는 곳(집 현관·외양간 문·닭장·창고).
+  static List<Offset> get windows {
+    final house = zones[ZoneId.house]!;
+    final store = zones[ZoneId.storage]!;
+    return [
+      Offset(house.left + 109, house.top + 150),
+      Offset(house.left + 52, house.top + 150),
+      barnDoor,
+      coopDoor,
+      Offset(store.left + 117, store.bottom - 10),
+    ];
+  }
+
+  /// 비·눈·밤에 소·염소·양이 모이는 외양간 문 앞.
+  static Offset get barnDoor {
+    final r = zones[ZoneId.animals]!;
+    return Offset(r.left + 150, r.top + 70);
+  }
+
+  /// 비·눈·밤에 닭이 모이는 닭장 앞.
+  static Offset get coopDoor {
+    final r = zones[ZoneId.animals]!;
+    return Offset(r.left + 112, r.bottom - 56);
+  }
 
   // ---------------------------------------------------------------- 구운 이미지
 
@@ -176,7 +207,7 @@ abstract final class FarmWorld {
       ..moveTo(tankCenter.dx + tankRadius, tankCenter.dy)
       ..lineTo(r.left + 196, r.center.dy);
     c.drawPath(pipe, pen(const Color(0xFF7D8A8E), 6));
-    paintPond(c, Rect.fromLTWH(r.left + 220, r.top + 18, 200, 118), rng);
+    paintPond(c, pond, rng);
   }
 
   static void _paintStorage(Canvas c, Rect r, math.Random rng) {
@@ -332,6 +363,7 @@ class FarmMapPainter extends CustomPainter {
     required this.selectionT,
     required this.labelOpacity,
     required this.scene,
+    required this.sky,
     this.onZoneTap,
     this.textDirection = TextDirection.ltr,
   }) : super(repaint: time);
@@ -342,6 +374,7 @@ class FarmMapPainter extends CustomPainter {
   final double selectionT;
   final double labelOpacity;
   final FarmScene scene;
+  final SkyView sky;
   final ValueChanged<ZoneId>? onZoneTap;
   final TextDirection textDirection;
 
@@ -374,6 +407,8 @@ class FarmMapPainter extends CustomPainter {
     _drawCrates(canvas);
     _drawAnimals(canvas, t);
     _drawTractor(canvas, t);
+    paintWeather(canvas, sky, view, t);
+    paintDaylight(canvas, sky, view, t);
     _drawStoredBubbles(canvas, t);
     _drawReady(canvas, t);
     _drawLocked(canvas);
@@ -435,7 +470,14 @@ class FarmMapPainter extends CustomPainter {
       );
       final speed = species == Species.chicken ? 0.55 : 0.14;
       final reach = species == Species.chicken ? 14.0 : 26.0;
-      final p = home + Offset(math.sin(t * speed + seed) * reach, math.sin(t * speed * 1.3 + seed * 1.7) * reach * 0.6);
+      // 비·눈·밤·폭염에는 쉼터 쪽으로 모이고 덜 돌아다닌다.
+      final shelter = sky.shelter;
+      final den = species == Species.chicken ? FarmWorld.coopDoor : FarmWorld.barnDoor;
+      final huddle = den + Offset((_hash(seed * 3.1) - 0.5) * 70, (_hash(seed * 5.7) - 0.5) * 50);
+      final rest = Offset.lerp(home, huddle, shelter)!;
+      final wander = reach * (1 - 0.7 * shelter);
+      final p =
+          rest + Offset(math.sin(t * speed + seed) * wander, math.sin(t * speed * 1.3 + seed * 1.7) * wander * 0.6);
       final v = Offset(math.cos(t * speed + seed), math.cos(t * speed * 1.3 + seed * 1.7) * 0.78);
       final angle = math.atan2(v.dy, v.dx);
       final scale = young ? 0.62 : 1.0;
@@ -595,5 +637,6 @@ class FarmMapPainter extends CustomPainter {
       old.selected != selected ||
       old.selectionT != selectionT ||
       old.labelOpacity != labelOpacity ||
-      old.scene != scene;
+      old.scene != scene ||
+      old.sky != sky;
 }
