@@ -300,6 +300,8 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
       _hay(c, p.footprint.width / 2);
     case PropKind.tree:
       _tree(c, p.footprint.width / 2, p.seed, p.deep, look);
+    case PropKind.scarecrow:
+      _scarecrow(c, look);
   }
   c.restore();
 }
@@ -496,6 +498,32 @@ void _hay(Canvas c, double r) {
   c.drawOval(face, fill(const Color(0xFFEDD28E)));
   c.drawOval(face.deflate(r * 0.18), pen(const Color(0x66A07830), 1.2));
   c.drawRRect(body, pen(Tint.line.withValues(alpha: 0.45), 1.2));
+}
+
+/// 서 있는 허수아비: 막대, 팔 막대, 헝겊 옷, 밀짚 얼굴과 모자.
+void _scarecrow(Canvas c, _Look look) {
+  c.drawOval(Rect.fromCenter(center: const Offset(4, 1), width: 40, height: 10), fill(Tint.shadow));
+  c.drawLine(Offset.zero, const Offset(0, -62), pen(Tint.wood, 4));
+  c.drawLine(const Offset(-26, -44), const Offset(26, -44), pen(Tint.wood, 3.5));
+  final coat = Path()
+    ..moveTo(-16, -48)
+    ..lineTo(16, -48)
+    ..lineTo(20, -18)
+    ..lineTo(-20, -18)
+    ..close();
+  c.drawPath(coat, fill(const Color(0xFF7E8FB0)));
+  c.drawRect(const Rect.fromLTWH(-6, -40, 8, 8), fill(const Color(0xFFD9573F)));
+  c.drawPath(coat, pen(Tint.line.withValues(alpha: 0.5), 1.4));
+  c.drawCircle(const Offset(0, -58), 10, fill(Tint.hay));
+  c.drawCircle(const Offset(0, -58), 10, pen(Tint.wood, 1.4));
+  c.drawOval(Rect.fromCenter(center: const Offset(0, -67), width: 34, height: 9), fill(const Color(0xFFD6B25A)));
+  c.drawRect(const Rect.fromLTWH(-9, -78, 18, 12), fill(const Color(0xFFD6B25A)));
+  if (look.snow > 0) {
+    c.drawOval(
+      Rect.fromCenter(center: const Offset(0, -71), width: 30, height: 7),
+      fill(const Color(0xFFF8FAFC).withValues(alpha: 0.9 * look.snow)),
+    );
+  }
 }
 
 /// 계절마다 잎 색이 바뀌는 둥근 나무.

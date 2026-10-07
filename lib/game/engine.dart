@@ -177,6 +177,9 @@ abstract final class GameEngine {
       for (final id in s.builtLots)
         if (s.lots[id]!.def.recipe != null) id,
     ];
+    // 꾸미기 효과는 진행 중에 바뀌지 않으므로(짓기·철거는 행동) 미리 계산한다.
+    final yieldBonus = {for (final id in plots) id: s.yieldBonus(id)};
+    final produceEvery = {for (final id in pens) id: s.produceEvery(id, GameDefs.animals[s.lots[id]!.def.species!]!)};
     final animals = [...s.animals];
     final breed = Map.of(s.breedProgress);
     var nextId = s.nextAnimalId;
@@ -240,7 +243,7 @@ abstract final class GameEngine {
         final f = lot.field!;
         if (lot.level < GameDefs.autoLevel || !f.ready || f.crop == null) continue;
         final def = GameDefs.crops[f.crop]!;
-        final count = yieldFor(def, lot.level, minute);
+        final count = yieldFor(def, yieldBonus[id]!, minute);
         if (store(def.item, count, minute, partial: false) == 0) continue;
         xp += def.xp;
         report.autoHarvests++;
@@ -280,7 +283,7 @@ abstract final class GameEngine {
           if (feed >= need) {
             feed -= need;
             final progress = a.produceProgress + 1;
-            if (progress >= def.produceEveryMinutes) {
+            if (progress >= (produceEvery[a.home] ?? def.produceEveryMinutes)) {
               animals[i] = a.copyWith(stored: a.stored + 1, produceProgress: 0);
               report.produced[a.species] = (report.produced[a.species] ?? 0) + 1;
             } else {
@@ -394,16 +397,12 @@ abstract final class GameEngine {
     );
   }
 
-  /// [def]를 레벨 [level]의 건물에서 [t]에 거두면 얻는 개수. Lv2부터 +25%, 무지개가 떠 있으면 +20%(합쳐서, 올림).
-  static int yieldFor(CropDef def, int level, DateTime t) => _yield(def, level, rainbow: GameSky.rainbowAt(t));
+  /// [def]를 보너스 [bonus]%(건물 레벨·허수아비, [GameState.yieldBonus])인 칸에서 [t]에 거두면 얻는 개수.
+  /// 무지개가 떠 있으면 +20%를 더한다(합쳐서, 올림).
+  static int yieldFor(CropDef def, int bonus, DateTime t) => baseYield(def, bonus + (GameSky.rainbowAt(t) ? 20 : 0));
 
-  /// 무지개 없이(건물 레벨 보너스만) 거두는 개수.
-  static int baseYield(CropDef def, int level) => _yield(def, level, rainbow: false);
-
-  static int _yield(CropDef def, int level, {required bool rainbow}) {
-    final bonus = (level >= 2 ? GameDefs.yieldBonusLv2 : 0) + (rainbow ? 20 : 0);
-    return (def.yieldCount * (100 + bonus) + 99) ~/ 100;
-  }
+  /// 무지개 없이 [bonus]%만 더해 거두는 개수.
+  static int baseYield(CropDef def, int bonus) => (def.yieldCount * (100 + bonus) + 99) ~/ 100;
 
   static int _capacity(Lot lot) {
     final caps = lot.def.capacity;
@@ -529,7 +528,7 @@ abstract final class GameEngine {
     final f = l?.field ?? FieldState.emptyField;
     if (l == null || f.crop == null || !f.ready) throw const GameException(GameError.notReady);
     final def = GameDefs.crops[f.crop]!;
-    final count = yieldFor(def, l.level, s.simTime);
+    final count = yieldFor(def, s.yieldBonus(lot), s.simTime);
     if (s.barnFree < count) throw const GameException(GameError.barnFull);
     final FieldState next;
     var water = s.water;

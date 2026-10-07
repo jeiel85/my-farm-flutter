@@ -263,7 +263,22 @@ class GameState {
   int get storehouseLevel => _level(GameDefs.storehouseLot);
   int get offlineCapMinutes => GameDefs.offlineCapByLevel[farmhouseLevel - 1];
   int get waterCapacity => GameDefs.waterCapacityByLevel[farmhouseLevel - 1];
-  int get waterRefillPerMinute => GameDefs.waterRefillByLevel[farmhouseLevel - 1];
+  int get waterRefillPerMinute =>
+      GameDefs.waterRefillByLevel[farmhouseLevel - 1] +
+      GameDefs.pondRefill * lots.values.where((l) => l.building == BuildingId.pond).length.clamp(0, GameDefs.maxPonds);
+
+  /// [lot]에 상하좌우로 붙은 칸 중 [building]이 있는지.
+  bool touches(LotId lot, BuildingId building) => lot.neighbors.any((n) => lots[n]?.building == building);
+
+  /// 작물 건물 [lot]의 수확량 보너스(%): Lv2부터 +25, 허수아비가 붙으면 +10. 무지개는 따로(엔진).
+  int yieldBonus(LotId lot) =>
+      ((lots[lot]?.level ?? 1) >= 2 ? GameDefs.yieldBonusLv2 : 0) +
+      (touches(lot, BuildingId.scarecrow) ? GameDefs.scarecrowBonus : 0);
+
+  /// 우리 [pen]의 생산 주기(꽃밭이 붙으면 10% 빠르다).
+  int produceEvery(LotId pen, AnimalDef def) => touches(pen, BuildingId.flowerBed)
+      ? GameDefs.flowerProduceMinutes(def.produceEveryMinutes)
+      : def.produceEveryMinutes;
   int get barnCapacity => GameDefs.barnCapacityByLevel[storehouseLevel - 1];
   int get feedCapacity => GameDefs.feedCapacityByLevel[storehouseLevel - 1];
 

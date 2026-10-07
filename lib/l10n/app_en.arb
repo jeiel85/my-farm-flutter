@@ -400,5 +400,14 @@
   "orderSkipped": "Waiting for a new order",
   "errNoOrder": "No order here right now",
   "todoOrder": "You can deliver an order",
-  "logOrder": "Order delivered"
+  "logOrder": "Order delivered",
+  "buildingPond": "Pond",
+  "buildingScarecrow": "Scarecrow",
+  "buildingFlowerBed": "Flower bed",
+  "decorPond": "Well refills {refill}L/min faster (up to {max} ponds)",
+  "decorScarecrow": "Adjacent fields, greenhouses and orchards harvest +{percent}%",
+  "decorFlowerBed": "Adjacent pens produce 10% faster",
+  "decorHint": "Affects plots directly above, below, left or right. Decorations can't be upgraded.",
+  "scarecrowYieldHint": "+{percent}% thanks to a scarecrow",
+  "flowerBedHint": "10% faster thanks to a flower bed"
 }

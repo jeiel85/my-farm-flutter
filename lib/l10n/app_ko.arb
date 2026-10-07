@@ -1424,5 +1424,38 @@
   "orderSkipped": "새 주문을 기다려요",
   "errNoOrder": "지금은 주문이 없어요",
   "todoOrder": "주문을 보낼 수 있어요",
-  "logOrder": "주문 보냄"
+  "logOrder": "주문 보냄",
+  "buildingPond": "작은 연못",
+  "buildingScarecrow": "허수아비",
+  "buildingFlowerBed": "꽃밭",
+  "decorPond": "우물이 분당 {refill}L 더 차요(연못 {max}개까지)",
+  "@decorPond": {
+    "placeholders": {
+      "refill": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "decorScarecrow": "붙은 밭·온실·과수원 수확량 +{percent}%",
+  "@decorScarecrow": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "decorFlowerBed": "붙은 우리의 생산이 10% 빨라져요",
+  "decorHint": "상하좌우로 붙은 칸에 효과가 있어요. 꾸미기는 올릴 수 없어요.",
+  "scarecrowYieldHint": "허수아비 덕분에 +{percent}%",
+  "@scarecrowYieldHint": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "flowerBedHint": "꽃밭 덕분에 생산이 10% 빨라요"
 }

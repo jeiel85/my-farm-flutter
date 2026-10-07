@@ -71,7 +71,8 @@ void main() {
     s = GameEngine.plant(s, field, CropId.lettuce);
     s = run(s, 2).$1;
     expect(GameEngine.harvest(s, field).countOf(ItemId.lettuce), 7); // 5 × 1.25 = 6.25 → 7
-    expect(GameEngine.baseYield(GameDefs.crops[CropId.lettuce]!, 1), 5);
+    expect(GameEngine.baseYield(GameDefs.crops[CropId.lettuce]!, 0), 5);
+    expect(s.yieldBonus(field), GameDefs.yieldBonusLv2);
   });
 
   test('Lv3 밭은 다 자라면 저절로 거두고 같은 작물을 다시 심는다(씨앗값·물을 쓴다)', () {

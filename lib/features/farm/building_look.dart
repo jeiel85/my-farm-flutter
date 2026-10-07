@@ -28,6 +28,9 @@ abstract final class BuildingLook {
     BuildingId.jamKitchen => Icons.kitchen_outlined,
     BuildingId.dairy => Icons.local_drink_outlined,
     BuildingId.bakery => Icons.bakery_dining_outlined,
+    BuildingId.pond => Icons.water_outlined,
+    BuildingId.scarecrow => Icons.accessibility_new_rounded,
+    BuildingId.flowerBed => Icons.local_florist_outlined,
   };
 
   /// 짓기 목록에 보이는 그림 문자.
@@ -45,5 +48,8 @@ abstract final class BuildingLook {
     BuildingId.jamKitchen => '🫙',
     BuildingId.dairy => '🧀',
     BuildingId.bakery => '🍞',
+    BuildingId.pond => '🪷',
+    BuildingId.scarecrow => '🧑‍🌾',
+    BuildingId.flowerBed => '🌷',
   };
 }

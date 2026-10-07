@@ -46,6 +46,9 @@ enum BuildingId {
   jamKitchen,
   dairy,
   bakery,
+  pond,
+  scarecrow,
+  flowerBed,
 }
 
 /// 공방 레시피: 재료를 넣으면 시간이 지나 가공품 하나가 나온다. docs/farm-lots-design.md §10.
@@ -134,6 +137,7 @@ class BuildingDef {
     this.capacity = const [],
     this.upgradeCosts = const [],
     this.recipe,
+    this.decor = false,
     this.core = false,
   });
 
@@ -157,6 +161,9 @@ class BuildingDef {
 
   /// 공방이면 그 레시피(공방마다 하나).
   final Recipe? recipe;
+
+  /// 꾸미기(L5): 칸 하나를 쓰고, 옆 칸에 작은 효과를 준다. 올릴 수 없다.
+  final bool decor;
 
   /// 처음부터 있고 철거할 수 없는 건물(농가·창고).
   final bool core;
@@ -462,6 +469,9 @@ abstract final class GameDefs {
       upgradeCosts: [2400, 4800],
       recipe: Recipe(inputs: {ItemId.flour: 2, ItemId.egg: 2}, output: ItemId.bread, minutes: 25, xp: 6),
     ),
+    BuildingId.pond: BuildingDef(id: BuildingId.pond, cost: 60, unlockLevel: 2, decor: true),
+    BuildingId.scarecrow: BuildingDef(id: BuildingId.scarecrow, cost: 80, unlockLevel: 3, decor: true),
+    BuildingId.flowerBed: BuildingDef(id: BuildingId.flowerBed, cost: 120, unlockLevel: 4, decor: true),
   };
 
   /// 종을 기르는 우리.
@@ -492,6 +502,16 @@ abstract final class GameDefs {
 
   /// 작물 건물·우리가 저절로 돌아가는 레벨(자동 수확·다시 심기·자동 줍기). 창고는 이 레벨에서 자동 출하.
   static const autoLevel = 3;
+
+  /// 꾸미기 효과(L5): 허수아비가 붙은 작물 건물 수확량 +10%, 꽃밭이 붙은 우리 생산 주기 −10%(내림, 닭 6 → 5분),
+  /// 연못 하나마다 우물 분당 +1L(최대 3개까지 센다).
+  static const scarecrowBonus = 10;
+  static const pondRefill = 1;
+  static const maxPonds = 3;
+
+  /// 꽃밭이 붙은 우리의 생산 주기.
+  /// 올림으로 하면 닭(6분)에 효과가 없어서 내린다(최소 1분).
+  static int flowerProduceMinutes(int minutes) => (minutes * 9 ~/ 10).clamp(1, minutes);
 
   /// 공방 레벨에 따른 만드는 시간(Lv2부터 25% 빠르게, 올림).
   static int craftMinutes(Recipe recipe, int level) => level >= 2 ? (recipe.minutes * 3 + 3) ~/ 4 : recipe.minutes;

@@ -30,6 +30,9 @@ extension Labels on AppLocalizations {
     BuildingId.jamKitchen => buildingJamKitchen,
     BuildingId.dairy => buildingDairy,
     BuildingId.bakery => buildingBakery,
+    BuildingId.pond => buildingPond,
+    BuildingId.scarecrow => buildingScarecrow,
+    BuildingId.flowerBed => buildingFlowerBed,
   };
 
   /// 레시피 재료(밀 3, 밀가루 2 + 달걀 2).
@@ -40,6 +43,9 @@ extension Labels on AppLocalizations {
     final def = GameDefs.buildings[b]!;
     if (def.species case final sp?) return buildingDescPen(species(sp), def.capacity.first);
     if (def.recipe case final r?) return buildingDescWorkshop(recipeInputs(r), item(r.output));
+    if (b == BuildingId.pond) return decorPond(GameDefs.pondRefill, GameDefs.maxPonds);
+    if (b == BuildingId.scarecrow) return decorScarecrow(GameDefs.scarecrowBonus);
+    if (b == BuildingId.flowerBed) return decorFlowerBed;
     return switch (b) {
       BuildingId.greenhouse => buildingDescGreenhouse,
       BuildingId.orchard => buildingDescOrchard,

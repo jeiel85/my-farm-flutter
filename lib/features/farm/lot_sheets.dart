@@ -112,6 +112,16 @@ class LotDetail extends StatelessWidget {
               BuildingId.jamKitchen ||
               BuildingId.dairy ||
               BuildingId.bakery => _WorkshopBody(lot: lot),
+              BuildingId.pond || BuildingId.scarecrow || BuildingId.flowerBed => AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.buildingDesc(b.building), style: AppText.body),
+                    const SizedBox(height: 6),
+                    Text(l.decorHint, style: AppText.caption),
+                  ],
+                ),
+              ),
             },
             if (b.def.upgradeCosts.isNotEmpty) _UpgradeSection(lot: lot),
             if (!b.def.core) _DemolishSection(lot: lot),
@@ -425,9 +435,9 @@ class _FieldBody extends StatelessWidget {
     final crop = f.crop;
     if (crop == null) return _CropPicker(lot: lot);
     final def = GameDefs.crops[crop]!;
-    final level = s.lots[lot]!.level;
-    final count = GameEngine.yieldFor(def, level, store.now);
-    final base = GameEngine.baseYield(def, level);
+    final bonus = s.yieldBonus(lot);
+    final count = GameEngine.yieldFor(def, bonus, store.now);
+    final base = GameEngine.baseYield(def, bonus);
     final total = Duration(minutes: f.totalMinutes);
     final left = remainingFor(f.minutesLeft, store);
     final progress = f.ready || total.inSeconds == 0 ? 1.0 : (1 - left.inSeconds / total.inSeconds).clamp(0.0, 1.0);
@@ -472,6 +482,8 @@ class _FieldBody extends StatelessWidget {
         const SizedBox(height: 10),
         Text(l.cropYield(count, l.crop(crop), GameDefs.itemPrice[def.item]! * count), style: AppText.caption),
         if (count > base) Text(l.rainbowYieldHint(count - base), style: AppText.caption),
+        if (s.touches(lot, BuildingId.scarecrow))
+          Text(l.scarecrowYieldHint(GameDefs.scarecrowBonus), style: AppText.caption),
         if (def.perennial)
           Text(l.perennialHint(l.duration(Duration(minutes: def.regrowMinutes!))), style: AppText.caption),
         const SizedBox(height: 14),
@@ -751,7 +763,7 @@ class _SpeciesSection extends StatelessWidget {
               : l.speciesSummary(
                   mine.length,
                   l.item(def.product),
-                  l.duration(Duration(minutes: def.produceEveryMinutes)),
+                  l.duration(Duration(minutes: s.produceEvery(lot, def))),
                 ),
           trailing: locked
               ? null
@@ -776,6 +788,7 @@ class _SpeciesSection extends StatelessWidget {
               onTap: () => collectFrom(context, lot, species),
             ),
           ),
+        if (s.touches(lot, BuildingId.flowerBed)) Text(l.flowerBedHint, style: AppText.tiny),
         if (adults >= 2)
           Text(l.breedingHint(l.duration(Duration(minutes: def.breedEveryMinutes))), style: AppText.tiny),
         for (final a in mine)

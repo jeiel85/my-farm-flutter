@@ -212,14 +212,15 @@ class _TodoTile extends StatelessWidget {
       Future<void> Function() run,
     ) = switch (todo.kind) {
       TodoKind.harvest => () {
-        final crop = s.lots[lot]!.field!.crop!;
+        final at = lot!;
+        final crop = s.lots[at]!.field!.crop!;
         return (
           Icons.agriculture_rounded,
           AppColors.sage,
           l.todoHarvest(l.crop(crop), name),
-          l.todoHarvestHint(GameEngine.yieldFor(GameDefs.crops[crop]!, s.lots[lot]!.level, GameScope.of(context).now)),
+          l.todoHarvestHint(GameEngine.yieldFor(GameDefs.crops[crop]!, s.yieldBonus(at), GameScope.of(context).now)),
           l.harvest,
-          () => runGame(context, (st) => GameEngine.harvest(st, lot!), done: l.harvested(l.crop(crop))),
+          () => runGame(context, (st) => GameEngine.harvest(st, at), done: l.harvested(l.crop(crop))),
         );
       }(),
       TodoKind.collect => (

@@ -252,6 +252,22 @@ void paintLotBase(Canvas c, LotVisual v, Rect r) {
         c.drawOval(barrel, fill(Tint.wood));
         c.drawOval(barrel.deflate(3), pen(const Color(0x55000000), 1.2));
       }
+    case BuildingId.pond:
+      wash(c, wobblyRect(r.deflate(4), rng, radius: 24), const Color(0xFFC6D79A), rng, layers: 2, edge: false);
+      paintPond(c, LotLayout.pond(r), rng);
+    case BuildingId.scarecrow:
+      // 허수아비가 지키는 작은 풀밭(허수아비 자체는 서 있는 것으로 따로 그린다).
+      wash(c, wobblyRect(r.deflate(4), rng, radius: 24), const Color(0xFFCBDB9E), rng, layers: 2, edge: false);
+      for (var i = 0; i < 18; i++) {
+        final p = Offset(
+          r.left + 20 + rng.nextDouble() * (r.width - 40),
+          r.top + 20 + rng.nextDouble() * (r.height - 40),
+        );
+        c.drawCircle(p, 3, fill((i.isEven ? Tint.flowerA : Colors.white).withValues(alpha: 0.85)));
+      }
+    case BuildingId.flowerBed:
+      wash(c, wobblyRect(r.deflate(4), rng, radius: 24), const Color(0xFFCBDB9E), rng, layers: 2, edge: false);
+      paintFlowerBed(c, r, rng);
     case BuildingId.coop || BuildingId.goatPen || BuildingId.sheepPen || BuildingId.cowBarn:
       wash(c, wobblyRect(r.deflate(4), rng, radius: 26), const Color(0xFFC9D99C), rng, layers: 2);
       final pasture = LotLayout.pasture(r, building);
@@ -285,6 +301,8 @@ abstract final class LotLayout {
   static Offset door(Rect r, BuildingId b) => shed(r, b).bottomCenter + const Offset(0, 14);
   static Rect trough(Rect r) => Rect.fromLTWH(r.right - 94, r.top + 30, 62, 18);
   static Rect workshop(Rect r) => Rect.fromLTWH(r.left + 36, r.top + 40, 152, 104);
+  static Rect pond(Rect r) => r.deflate(34);
+  static Offset scarecrow(Rect r) => r.center + const Offset(0, 20);
 
   /// 공방 굴뚝 끝(연기가 나는 곳).
   static Offset chimney(Rect r) => workshop(r).topRight + const Offset(-30, 12);
@@ -292,7 +310,22 @@ abstract final class LotLayout {
 
 // ---------------------------------------------------------------- 서 있는 것들
 
-enum PropKind { house, barn, coop, goatShed, sheepShed, warehouse, silo, hay, tree, mill, jamKitchen, dairy, bakery }
+enum PropKind {
+  house,
+  barn,
+  coop,
+  goatShed,
+  sheepShed,
+  warehouse,
+  silo,
+  hay,
+  tree,
+  mill,
+  jamKitchen,
+  dairy,
+  bakery,
+  scarecrow,
+}
 
 /// 땅 위에 서 있는 구조물·나무. [footprint]는 땅에 닿는 자리(월드 좌표)다.
 @immutable
@@ -308,7 +341,7 @@ class FarmProp {
 
   /// 세운 모습을 놓을 자리(앞쪽 가운데. 둥근 것은 가운데).
   Offset get base => switch (kind) {
-    PropKind.tree || PropKind.silo || PropKind.hay => footprint.center,
+    PropKind.tree || PropKind.silo || PropKind.hay || PropKind.scarecrow => footprint.center,
     _ => footprint.bottomCenter,
   };
 }
@@ -337,7 +370,14 @@ List<FarmProp> propsForLot(LotId id, BuildingId building) {
     BuildingId.jamKitchen => [FarmProp(PropKind.jamKitchen, LotLayout.workshop(r), seed: seed + 1)],
     BuildingId.dairy => [FarmProp(PropKind.dairy, LotLayout.workshop(r), seed: seed + 1)],
     BuildingId.bakery => [FarmProp(PropKind.bakery, LotLayout.workshop(r), seed: seed + 1)],
-    BuildingId.field || BuildingId.greenhouse || BuildingId.orchard => const [],
+    BuildingId.scarecrow => [
+      FarmProp(PropKind.scarecrow, Rect.fromCircle(center: LotLayout.scarecrow(r), radius: 30), seed: seed + 1),
+    ],
+    BuildingId.field ||
+    BuildingId.greenhouse ||
+    BuildingId.orchard ||
+    BuildingId.pond ||
+    BuildingId.flowerBed => const [],
   };
 }
 
@@ -381,6 +421,8 @@ void paintPropFlat(Canvas c, FarmProp p) {
       paintHayBale(c, r.center, r.width / 2, rng);
     case PropKind.tree:
       paintTree(c, r.center, r.width / 2, rng, leaf: p.deep ? Tint.grassDeep : Tint.leaf);
+    case PropKind.scarecrow:
+      paintScarecrowFlat(c, r.center, rng);
   }
 }
 
@@ -575,6 +617,13 @@ SkySpots skySpotsOf(FarmScene scene) {
         plots.add(r);
       case BuildingId.mill || BuildingId.jamKitchen || BuildingId.dairy || BuildingId.bakery:
         windows.add(LotLayout.workshop(r).bottomCenter + const Offset(0, 8));
+      case BuildingId.pond:
+        waters.add(LotLayout.pond(r).deflate(10));
+        fireflies.add(r);
+      case BuildingId.flowerBed:
+        fireflies.add(r);
+      case BuildingId.scarecrow:
+        break;
     }
   }
   return SkySpots(waters: waters, windows: windows, glows: glows, fireflies: fireflies, plots: plots);

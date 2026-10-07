@@ -468,6 +468,40 @@ void paintOrchard(Canvas c, Rect r, int? stage, math.Random rng) {
   }
 }
 
+// ---------------------------------------------------------------- 꾸미기
+
+/// 위에서 본 허수아비: 십자 막대, 밀짚모자, 헝겊 옷.
+void paintScarecrowFlat(Canvas c, Offset p, math.Random rng) {
+  c.drawOval(Rect.fromCenter(center: p + const Offset(6, 8), width: 60, height: 22), fill(Tint.shadow));
+  c.drawLine(p + const Offset(-30, 0), p + const Offset(30, 0), pen(Tint.wood, 4));
+  c.drawLine(p + const Offset(0, -10), p + const Offset(0, 26), pen(Tint.wood, 4));
+  c.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromCenter(center: p + const Offset(0, 6), width: 30, height: 22),
+      const Radius.circular(6),
+    ),
+    fill(const Color(0xFF7E8FB0)),
+  );
+  c.drawCircle(p + const Offset(0, -8), 13, fill(Tint.hay));
+  c.drawCircle(p + const Offset(0, -8), 13, pen(Tint.wood, 1.6));
+  c.drawCircle(p + const Offset(0, -8), 5, fill(const Color(0xFFD9573F)));
+}
+
+/// 꽃밭: 줄지어 핀 여러 빛깔 꽃 무리.
+void paintFlowerBed(Canvas c, Rect r, math.Random rng) {
+  const colors = [Tint.flowerA, Tint.flowerB, Colors.white, Tint.tomato, Color(0xFFB9A3D6)];
+  for (var row = 0; row < 5; row++) {
+    final bed = wobblyOval(Rect.fromLTWH(r.left + 18, r.top + 22 + row * 44, r.width - 36, 30), rng, jitter: 0.06);
+    wash(c, bed, Tint.soil, rng, layers: 2, edge: false);
+    for (var i = 0; i < 22; i++) {
+      final p = Offset(r.left + 26 + rng.nextDouble() * (r.width - 52), r.top + 28 + row * 44 + rng.nextDouble() * 18);
+      c.drawCircle(p + const Offset(1, 2), 4, fill(Tint.shadow));
+      c.drawCircle(p, 4, fill(colors[(i + row) % colors.length]));
+      c.drawCircle(p, 1.4, fill(Tint.flowerA));
+    }
+  }
+}
+
 // ---------------------------------------------------------------- 아직 넓히지 않은 땅의 장애물
 
 /// 장애물 종류(좌표로 정해지는 그림만 다르다): 0 덤불 · 1 돌무더기 · 2 그루터기 · 3 갈대밭.
