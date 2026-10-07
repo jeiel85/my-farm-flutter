@@ -121,6 +121,8 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(store.state.lots[const LotId(1, 2)]?.building, BuildingId.field);
     expect(find.text('심을 작물을 고르세요'), findsOneWidget);
+    expect(find.text('🪙120에 Lv2로'), findsOneWidget); // 새로 지은 밭도 업그레이드할 수 있다
+    expect(find.text('+ 수확량 +25%'), findsOneWidget);
     await tester.tapAt(const Offset(200, 40)); // 시트 밖을 눌러 닫는다
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));

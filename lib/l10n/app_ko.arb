@@ -1142,5 +1142,126 @@
         "type": "String"
       }
     }
+  },
+  "upgradeTitle": "업그레이드",
+  "upgradeTo": "🪙{cost}에 Lv{level}로",
+  "@upgradeTo": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "upgradeNow": "지금 Lv{level}",
+  "@upgradeNow": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "maxLevelReached": "최고 레벨이에요",
+  "upgraded": "{name} Lv{level}!",
+  "@upgraded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "effectYield": "수확량 +{percent}%",
+  "@effectYield": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "effectAutoReplant": "다 자라면 저절로 거두고 다시 심어요",
+  "effectAutoHarvest": "다 자라면 저절로 거둬요",
+  "effectCapacity": "최대 {count}마리",
+  "@effectCapacity": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "effectAutoCollect": "생산물을 저절로 거둬요",
+  "effectFarmhouse": "자리 비운 동안 {hours}시간 · 우물 {water}L · 분당 {refill}L",
+  "@effectFarmhouse": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "water": {
+        "type": "int"
+      },
+      "refill": {
+        "type": "int"
+      }
+    }
+  },
+  "effectStorehouse": "창고 {barn}개 · 사료통 {feed}",
+  "@effectStorehouse": {
+    "placeholders": {
+      "barn": {
+        "type": "int"
+      },
+      "feed": {
+        "type": "int"
+      }
+    }
+  },
+  "effectAutoShip": "저절로 거둔 몫이 창고에 다 안 들어가면 바로 팔아요",
+  "errMaxLevel": "이미 최고 레벨이에요",
+  "logUpgrade": "{building} 업그레이드",
+  "@logUpgrade": {
+    "placeholders": {
+      "building": {
+        "type": "String"
+      }
+    }
+  },
+  "awayAutoHarvests": "작물을 {count}번 저절로 거뒀어요",
+  "@awayAutoHarvests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awayAutoCollected": "생산물 {count}개를 저절로 거뒀어요",
+  "@awayAutoCollected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awayAutoSold": "창고에 못 들어간 몫을 팔아 🪙{coins}",
+  "@awayAutoSold": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "lotLevelLabel": "{name} Lv{level}",
+  "@lotLevelLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
   }
 }

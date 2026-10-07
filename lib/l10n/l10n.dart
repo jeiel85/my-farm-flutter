@@ -105,6 +105,7 @@ extension Labels on AppLocalizations {
     GameError.expansionLimit => errExpansionLimit,
     GameError.wrongBuilding => errWrongBuilding,
     GameError.cannotDemolish => errCannotDemolish,
+    GameError.maxLevel => errMaxLevel,
   };
 
   /// 남은 시간 같은 길이(3시간 5분, 2시간, 4분 12초, 6분, 30초).

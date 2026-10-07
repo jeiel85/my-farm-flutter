@@ -155,6 +155,7 @@ class RecordsScreen extends StatelessWidget {
       LogKind.build => l.logBuild(building() ?? e.subject),
       LogKind.expand => l.logExpand,
       LogKind.demolish => l.logDemolish(building() ?? e.subject),
+      LogKind.upgrade => l.logUpgrade(building() ?? e.subject),
     };
   }
 }

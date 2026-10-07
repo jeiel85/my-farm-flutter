@@ -83,10 +83,12 @@ abstract final class GameSky {
   static int rainbowMinutesLeft(DateTime t) =>
       rainbowAt(t) ? rainbowMinutes - t.difference(blockStart(t)).inMinutes : 0;
 
-  static int waterRefillAt(DateTime t) => switch (kindAt(t)) {
-    SkyKind.rain => rainRefillPerMinute,
-    SkyKind.heat => heatRefillPerMinute,
-    _ => GameDefs.waterRefillPerMinute,
+  /// 분당 물 충전량. [base]는 날씨가 없을 때의 충전량(농가 레벨에 따라 5·7·10L)이고, 비가 오면 두 배, 폭염에는
+  /// 60%(올림)다. 기본값(5L)에서 비 10L, 폭염 3L.
+  static int waterRefillAt(DateTime t, {int base = GameDefs.waterRefillPerMinute}) => switch (kindAt(t)) {
+    SkyKind.rain => base * 2,
+    SkyKind.heat => (base * 3 + 4) ~/ 5,
+    _ => base,
   };
 
   /// [t]에 수확하면 얻는 개수. 무지개가 떠 있으면 20% 더(올림).

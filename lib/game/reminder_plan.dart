@@ -83,7 +83,7 @@ class FeedReminder extends PlannedReminder {
 
 /// 지금 상태에서 앱을 닫아 둔다고 보고 앞으로 일어날 일을 시각 순으로 계산한다.
 ///
-/// 앱을 닫아 둔 동안은 [GameDefs.offlineCapMinutes]까지만 진행되므로 그 안의 일만 알린다.
+/// 앱을 닫아 둔 동안은 농가 레벨에 따른 시간([GameState.offlineCapMinutes])까지만 진행되므로 그 안의 일만 알린다.
 /// 지금 이미 그런 상태(다 자람·가득 참·사료 없음)인 것은 앱 화면에 나오므로 보내지 않는다.
 /// 밤(21시~7시)에 일어나는 일은 아침 7시로 미룬다(작물·생산물은 그때까지 그대로 기다린다).
 List<PlannedReminder> planReminders(GameState state, DateTime now, ReminderSettings settings) {
@@ -95,7 +95,7 @@ List<PlannedReminder> planReminders(GameState state, DateTime now, ReminderSetti
   final harvest = <DateTime, List<CropId>>{};
   final out = <PlannedReminder>[];
 
-  for (var m = 0; m < GameDefs.offlineCapMinutes; m++) {
+  for (var m = 0; m < state.offlineCapMinutes; m++) {
     final (next, report) = GameEngine.advance(s, s.simTime.add(const Duration(minutes: 1)));
     s = next;
     final at = _outsideQuietHours(s.simTime);

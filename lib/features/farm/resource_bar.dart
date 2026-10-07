@@ -74,7 +74,7 @@ class ResourceBar extends StatelessWidget {
               Expanded(
                 child: _Chip(
                   emoji: '📦',
-                  value: '${s.barnUsed}/${GameDefs.barnCapacity}',
+                  value: '${s.barnUsed}/${s.barnCapacity}',
                   label: l.barn,
                   warn: s.barnFree == 0,
                 ),
@@ -83,7 +83,7 @@ class ResourceBar extends StatelessWidget {
               Expanded(
                 child: _Chip(
                   emoji: '🌾',
-                  value: '${s.feed.floor()}/${GameDefs.feedCapacity}',
+                  value: '${s.feed.floor()}/${s.feedCapacity}',
                   label: l.feed,
                   warn: s.animals.isNotEmpty && s.feed < 10,
                 ),

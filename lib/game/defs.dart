@@ -88,6 +88,7 @@ class BuildingDef {
     this.plot,
     this.species,
     this.capacity = const [],
+    this.upgradeCosts = const [],
     this.core = false,
   });
 
@@ -106,8 +107,13 @@ class BuildingDef {
   /// 가축 우리의 레벨별 최대 마릿수(Lv1부터).
   final List<int> capacity;
 
+  /// Lv2·Lv3으로 올리는 비용(올릴 수 없는 건물은 비어 있다).
+  final List<int> upgradeCosts;
+
   /// 처음부터 있고 철거할 수 없는 건물(농가·창고).
   final bool core;
+
+  int get maxLevel => 1 + upgradeCosts.length;
 }
 
 abstract final class GameDefs {
@@ -273,15 +279,34 @@ abstract final class GameDefs {
   };
 
   static const buildings = <BuildingId, BuildingDef>{
-    BuildingId.farmhouse: BuildingDef(id: BuildingId.farmhouse, cost: 0, unlockLevel: 1, core: true),
-    BuildingId.storehouse: BuildingDef(id: BuildingId.storehouse, cost: 0, unlockLevel: 1, core: true),
-    BuildingId.field: BuildingDef(id: BuildingId.field, cost: 25, unlockLevel: 1, plot: PlotKind.field),
+    BuildingId.farmhouse: BuildingDef(
+      id: BuildingId.farmhouse,
+      cost: 0,
+      unlockLevel: 1,
+      core: true,
+      upgradeCosts: [300, 1000],
+    ),
+    BuildingId.storehouse: BuildingDef(
+      id: BuildingId.storehouse,
+      cost: 0,
+      unlockLevel: 1,
+      core: true,
+      upgradeCosts: [200, 700],
+    ),
+    BuildingId.field: BuildingDef(
+      id: BuildingId.field,
+      cost: 25,
+      unlockLevel: 1,
+      plot: PlotKind.field,
+      upgradeCosts: [120, 500],
+    ),
     BuildingId.coop: BuildingDef(
       id: BuildingId.coop,
       cost: 40,
       unlockLevel: 1,
       species: Species.chicken,
       capacity: [4, 6, 8],
+      upgradeCosts: [150, 500],
     ),
     BuildingId.goatPen: BuildingDef(
       id: BuildingId.goatPen,
@@ -289,6 +314,7 @@ abstract final class GameDefs {
       unlockLevel: 3,
       species: Species.goat,
       capacity: [3, 5, 6],
+      upgradeCosts: [300, 900],
     ),
     BuildingId.sheepPen: BuildingDef(
       id: BuildingId.sheepPen,
@@ -296,6 +322,7 @@ abstract final class GameDefs {
       unlockLevel: 5,
       species: Species.sheep,
       capacity: [3, 5, 6],
+      upgradeCosts: [450, 1200],
     ),
     BuildingId.cowBarn: BuildingDef(
       id: BuildingId.cowBarn,
@@ -303,9 +330,22 @@ abstract final class GameDefs {
       unlockLevel: 7,
       species: Species.cow,
       capacity: [3, 5, 6],
+      upgradeCosts: [800, 2000],
     ),
-    BuildingId.greenhouse: BuildingDef(id: BuildingId.greenhouse, cost: 600, unlockLevel: 6, plot: PlotKind.greenhouse),
-    BuildingId.orchard: BuildingDef(id: BuildingId.orchard, cost: 1500, unlockLevel: 8, plot: PlotKind.orchard),
+    BuildingId.greenhouse: BuildingDef(
+      id: BuildingId.greenhouse,
+      cost: 600,
+      unlockLevel: 6,
+      plot: PlotKind.greenhouse,
+      upgradeCosts: [1200, 2500],
+    ),
+    BuildingId.orchard: BuildingDef(
+      id: BuildingId.orchard,
+      cost: 1500,
+      unlockLevel: 8,
+      plot: PlotKind.orchard,
+      upgradeCosts: [2500, 4000],
+    ),
   };
 
   /// 종을 기르는 우리.
@@ -323,6 +363,19 @@ abstract final class GameDefs {
 
   /// 레벨 L에서 지금까지 넓힐 수 있는 칸 수: (L − 1) × 2, 최대 전부.
   static int expansionsAllowed(int level) => ((level - 1) * 2).clamp(0, expansionCosts.length);
+
+  /// 핵심 건물 레벨별 값(Lv1부터). docs/farm-lots-design.md §4.
+  static const offlineCapByLevel = [4 * 60, 6 * 60, 8 * 60];
+  static const waterCapacityByLevel = [500, 800, 1200];
+  static const waterRefillByLevel = [5, 7, 10];
+  static const barnCapacityByLevel = [100, 160, 250];
+  static const feedCapacityByLevel = [200, 300, 450];
+
+  /// 작물 건물 Lv2부터 수확량 보너스(%).
+  static const yieldBonusLv2 = 25;
+
+  /// 작물 건물·우리가 저절로 돌아가는 레벨(자동 수확·다시 심기·자동 줍기). 창고는 이 레벨에서 자동 출하.
+  static const autoLevel = 3;
 
   /// 철거하면 돌려받는 코인(짓기 비용의 절반).
   static int demolishRefund(BuildingId id) => buildings[id]!.cost ~/ 2;
