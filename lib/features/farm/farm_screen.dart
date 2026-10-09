@@ -53,12 +53,8 @@ class _FarmScreenState extends State<FarmScreen> {
   }
 
   /// 칸을 연다. 넓은 화면은 지도 옆(오른쪽 열)에, 휴대폰은 아래 시트로 띄운다(지도를 가리지 않게).
-  /// 창고는 바로 창고 탭으로 간다.
+  /// 창고도 다른 칸처럼 상세를 연다. 창고 업그레이드(한도·Lv3 자동 출하)는 그 상세에서만 할 수 있다.
   Future<void> _open(LotId zone) async {
-    if (GameScope.read(context).state.lots[zone]?.building == BuildingId.storehouse) {
-      AppShell.goTo(context, AppTab.barn);
-      return;
-    }
     // 하늘 보기 중이면 지도판을 눕힌 채로 다가간다.
     setState(() => _zone = zone);
     if (isWide(context)) return;

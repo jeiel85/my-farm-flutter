@@ -141,6 +141,27 @@ void main() {
     await _unmount(tester);
   });
 
+  // 창고를 누르면 창고 탭으로 건너뛰던 때는 창고 업그레이드(한도·Lv3 자동 출하)에 닿을 길이 없었다.
+  testWidgets('지도에서 창고를 누르면 창고 상세가 열리고 거기서 업그레이드할 수 있다', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final store = await pumpApp(tester);
+    await store.act((s) => s.copyWith(coins: 500));
+    await tester.pump();
+    final storehouse = find.semantics.descendant(
+      of: find.semantics.byLabel('농장 지도'),
+      matching: find.semantics.byLabel(RegExp('^창고')),
+    );
+    tester.semantics.tap(storehouse);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('업그레이드'), findsOneWidget);
+    await tapAndSettle(tester, find.text('🪙200에 Lv2로'));
+    expect(store.state.lots[GameDefs.storehouseLot]!.level, 2);
+    expect(tester.takeException(), isNull);
+    semantics.dispose();
+    await _unmount(tester);
+  });
+
   testWidgets('오래 비웠다 돌아오면 그동안 일어난 일을 알려 준다', (tester) async {
     await pumpApp(tester);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);

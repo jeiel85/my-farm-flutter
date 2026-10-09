@@ -925,7 +925,7 @@ class _StorageBody extends StatelessWidget {
       children: [
         Text('📦 ${s.barnUsed} / ${s.barnCapacity}', style: AppText.h2),
         const SizedBox(height: 8),
-        // 시트는 탭 화면 밖(루트 내비게이터)에 떠 있어 여기서 탭을 바꿀 수 없다. 농장 화면은 창고를 누르면 바로 창고 탭으로 간다.
+        // 시트는 탭 화면 밖(루트 내비게이터)에 떠 있어 여기서 탭을 바꿀 수 없다. 그래서 파는 곳은 글로 안내한다.
         Text(l.barnTabHint, style: AppText.caption),
       ],
     );
