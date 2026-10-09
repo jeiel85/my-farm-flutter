@@ -1449,6 +1449,7 @@
   },
   "decorFlowerBed": "붙은 우리의 생산이 10% 빨라져요",
   "decorHint": "상하좌우로 붙은 칸에 효과가 있어요. 꾸미기는 올릴 수 없어요.",
+  "decorPondHint": "농장 어디에 두어도 효과가 있어요. 꾸미기는 올릴 수 없어요.",
   "scarecrowYieldHint": "허수아비 덕분에 +{percent}%",
   "@scarecrowYieldHint": {
     "placeholders": {

@@ -408,6 +408,7 @@
   "decorScarecrow": "Adjacent fields, greenhouses and orchards harvest +{percent}%",
   "decorFlowerBed": "Adjacent pens produce 10% faster",
   "decorHint": "Affects plots directly above, below, left or right. Decorations can't be upgraded.",
+  "decorPondHint": "Works anywhere on the farm. Decorations can't be upgraded.",
   "scarecrowYieldHint": "+{percent}% thanks to a scarecrow",
   "flowerBedHint": "10% faster thanks to a flower bed"
 }
