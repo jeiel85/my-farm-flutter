@@ -2,24 +2,6 @@
   "@@locale": "ko",
   "appTitle": "마이팜",
   "tabFarm": "농장",
-  "zoneShortHouse": "집",
-  "zoneShortTomato": "밭 2",
-  "zoneShortVegetable": "밭 1",
-  "zoneShortCorn": "밭 3",
-  "zoneShortAnimals": "우리",
-  "zoneShortWater": "물",
-  "zoneShortStorage": "창고",
-  "zoneShortGreenhouse": "온실",
-  "zoneShortOrchard": "과수원",
-  "zoneHouse": "농가",
-  "zoneTomato": "밭 2",
-  "zoneVegetable": "밭 1",
-  "zoneCorn": "밭 3",
-  "zoneAnimals": "가축 우리",
-  "zoneWater": "물탱크",
-  "zoneStorage": "창고",
-  "zoneGreenhouse": "온실",
-  "zoneOrchard": "과수원",
   "kindCow": "소",
   "kindChicken": "닭",
   "kindSheep": "양",
@@ -363,14 +345,6 @@
       }
     }
   },
-  "todoUnlock": "열 수 있어요: {zone}",
-  "@todoUnlock": {
-    "placeholders": {
-      "zone": {
-        "type": "String"
-      }
-    }
-  },
   "harvest": "수확",
   "harvested": "{crop} 수확!",
   "@harvested": {
@@ -402,16 +376,6 @@
     }
   },
   "plant": "심기",
-  "unlock": "열기",
-  "unlockCost": "비용 🪙{coins}",
-  "@unlockCost": {
-    "placeholders": {
-      "coins": {
-        "type": "int"
-      }
-    }
-  },
-  "lockedZoneHint": "아직 잠긴 구역이에요.",
   "needLevel": "레벨 {level} 필요",
   "@needLevel": {
     "placeholders": {
@@ -425,22 +389,6 @@
     "placeholders": {
       "coins": {
         "type": "int"
-      }
-    }
-  },
-  "unlockFor": "🪙{coins}에 열기",
-  "@unlockFor": {
-    "placeholders": {
-      "coins": {
-        "type": "int"
-      }
-    }
-  },
-  "unlocked": "{zone} 열림!",
-  "@unlocked": {
-    "placeholders": {
-      "zone": {
-        "type": "String"
       }
     }
   },
@@ -848,17 +796,6 @@
       }
     }
   },
-  "mapZoneLocked": "{zone}, 잠김 (레벨 {level})",
-  "@mapZoneLocked": {
-    "placeholders": {
-      "zone": {
-        "type": "String"
-      },
-      "level": {
-        "type": "int"
-      }
-    }
-  },
   "mapZoneReady": "{zone}, {crop} 수확 가능",
   "@mapZoneReady": {
     "placeholders": {
@@ -928,8 +865,6 @@
   "collectEggs": "달걀 줍기",
   "collectMilk": "젖 짜기",
   "collectWool": "털 깎기",
-  "errZoneLocked": "아직 잠긴 구역이에요",
-  "errAlreadyUnlocked": "이미 열린 구역이에요",
   "errLevelTooLow": "레벨이 부족해요",
   "errNotEnoughCoins": "코인이 부족해요",
   "errNotEnoughWater": "물이 부족해요. 조금 기다리면 차요.",
@@ -1063,5 +998,464 @@
         "type": "String"
       }
     }
-  }
+  },
+  "buildingFarmhouse": "농가",
+  "buildingStorehouse": "창고",
+  "buildingField": "밭",
+  "buildingCoop": "닭장",
+  "buildingGoatPen": "염소 우리",
+  "buildingSheepPen": "양 우리",
+  "buildingCowBarn": "외양간",
+  "buildingGreenhouse": "온실",
+  "buildingOrchard": "과수원",
+  "buildingDescField": "작물을 한 번에 한 가지 심어요",
+  "buildingDescPen": "{species} 최대 {count}마리",
+  "@buildingDescPen": {
+    "placeholders": {
+      "species": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "buildingDescGreenhouse": "딸기를 길러요",
+  "buildingDescOrchard": "사과나무를 심으면 계속 열려요",
+  "wildBush": "덤불",
+  "wildRocks": "돌무더기",
+  "wildStumps": "그루터기",
+  "wildReeds": "갈대밭",
+  "emptyLot": "빈 땅",
+  "mapLotEmpty": "빈 땅, 지을 수 있어요",
+  "mapLotExpand": "{name}, 🪙{cost}에 넓힐 수 있어요",
+  "@mapLotExpand": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "mapLotExpandLevel": "{name}, 레벨 {level}에 넓힐 수 있어요",
+  "@mapLotExpandLevel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "buildTitle": "무엇을 지을까요?",
+  "built": "{name} 완성!",
+  "@built": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "expandHint": "치우면 빈 땅이 생겨 무엇이든 지을 수 있어요.",
+  "expandFor": "🪙{cost}에 넓히기",
+  "@expandFor": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "expanded": "땅을 넓혔어요",
+  "expandNeedsNeighbor": "가진 땅에 붙은 칸부터 넓힐 수 있어요.",
+  "expandLimit": "{level}레벨이 되면 더 넓힐 수 있어요.",
+  "@expandLimit": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "expandProgress": "넓힌 땅 {done}/{allowed}칸 (레벨마다 2칸씩 늘어요)",
+  "@expandProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "allowed": {
+        "type": "int"
+      }
+    }
+  },
+  "demolish": "철거 · 🪙{refund} 돌려받기",
+  "@demolish": {
+    "placeholders": {
+      "refund": {
+        "type": "int"
+      }
+    }
+  },
+  "demolishTitle": "{name} 철거할까요?",
+  "@demolishTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "demolishBody": "빈 땅으로 돌아가고 짓기 비용의 절반을 돌려받아요.",
+  "demolishHint": "작물이나 동물이 있으면 철거할 수 없어요.",
+  "demolished": "철거했어요",
+  "errNotOwned": "아직 가진 땅이 아니에요",
+  "errLotOccupied": "이미 지은 곳이에요",
+  "errCannotExpand": "가진 땅에 붙은 칸만 넓힐 수 있어요",
+  "errExpansionLimit": "레벨이 오르면 더 넓힐 수 있어요",
+  "errWrongBuilding": "여기서는 할 수 없어요",
+  "errCannotDemolish": "지금은 철거할 수 없어요",
+  "todoBuild": "빈 땅에 지을 수 있어요",
+  "actionBuild": "짓기",
+  "todoExpand": "땅을 넓힐 수 있어요",
+  "todoExpandHint": "다음 개간 🪙{cost}",
+  "@todoExpandHint": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      }
+    }
+  },
+  "actionExpand": "넓히기",
+  "logBuild": "{building} 짓기",
+  "@logBuild": {
+    "placeholders": {
+      "building": {
+        "type": "String"
+      }
+    }
+  },
+  "logExpand": "땅 넓히기",
+  "logDemolish": "{building} 철거",
+  "@logDemolish": {
+    "placeholders": {
+      "building": {
+        "type": "String"
+      }
+    }
+  },
+  "upgradeTitle": "업그레이드",
+  "upgradeTo": "🪙{cost}에 Lv{level}로",
+  "@upgradeTo": {
+    "placeholders": {
+      "cost": {
+        "type": "int"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "upgradeNow": "지금 Lv{level}",
+  "@upgradeNow": {
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "maxLevelReached": "최고 레벨이에요",
+  "upgraded": "{name} Lv{level}!",
+  "@upgraded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "effectYield": "수확량 +{percent}%",
+  "@effectYield": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "effectAutoReplant": "다 자라면 저절로 거두고 다시 심어요",
+  "effectAutoHarvest": "다 자라면 저절로 거둬요",
+  "effectCapacity": "최대 {count}마리",
+  "@effectCapacity": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "effectAutoCollect": "생산물을 저절로 거둬요",
+  "effectFarmhouse": "자리 비운 동안 {hours}시간 · 우물 {water}L · 분당 {refill}L",
+  "@effectFarmhouse": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "water": {
+        "type": "int"
+      },
+      "refill": {
+        "type": "int"
+      }
+    }
+  },
+  "effectStorehouse": "창고 {barn}개 · 사료통 {feed}",
+  "@effectStorehouse": {
+    "placeholders": {
+      "barn": {
+        "type": "int"
+      },
+      "feed": {
+        "type": "int"
+      }
+    }
+  },
+  "effectAutoShip": "저절로 거둔 몫이 창고에 다 안 들어가면 바로 팔아요",
+  "errMaxLevel": "이미 최고 레벨이에요",
+  "logUpgrade": "{building} 업그레이드",
+  "@logUpgrade": {
+    "placeholders": {
+      "building": {
+        "type": "String"
+      }
+    }
+  },
+  "awayAutoHarvests": "작물을 {count}번 저절로 거뒀어요",
+  "@awayAutoHarvests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awayAutoCollected": "생산물 {count}개를 저절로 거뒀어요",
+  "@awayAutoCollected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awayAutoSold": "창고에 못 들어간 몫을 팔아 🪙{coins}",
+  "@awayAutoSold": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "lotLevelLabel": "{name} Lv{level}",
+  "@lotLevelLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "level": {
+        "type": "int"
+      }
+    }
+  },
+  "itemWheat": "밀",
+  "itemPotato": "감자",
+  "itemPumpkin": "호박",
+  "itemFlour": "밀가루",
+  "itemJam": "딸기잼",
+  "itemCheese": "치즈",
+  "itemBread": "빵",
+  "buildingMill": "방앗간",
+  "buildingJamKitchen": "잼 공방",
+  "buildingDairy": "치즈 공방",
+  "buildingBakery": "빵집",
+  "buildingDescWorkshop": "{inputs} → {output}",
+  "@buildingDescWorkshop": {
+    "placeholders": {
+      "inputs": {
+        "type": "String"
+      },
+      "output": {
+        "type": "String"
+      }
+    }
+  },
+  "craftRecipe": "레시피",
+  "craftStart": "만들기 · {time}",
+  "@craftStart": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "craftWorking": "만드는 중 · {time} 남음",
+  "@craftWorking": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "craftReady": "다 만들었어요",
+  "craftCollect": "꺼내기",
+  "crafted": "{item} 완성!",
+  "@crafted": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "craftStarted": "{item} 만들기 시작",
+  "@craftStarted": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "craftInput": "{item} {have}/{need}",
+  "@craftInput": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      },
+      "have": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      }
+    }
+  },
+  "effectFaster": "만드는 시간 -25%",
+  "effectAutoCraft": "다 되면 저절로 꺼내고 다시 만들어요",
+  "errWorkshopBusy": "이미 만드는 중이에요",
+  "todoCraftDone": "{item} 꺼낼 수 있어요",
+  "@todoCraftDone": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "todoCraftIdle": "{building}에서 {item} 만들 수 있어요",
+  "@todoCraftIdle": {
+    "placeholders": {
+      "building": {
+        "type": "String"
+      },
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "actionCraft": "만들기",
+  "awayCraftsDone": "공방 {count}곳에서 다 만들었어요",
+  "@awayCraftsDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awayAutoCrafted": "가공품 {count}개를 저절로 만들었어요",
+  "@awayAutoCrafted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mapWorkshopWorking": "{name}, 만드는 중",
+  "@mapWorkshopWorking": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mapWorkshopDone": "{name}, 다 만듦",
+  "@mapWorkshopDone": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersTitle": "마을 주문",
+  "ordersHint": "보내면 판매가보다 넉넉히 받아요. 넘기면 조금 뒤 새 주문이 와요.",
+  "orderReward": "🪙{coins} · 경험치 {xp}",
+  "@orderReward": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      },
+      "xp": {
+        "type": "int"
+      }
+    }
+  },
+  "orderDeliver": "보내기",
+  "orderSkip": "넘기기",
+  "orderWaiting": "새 주문이 {time} 뒤에 와요",
+  "@orderWaiting": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "orderDelivered": "주문을 보냈어요 · 🪙{coins}",
+  "@orderDelivered": {
+    "placeholders": {
+      "coins": {
+        "type": "int"
+      }
+    }
+  },
+  "orderSkipped": "새 주문을 기다려요",
+  "errNoOrder": "지금은 주문이 없어요",
+  "todoOrder": "주문을 보낼 수 있어요",
+  "logOrder": "주문 보냄",
+  "buildingPond": "작은 연못",
+  "buildingScarecrow": "허수아비",
+  "buildingFlowerBed": "꽃밭",
+  "decorPond": "우물이 분당 {refill}L 더 차요(연못 {max}개까지)",
+  "@decorPond": {
+    "placeholders": {
+      "refill": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "decorScarecrow": "붙은 밭·온실·과수원 수확량 +{percent}%",
+  "@decorScarecrow": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "decorFlowerBed": "붙은 우리의 생산이 10% 빨라져요",
+  "decorHint": "상하좌우로 붙은 칸에 효과가 있어요. 꾸미기는 올릴 수 없어요.",
+  "scarecrowYieldHint": "허수아비 덕분에 +{percent}%",
+  "@scarecrowYieldHint": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "flowerBedHint": "꽃밭 덕분에 생산이 10% 빨라요"
 }

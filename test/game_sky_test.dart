@@ -3,7 +3,6 @@ import 'package:my_farm/features/farm/sky_layer.dart';
 import 'package:my_farm/game/defs.dart';
 import 'package:my_farm/game/engine.dart';
 import 'package:my_farm/game/sky.dart';
-import 'package:my_farm/game/zone.dart';
 
 void main() {
   /// [from]부터 [step]씩 넘기며 [test]를 만족하는 첫 시각.
@@ -83,7 +82,7 @@ void main() {
 
     final planted = GameEngine.newGame(after.subtract(const Duration(minutes: 1)), farmName: 'x');
     final (ready, _) = GameEngine.advance(planted, after);
-    expect(GameEngine.harvest(ready, ZoneId.vegetable).countOf(ItemId.lettuce), 6);
+    expect(GameEngine.harvest(ready, GameDefs.startFieldLot).countOf(ItemId.lettuce), 6);
   });
 
   test('밤에는 무지개가 뜨지 않는다', () {

@@ -331,6 +331,55 @@ void _plant(Canvas c, Offset p, CropId crop, int stage, math.Random rng) {
       if (stage == 3) {
         c.drawOval(Rect.fromCenter(center: p + const Offset(4, -6), width: 6, height: 11), fill(Tint.corn));
       }
+    case CropId.wheat:
+      // 밀: 가는 줄기 다발, 자라면 금빛 이삭.
+      final h = big ? 16.0 : 10.0;
+      final stalk = stage == 3 ? const Color(0xFFD6B25A) : const Color(0xFF8DAE55);
+      for (final a in [-0.5, -0.2, 0.1, 0.4]) {
+        final tip = p + Offset(math.sin(a) * h * 0.6, -h);
+        c.drawLine(p, tip, pen(stalk, 1.6));
+        if (big) c.drawOval(Rect.fromCenter(center: tip, width: 3.4, height: 7), fill(stalk));
+      }
+    case CropId.potato:
+      // 감자: 낮게 퍼진 잎 덤불, 꽃이 피면 보랏빛.
+      final w = big ? 24.0 : 16.0;
+      final bush = wobblyOval(
+        Rect.fromCenter(center: p - const Offset(0, 4), width: w, height: w * 0.7),
+        rng,
+        jitter: 0.16,
+      );
+      c.drawPath(bush, fill(const Color(0xFF6F9A4C).withValues(alpha: 0.9)));
+      if (stage >= 2) {
+        for (var i = 0; i < 3; i++) {
+          c.drawCircle(
+            p + Offset(rng.nextDouble() * 14 - 7, -4 - rng.nextDouble() * 6),
+            2.2,
+            fill(const Color(0xFFB9A3D6)),
+          );
+        }
+      }
+      if (stage == 3) {
+        c.drawOval(Rect.fromCenter(center: p + const Offset(5, 3), width: 9, height: 7), fill(const Color(0xFFC8A56E)));
+      }
+    case CropId.pumpkin:
+      // 호박: 넓은 잎 덩굴, 자라면 주황 호박.
+      final w = big ? 26.0 : 18.0;
+      final leaf = wobblyOval(
+        Rect.fromCenter(center: p - const Offset(4, 6), width: w, height: w * 0.8),
+        rng,
+        jitter: 0.18,
+      );
+      c.drawPath(leaf, fill(const Color(0xFF5E8E3E).withValues(alpha: 0.9)));
+      c.drawPath(leaf, pen(Tint.line.withValues(alpha: 0.2), 1));
+      if (stage >= 2) {
+        final r = stage == 3 ? 7.5 : 4.0;
+        final q = p + const Offset(6, -2);
+        c.drawOval(
+          Rect.fromCenter(center: q, width: r * 2.3, height: r * 1.8),
+          fill(stage == 3 ? Tint.carrot : const Color(0xFFB9C66A)),
+        );
+        c.drawLine(q - Offset(0, r * 0.9), q - Offset(-2, r * 1.4), pen(Tint.wood, 1.6));
+      }
     case CropId.carrot:
       for (final a in [-0.6, 0.0, 0.6]) {
         c.drawLine(p, p + Offset(math.sin(a) * 9, -math.cos(a) * (big ? 12 : 8)), pen(const Color(0xFF6FA244), 2.2));
@@ -385,10 +434,16 @@ void paintGlass(Canvas c, Rect r, math.Random rng) {
 
 /// 과수원 나무: 단계에 따라 크기·꽃·열매가 바뀐다. 비어 있으면 말뚝만.
 void paintOrchard(Canvas c, Rect r, int? stage, math.Random rng) {
+  // 칸 크기에 맞춰 엇갈린 줄로 심는다(한 그루 약 80×75).
+  final cols = math.max(2, (r.width / 80).floor());
+  final rows = math.max(2, (r.height / 75).floor());
+  final dx = r.width / cols;
+  final dy = r.height / rows;
   final spots = <Offset>[
-    for (var row = 0; row < 3; row++)
-      for (var col = 0; col < 4; col++)
-        if (!(row == 2 && col >= 3)) Offset(r.left + 56 + col * 98 + (row.isOdd ? 32 : 0), r.top + 50 + row * 80),
+    for (var row = 0; row < rows; row++)
+      for (var col = 0; col < cols; col++)
+        if (!(row.isOdd && col == cols - 1))
+          Offset(r.left + dx * (col + 0.5) + (row.isOdd ? dx / 2 : 0), r.top + dy * (row + 0.5)),
   ];
   for (final p in spots) {
     if (stage == null) {
@@ -397,9 +452,9 @@ void paintOrchard(Canvas c, Rect r, int? stage, math.Random rng) {
       continue;
     }
     final radius = switch (stage) {
-      0 => 12.0,
-      1 => 20.0,
-      _ => 28.0,
+      0 => 11.0,
+      1 => 18.0,
+      _ => 25.0,
     };
     paintTree(
       c,
@@ -410,6 +465,120 @@ void paintOrchard(Canvas c, Rect r, int? stage, math.Random rng) {
       fruit: stage == 3 ? Tint.apple : (stage == 2 ? Tint.flowerB : null),
       fruits: stage == 3 ? 8 : 5,
     );
+  }
+}
+
+// ---------------------------------------------------------------- 꾸미기
+
+/// 위에서 본 허수아비: 십자 막대, 밀짚모자, 헝겊 옷.
+void paintScarecrowFlat(Canvas c, Offset p, math.Random rng) {
+  c.drawOval(Rect.fromCenter(center: p + const Offset(6, 8), width: 60, height: 22), fill(Tint.shadow));
+  c.drawLine(p + const Offset(-30, 0), p + const Offset(30, 0), pen(Tint.wood, 4));
+  c.drawLine(p + const Offset(0, -10), p + const Offset(0, 26), pen(Tint.wood, 4));
+  c.drawRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromCenter(center: p + const Offset(0, 6), width: 30, height: 22),
+      const Radius.circular(6),
+    ),
+    fill(const Color(0xFF7E8FB0)),
+  );
+  c.drawCircle(p + const Offset(0, -8), 13, fill(Tint.hay));
+  c.drawCircle(p + const Offset(0, -8), 13, pen(Tint.wood, 1.6));
+  c.drawCircle(p + const Offset(0, -8), 5, fill(const Color(0xFFD9573F)));
+}
+
+/// 꽃밭: 줄지어 핀 여러 빛깔 꽃 무리.
+void paintFlowerBed(Canvas c, Rect r, math.Random rng) {
+  const colors = [Tint.flowerA, Tint.flowerB, Colors.white, Tint.tomato, Color(0xFFB9A3D6)];
+  for (var row = 0; row < 5; row++) {
+    final bed = wobblyOval(Rect.fromLTWH(r.left + 18, r.top + 22 + row * 44, r.width - 36, 30), rng, jitter: 0.06);
+    wash(c, bed, Tint.soil, rng, layers: 2, edge: false);
+    for (var i = 0; i < 22; i++) {
+      final p = Offset(r.left + 26 + rng.nextDouble() * (r.width - 52), r.top + 28 + row * 44 + rng.nextDouble() * 18);
+      c.drawCircle(p + const Offset(1, 2), 4, fill(Tint.shadow));
+      c.drawCircle(p, 4, fill(colors[(i + row) % colors.length]));
+      c.drawCircle(p, 1.4, fill(Tint.flowerA));
+    }
+  }
+}
+
+// ---------------------------------------------------------------- 아직 넓히지 않은 땅의 장애물
+
+/// 장애물 종류(좌표로 정해지는 그림만 다르다): 0 덤불 · 1 돌무더기 · 2 그루터기 · 3 갈대밭.
+const wildKinds = 4;
+
+/// 거친 풀밭 위에 장애물 무리를 그린다.
+void paintWild(Canvas c, Rect r, int kind, math.Random rng) {
+  wash(c, wobblyRect(r.deflate(2), rng, radius: 26), const Color(0xFF9DB57A), rng, layers: 2, edge: false);
+  for (var i = 0; i < 26; i++) {
+    final p = Offset(r.left + 14 + rng.nextDouble() * (r.width - 28), r.top + 14 + rng.nextDouble() * (r.height - 28));
+    c.drawLine(p, p + Offset(rng.nextDouble() * 4 - 2, -6 - rng.nextDouble() * 6), pen(const Color(0x885E7E3C), 1.4));
+  }
+  final center = r.center;
+  switch (kind) {
+    case 0: // 덤불
+      for (var i = 0; i < 7; i++) {
+        final p = center + Offset(rng.nextDouble() * 140 - 70, rng.nextDouble() * 110 - 55);
+        final shape = wobblyOval(Rect.fromCircle(center: p, radius: 20 + rng.nextDouble() * 16), rng, jitter: 0.14);
+        dropShadow(c, shape, offset: const Offset(4, 6));
+        wash(c, shape, i.isEven ? Tint.grassDeep : Tint.leafDeep, rng, layers: 3);
+        for (var j = 0; j < 4; j++) {
+          c.drawCircle(
+            p + Offset(rng.nextDouble() * 20 - 10, rng.nextDouble() * 20 - 10),
+            2.2,
+            fill(const Color(0xFFB8463A)),
+          );
+        }
+      }
+    case 1: // 돌무더기
+      for (var i = 0; i < 8; i++) {
+        final p = center + Offset(rng.nextDouble() * 150 - 75, rng.nextDouble() * 110 - 55);
+        final rock = wobblyOval(
+          Rect.fromCenter(center: p, width: 26 + rng.nextDouble() * 30, height: 18 + rng.nextDouble() * 18),
+          rng,
+          jitter: 0.1,
+        );
+        dropShadow(c, rock, offset: const Offset(3, 5));
+        wash(c, rock, i.isEven ? Tint.stone : const Color(0xFFB4AC9C), rng, layers: 2);
+        inkOutline(c, rock, width: 1.2, alpha: 0.4);
+      }
+    case 2: // 그루터기와 쓰러진 통나무
+      for (var i = 0; i < 3; i++) {
+        final p = center + Offset(rng.nextDouble() * 140 - 70, rng.nextDouble() * 100 - 50);
+        final stump = Rect.fromCircle(center: p, radius: 16 + rng.nextDouble() * 6);
+        c.drawOval(stump.shift(const Offset(3, 5)), fill(Tint.shadow));
+        c.drawOval(stump, fill(const Color(0xFFC09A6B)));
+        c.drawOval(stump.deflate(5), pen(const Color(0x66704A28), 1.4));
+        c.drawOval(stump.deflate(10), pen(const Color(0x66704A28), 1.2));
+        c.drawOval(stump, pen(Tint.wood, 2));
+      }
+      final log = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: center + const Offset(10, 44), width: 120, height: 22),
+        const Radius.circular(11),
+      );
+      c.drawRRect(log.shift(const Offset(3, 5)), fill(Tint.shadow));
+      c.drawRRect(log, fill(Tint.wood));
+      c.drawLine(
+        log.outerRect.centerLeft + const Offset(14, 0),
+        log.outerRect.centerRight - const Offset(14, 0),
+        pen(const Color(0x33000000), 1.4),
+      );
+    default: // 갈대밭
+      final pool = wobblyOval(Rect.fromCenter(center: center, width: 150, height: 90), rng, jitter: 0.12);
+      wash(c, pool, Tint.water, rng, layers: 2);
+      for (var i = 0; i < 46; i++) {
+        final a = rng.nextDouble() * math.pi * 2;
+        final d = 50 + rng.nextDouble() * 50;
+        final p = center + Offset(math.cos(a) * d * 1.2, math.sin(a) * d * 0.8);
+        c.drawLine(
+          p,
+          p + Offset(rng.nextDouble() * 6 - 3, -18 - rng.nextDouble() * 14),
+          pen(const Color(0xFF8A9A5A), 2),
+        );
+        if (i % 3 == 0) {
+          c.drawOval(Rect.fromCenter(center: p + const Offset(0, -26), width: 5, height: 12), fill(Tint.wood));
+        }
+      }
   }
 }
 

@@ -9,6 +9,7 @@ import '../../game/game_store.dart';
 import '../../game/state.dart';
 import '../../l10n/l10n.dart';
 import '../farm/game_actions.dart';
+import '../farm/orders_card.dart';
 
 /// 창고·시장: 물건을 팔고 사료를 마련한다.
 class BarnScreen extends StatelessWidget {
@@ -61,7 +62,7 @@ class BarnScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Expanded(child: Text(l.barnCapacity(s.barnUsed, GameDefs.barnCapacity), style: AppText.h3)),
+                    Expanded(child: Text(l.barnCapacity(s.barnUsed, s.barnCapacity), style: AppText.h3)),
                     Text('🪙 ${s.coins}', style: AppText.h3),
                   ],
                 ),
@@ -69,7 +70,7 @@ class BarnScreen extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: LinearProgressIndicator(
-                    value: s.barnUsed / GameDefs.barnCapacity,
+                    value: s.barnUsed / s.barnCapacity,
                     minHeight: 10,
                     color: s.barnFree == 0 ? AppColors.orange : AppColors.primary,
                     backgroundColor: AppColors.line,
@@ -83,7 +84,7 @@ class BarnScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('🌾 ${s.feed.floor()} / ${GameDefs.feedCapacity}', style: AppText.h2),
+                Text('🌾 ${s.feed.floor()} / ${s.feedCapacity}', style: AppText.h2),
                 const SizedBox(height: 4),
                 Text(l.feedHint, style: AppText.caption),
                 if (l.feedLastsText(s) case final lasts?) Text(lasts, style: AppText.caption),
@@ -111,6 +112,7 @@ class BarnScreen extends StatelessWidget {
           ),
         ],
         secondary: [
+          const OrdersCard(),
           SectionTitle(
             l.marketTitle,
             trailing: items.isEmpty ? null : TextButton(onPressed: () => _sellAll(context), child: Text(l.sellAll)),
@@ -130,8 +132,7 @@ class BarnScreen extends StatelessWidget {
 
   /// 사료통에 들어가는 만큼만 바꾼다(넘치면 거부되므로).
   static int _cornThatFits(GameState s) {
-    final room =
-        (GameDefs.feedCapacity * GameDefs.feedUnit - s.feedUnits) ~/ (GameDefs.feedPerCorn * GameDefs.feedUnit);
+    final room = (s.feedCapacity * GameDefs.feedUnit - s.feedUnits) ~/ (GameDefs.feedPerCorn * GameDefs.feedUnit);
     final corn = s.countOf(ItemId.corn);
     if (room <= 0) throw const GameException(GameError.siloFull);
     return corn < room ? corn : room;

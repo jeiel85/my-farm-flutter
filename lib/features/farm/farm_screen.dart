@@ -10,9 +10,8 @@ import '../../data/app_update.dart';
 import '../../game/defs.dart';
 import '../../game/engine.dart';
 import '../../game/game_store.dart';
-import '../../game/sky.dart';
 import '../../game/todo.dart';
-import '../../game/zone.dart';
+import '../../game/lots.dart';
 import '../../l10n/l10n.dart';
 import '../update/update_widgets.dart';
 import 'farm_map_view.dart';
@@ -21,7 +20,7 @@ import 'game_actions.dart';
 import 'resource_bar.dart';
 import 'sky_layer.dart';
 import 'sky_sheet.dart';
-import 'zone_sheets.dart';
+import 'lot_sheets.dart';
 
 class FarmScreen extends StatefulWidget {
   const FarmScreen({super.key});
@@ -31,7 +30,7 @@ class FarmScreen extends StatefulWidget {
 }
 
 class _FarmScreenState extends State<FarmScreen> {
-  ZoneId? _zone;
+  LotId? _zone;
 
   /// 하늘 보기(지도판을 눕혀 하늘을 연 상태). 날씨 표시를 누르면 켜지고, 지도나 카드의 닫기를 누르면 꺼진다.
   bool _sky = false;
@@ -53,16 +52,17 @@ class _FarmScreenState extends State<FarmScreen> {
     super.dispose();
   }
 
-  /// 구역을 연다. 넓은 화면은 지도 옆(오른쪽 열)에, 휴대폰은 아래 시트로 띄운다(지도를 가리지 않게).
-  Future<void> _open(ZoneId zone) async {
-    if (zone == ZoneId.storage) {
+  /// 칸을 연다. 넓은 화면은 지도 옆(오른쪽 열)에, 휴대폰은 아래 시트로 띄운다(지도를 가리지 않게).
+  /// 창고는 바로 창고 탭으로 간다.
+  Future<void> _open(LotId zone) async {
+    if (GameScope.read(context).state.lots[zone]?.building == BuildingId.storehouse) {
       AppShell.goTo(context, AppTab.barn);
       return;
     }
     // 하늘 보기 중이면 지도판을 눕힌 채로 다가간다.
     setState(() => _zone = zone);
     if (isWide(context)) return;
-    await showZoneSheet(context, zone);
+    await showLotSheet(context, zone);
     if (mounted) setState(() => _zone = null);
   }
 
@@ -182,7 +182,7 @@ class _FarmScreenState extends State<FarmScreen> {
         secondary: [
           if (wide) ...[
             if (_sky) Padding(padding: const EdgeInsets.only(top: 8), child: skyCard),
-            if (_zone case final zone?) ZonePanel(key: ValueKey(zone), zone: zone, onClose: _closeZone),
+            if (_zone case final zone?) LotPanel(key: ValueKey(zone), lot: zone, onClose: _closeZone),
             ...todoList,
           ],
         ],
@@ -195,12 +195,14 @@ class _TodoTile extends StatelessWidget {
   const _TodoTile({required this.todo, required this.onOpenZone});
 
   final GameTodo todo;
-  final ValueChanged<ZoneId> onOpenZone;
+  final ValueChanged<LotId> onOpenZone;
 
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
     final s = GameScope.of(context).state;
+    final lot = todo.lot;
+    final name = lot == null ? '' : (s.lots[lot] == null ? l.emptyLot : l.building(s.lots[lot]!.building));
     final (
       IconData icon,
       Color color,
@@ -210,14 +212,15 @@ class _TodoTile extends StatelessWidget {
       Future<void> Function() run,
     ) = switch (todo.kind) {
       TodoKind.harvest => () {
-        final crop = s.fields[todo.zone]!.crop!;
+        final at = lot!;
+        final crop = s.lots[at]!.field!.crop!;
         return (
           Icons.agriculture_rounded,
           AppColors.sage,
-          l.todoHarvest(l.crop(crop), l.zone(todo.zone!)),
-          l.todoHarvestHint(GameSky.yieldAt(GameDefs.crops[crop]!, GameScope.of(context).now)),
+          l.todoHarvest(l.crop(crop), name),
+          l.todoHarvestHint(GameEngine.yieldFor(GameDefs.crops[crop]!, s.yieldBonus(at), GameScope.of(context).now)),
           l.harvest,
-          () => runGame(context, (st) => GameEngine.harvest(st, todo.zone!), done: l.harvested(l.crop(crop))),
+          () => runGame(context, (st) => GameEngine.harvest(st, at), done: l.harvested(l.crop(crop))),
         );
       }(),
       TodoKind.collect => (
@@ -226,8 +229,41 @@ class _TodoTile extends StatelessWidget {
         l.todoCollect(l.species(todo.species!), todo.count),
         null,
         l.collectVerb(todo.species!),
-        () => collectFrom(context, todo.species!),
+        () => collectFrom(context, lot!, todo.species!),
       ),
+      TodoKind.craftDone => () {
+        final recipe = s.lots[lot]!.def.recipe!;
+        return (
+          Icons.outbox_rounded,
+          AppColors.sage,
+          l.todoCraftDone(l.item(recipe.output)),
+          name,
+          l.craftCollect,
+          () => runGame(context, (st) => GameEngine.collectCraft(st, lot!), done: l.crafted(l.item(recipe.output))),
+        );
+      }(),
+      TodoKind.craftIdle => () {
+        final recipe = s.lots[lot]!.def.recipe!;
+        return (
+          Icons.play_circle_outline_rounded,
+          AppColors.primary,
+          l.todoCraftIdle(name, l.item(recipe.output)),
+          l.recipeInputs(recipe),
+          l.actionCraft,
+          () => runGame(context, (st) => GameEngine.startCraft(st, lot!), done: l.craftStarted(l.item(recipe.output))),
+        );
+      }(),
+      TodoKind.order => () {
+        final order = s.orders[todo.count].order!;
+        return (
+          Icons.local_shipping_outlined,
+          AppColors.orange,
+          l.todoOrder,
+          '${[for (final e in order.items.entries) '${itemEmoji(e.key)}${e.value}'].join(' ')} → ${l.orderReward(order.coins, order.xp)}',
+          l.orderDeliver,
+          () => runGame(context, (st) => GameEngine.deliverOrder(st, todo.count), done: l.orderDelivered(order.coins)),
+        );
+      }(),
       TodoKind.barnFull => (
         Icons.inventory_2_outlined,
         AppColors.orange,
@@ -255,18 +291,26 @@ class _TodoTile extends StatelessWidget {
       TodoKind.plant => (
         Icons.spa_outlined,
         AppColors.primary,
-        l.todoPlant(l.zone(todo.zone!)),
+        l.todoPlant(name),
         null,
         l.plant,
-        () async => onOpenZone(todo.zone!),
+        () async => onOpenZone(lot!),
       ),
-      TodoKind.unlock => (
-        Icons.lock_open_rounded,
+      TodoKind.build => (
+        Icons.add_home_work_outlined,
         AppColors.primary,
-        l.todoUnlock(l.zone(todo.zone!)),
-        l.unlockCost(GameDefs.zones[todo.zone]!.unlockCost),
-        l.unlock,
-        () async => onOpenZone(todo.zone!),
+        l.todoBuild,
+        null,
+        l.actionBuild,
+        () async => onOpenZone(lot!),
+      ),
+      TodoKind.expand => (
+        Icons.landscape_outlined,
+        AppColors.sage,
+        l.todoExpand,
+        l.todoExpandHint(todo.count),
+        l.actionExpand,
+        () async => onOpenZone(lot!),
       ),
     };
     return AppCard(

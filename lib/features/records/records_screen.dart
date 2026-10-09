@@ -144,6 +144,7 @@ class RecordsScreen extends StatelessWidget {
     String? item() => ItemId.values.asNameMap()[e.subject]?.let(l.item);
     String? crop() => CropId.values.asNameMap()[e.subject]?.let(l.crop);
     String? species() => Species.values.asNameMap()[e.subject]?.let(l.species);
+    String? building() => BuildingId.values.asNameMap()[e.subject]?.let(l.building);
     return switch (e.kind) {
       LogKind.sale => l.logSale(item() ?? e.subject),
       LogKind.slaughter => l.logSlaughter(species() ?? e.subject),
@@ -151,6 +152,11 @@ class RecordsScreen extends StatelessWidget {
       LogKind.animal => l.logAnimal(species() ?? e.subject),
       LogKind.feed => l.logFeed,
       LogKind.unlock => l.logUnlock,
+      LogKind.build => l.logBuild(building() ?? e.subject),
+      LogKind.expand => l.logExpand,
+      LogKind.demolish => l.logDemolish(building() ?? e.subject),
+      LogKind.upgrade => l.logUpgrade(building() ?? e.subject),
+      LogKind.order => l.logOrder,
     };
   }
 }
