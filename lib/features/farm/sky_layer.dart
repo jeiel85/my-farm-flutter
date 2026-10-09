@@ -10,9 +10,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../../game/defs.dart';
 import '../../game/sky.dart';
-import '../../game/zone.dart';
 import 'farm_world.dart';
 import 'storybook.dart';
 
@@ -174,8 +172,35 @@ void puffAt(Canvas c, Rect dst, Color color) {
   );
 }
 
+/// 날씨·밤 그림이 쓰는 지도 위 자리. 지은 건물에 따라 달라진다(farm_world.dart `skySpotsOf`).
+@immutable
+class SkySpots {
+  const SkySpots({
+    required this.waters,
+    required this.windows,
+    required this.glows,
+    required this.fireflies,
+    required this.plots,
+  });
+
+  /// 빗방울 파문·달그림자가 생기는 물(물탱크·연못).
+  final List<Rect> waters;
+
+  /// 밤에 불이 켜지는 창문·문 앞.
+  final List<Offset> windows;
+
+  /// 밤에 은은히 빛나는 곳(온실).
+  final List<Offset> glows;
+
+  /// 여름밤 반딧불이 노는 곳(우리 풀밭·과수원·물가).
+  final List<Rect> fireflies;
+
+  /// 무지개 수확 보너스 반짝임을 띄울 작물 칸.
+  final List<Rect> plots;
+}
+
 /// 날씨(빛깔·구름·비·눈·바람·무지개)를 그린다. 장면 위, 표식(말풍선·잠금) 아래에 둔다.
-void paintWeather(Canvas c, SkyView sky, Rect view, double t) {
+void paintWeather(Canvas c, SkyView sky, Rect view, double t, SkySpots spots) {
   final area = view.intersect(FarmWorld.bakeArea);
   if (area.isEmpty) return;
   // 화면에 보이는 월드 면적에 맞춰 입자 수를 정해, 확대해도 밀도가 같게 한다.
@@ -185,7 +210,7 @@ void paintWeather(Canvas c, SkyView sky, Rect view, double t) {
   _season(c, sky, area, t, density);
   _cloudShadows(c, sky, t);
   final rain = sky.weight(SkyKind.rain);
-  if (rain > 0) _rain(c, area, t, rain, density);
+  if (rain > 0) _rain(c, area, t, rain, density, spots.waters);
   final snow = sky.weight(SkyKind.snow);
   if (snow > 0) _snow(c, area, t, snow, density);
   final wind = sky.weight(SkyKind.windy);
@@ -194,14 +219,14 @@ void paintWeather(Canvas c, SkyView sky, Rect view, double t) {
   if (fog > 0) _fog(c, t, fog);
   final heat = sky.weight(SkyKind.heat);
   if (heat > 0) _heat(c, area, t, heat);
-  if (sky.rainbow > 0) _rainbow(c, t, sky.rainbow);
+  if (sky.rainbow > 0) _rainbow(c, t, sky.rainbow, spots.plots);
 }
 
 /// 하루의 빛깔(새벽·노을·밤)과 밤의 불빛. 날씨 위에 덮는다.
 ///
 /// [buildingLights]는 평면 건물(창문) 불빛의 진하기다. 지도판을 눕혀 건물을 세워 그리는 동안에는 세운 건물에 불을
 /// 켜므로(upright.dart) 바닥의 평면 불빛은 그만큼 흐린다.
-void paintDaylight(Canvas c, SkyView sky, Rect view, double t, {double buildingLights = 1}) {
+void paintDaylight(Canvas c, SkyView sky, Rect view, double t, SkySpots spots, {double buildingLights = 1}) {
   final area = view.intersect(FarmWorld.bakeArea);
   if (area.isEmpty) return;
   if (sky.dawnGlow > 0) {
@@ -218,7 +243,7 @@ void paintDaylight(Canvas c, SkyView sky, Rect view, double t, {double buildingL
       ..color = const Color(0xFF4F5F94).withValues(alpha: 0.62 * d)
       ..blendMode = BlendMode.multiply,
   );
-  _nightLights(c, sky, t, d, buildingLights);
+  _nightLights(c, sky, t, d, buildingLights, spots);
 }
 
 // ---------------------------------------------------------------- 빛깔
@@ -333,7 +358,7 @@ void _cloudShadows(Canvas c, SkyView sky, double t) {
 // ---------------------------------------------------------------- 비·눈·바람·안개·폭염
 
 /// 위에서 내려다본 비: 짧은 빗줄기가 떨어져 동그란 물방울 자국과 번진 얼룩을 남긴다.
-void _rain(Canvas c, Rect area, double t, double k, double density) {
+void _rain(Canvas c, Rect area, double t, double k, double density, List<Rect> waters) {
   final drops = (320 * density * k).round().clamp(0, 400);
   final streak = Paint()
     ..color = const Color(0xFFF2F7FA).withValues(alpha: 0.75 * k)
@@ -380,8 +405,8 @@ void _rain(Canvas c, Rect area, double t, double k, double density) {
     );
   }
   // 연못과 물탱크에 퍼지는 파문.
-  final pond = FarmWorld.pond;
-  for (var i = 0; i < 9; i++) {
+  for (var i = 0; i < waters.length * 6; i++) {
+    final pond = waters[i % waters.length];
     final seed = i * 6.1 + 2;
     final phase = t / 1.4 + _hash(seed);
     final cycle = phase.floor().toDouble();
@@ -481,11 +506,10 @@ void _heat(Canvas c, Rect area, double t, double k) {
 // ---------------------------------------------------------------- 무지개
 
 /// 무지개가 떠 있는 동안 수확 보너스를 알리는 밭 위 반짝임(무지개 띠는 하늘에 그린다, sky_band.dart).
-void _rainbow(Canvas c, double t, double k) {
-  for (final zone in GameDefs.plotZones) {
-    final r = FarmWorld.zones[zone]!;
+void _rainbow(Canvas c, double t, double k, List<Rect> plots) {
+  for (final (n, r) in plots.indexed) {
     for (var i = 0; i < 4; i++) {
-      final seed = zone.index * 9.1 + i * 2.3;
+      final seed = n * 9.1 + i * 2.3;
       final a = math.max(0.0, math.sin(t * 2.4 + seed * 3));
       if (a == 0) continue;
       final p = Offset(r.left + r.width * (0.15 + 0.7 * _hash(seed)), r.top + r.height * (0.2 + 0.6 * _hash(seed * 4)));
@@ -507,7 +531,7 @@ void _sparkle(Canvas c, Offset p, double r, Color color) {
 
 // ---------------------------------------------------------------- 밤
 
-void _nightLights(Canvas c, SkyView sky, double t, double d, double buildingLights) {
+void _nightLights(Canvas c, SkyView sky, double t, double d, double buildingLights, SkySpots spots) {
   void glow(Offset p, double radius, Color color, double alpha) {
     c.drawCircle(
       p,
@@ -518,7 +542,7 @@ void _nightLights(Canvas c, SkyView sky, double t, double d, double buildingLigh
 
   const lamp = Color(0xFFFFD27A);
   if (buildingLights > 0) {
-    for (final p in FarmWorld.windows) {
+    for (final p in spots.windows) {
       glow(p, 46, lamp, 0.55 * d * buildingLights);
       c.drawRect(
         Rect.fromCenter(center: p, width: 10, height: 8),
@@ -526,23 +550,26 @@ void _nightLights(Canvas c, SkyView sky, double t, double d, double buildingLigh
       );
     }
   }
-  final greenhouse = FarmWorld.zones[ZoneId.greenhouse]!;
-  glow(greenhouse.center, 150, const Color(0xFFFFE9B0), 0.18 * d);
+  for (final p in spots.glows) {
+    glow(p, 150, const Color(0xFFFFE9B0), 0.18 * d);
+  }
 
-  // 연못에 비친 달.
-  final pond = FarmWorld.pond;
-  c.drawOval(
-    Rect.fromCenter(center: pond.center + const Offset(18, -8), width: 26, height: 16),
-    fill(const Color(0xFFF6F1DC).withValues(alpha: 0.55 * d * (1 - sky.weight(SkyKind.rain)))),
-  );
+  // 물에 비친 달.
+  for (final pond in spots.waters) {
+    c.drawOval(
+      Rect.fromCenter(center: pond.center + Offset(pond.width * 0.12, -pond.height * 0.08), width: 22, height: 13),
+      fill(const Color(0xFFF6F1DC).withValues(alpha: 0.55 * d * (1 - sky.weight(SkyKind.rain)))),
+    );
+  }
 
   // 여름밤(5~9월) 맑거나 흐린 날의 반딧불.
   final calm = sky.weight(SkyKind.clear) + sky.weight(SkyKind.cloudy) + sky.weight(SkyKind.heat);
   if (sky.month < 5 || sky.month > 9 || calm <= 0) return;
-  final spots = [FarmWorld.pond.inflate(40), FarmWorld.pasture, FarmWorld.zones[ZoneId.orchard]!];
+  final areas = spots.fireflies;
+  if (areas.isEmpty) return;
   for (var i = 0; i < 24; i++) {
     final seed = i * 2.9 + 0.4;
-    final r = spots[i % spots.length];
+    final r = areas[i % areas.length];
     final blink = math.max(0.0, math.sin(t * 1.8 + seed * 5));
     if (blink == 0) continue;
     final p = Offset(

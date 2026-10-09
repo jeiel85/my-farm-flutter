@@ -2,35 +2,43 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_farm/game/zone.dart';
 import 'package:my_farm/game/defs.dart';
 import 'package:my_farm/game/engine.dart';
+import 'package:my_farm/game/lots.dart';
 import 'package:my_farm/game/state.dart';
 
 void main() {
   final t0 = DateTime(2026, 10, 6, 9, 0);
+  const field = GameDefs.startFieldLot;
+  const coop = GameDefs.startCoopLot;
+  const emptyA = LotId(1, 2);
+  const emptyB = LotId(2, 2);
   GameState fresh() => GameEngine.newGame(t0, farmName: '초록골 농장');
   GameState after(GameState s, int minutes) => GameEngine.advance(s, s.simTime.add(Duration(minutes: minutes))).$1;
   Matcher fails(GameError e) => throwsA(isA<GameException>().having((x) => x.error, 'error', e));
 
   /// 레벨·코인을 넉넉하게 준 상태(행동 검사용).
-  GameState rich(GameState s, {int level = 10}) =>
-      s.copyWith(coins: 100000, xp: GameDefs.xpForLevel(level), unlocked: {...s.unlocked, ...GameDefs.zones.keys});
+  GameState rich(GameState s, {int level = 10}) => s.copyWith(coins: 100000, xp: GameDefs.xpForLevel(level));
 
   group('처음 상태', () {
-    test('상추가 1분 남았고 성체 닭 2마리, 자원은 수치표대로', () {
+    test('처음 땅 6칸: 농가·창고, 상추가 1분 남은 밭, 성체 닭 2마리가 있는 닭장, 빈 땅 2칸', () {
       final s = fresh();
       expect((s.coins, s.level, s.feed, s.water), (100, 1, 60.0, 300));
-      expect(s.fields[ZoneId.vegetable]!.crop, CropId.lettuce);
-      expect(s.fields[ZoneId.vegetable]!.minutesLeft, 1);
-      expect(s.animals.where((a) => a.species == Species.chicken && a.adult), hasLength(2));
-      expect(s.unlocked.contains(ZoneId.tomato), isFalse);
+      expect(s.owned, {...GameDefs.startLots});
+      expect(s.lots[GameDefs.farmhouseLot]!.building, BuildingId.farmhouse);
+      expect(s.lots[GameDefs.storehouseLot]!.building, BuildingId.storehouse);
+      expect(s.lots[field]!.field!.crop, CropId.lettuce);
+      expect(s.lots[field]!.field!.minutesLeft, 1);
+      expect(s.lots[coop]!.building, BuildingId.coop);
+      expect(s.animalsIn(coop).where((a) => a.adult), hasLength(2));
+      expect(s.emptyLots, [emptyA, emptyB]);
+      expect(s.expansions, 0);
     });
 
     test('사료 소비량은 성체는 시간당 전부, 새끼는 절반으로 센다', () {
       final s = fresh();
       expect(s.feedPerHourAll, 4); // 성체 닭 2마리 × 2
-      final withChick = GameEngine.buyAnimal(s, Species.chicken);
+      final withChick = GameEngine.buyAnimal(s, coop);
       expect(withChick.feedPerHourAll, 5); // 병아리는 2의 절반
       expect(s.copyWith(animals: []).feedPerHourAll, 0);
     });
@@ -41,12 +49,66 @@ void main() {
 
     test('1분 뒤 상추가 다 자라고 수확하면 창고에 5개, 경험치 1', () {
       final (s, report) = GameEngine.advance(fresh(), t0.add(const Duration(minutes: 1)));
-      expect(s.fields[ZoneId.vegetable]!.ready, isTrue);
-      expect(report.cropsReady, {ZoneId.vegetable});
-      final h = GameEngine.harvest(s, ZoneId.vegetable);
+      expect(s.lots[field]!.field!.ready, isTrue);
+      expect(report.cropsReady, {field});
+      final h = GameEngine.harvest(s, field);
       expect(h.countOf(ItemId.lettuce), 5);
       expect(h.xp, 1);
-      expect(h.fields[ZoneId.vegetable]!.empty, isTrue);
+      expect(h.lots[field]!.field!.empty, isTrue);
+    });
+  });
+
+  group('땅·건물', () {
+    test('빈 땅에 레벨·코인이 되면 지을 수 있고, 작물 건물은 빈 밭으로 시작한다', () {
+      final s = fresh();
+      final built = GameEngine.build(s, emptyA, BuildingId.field);
+      expect(built.lots[emptyA]!.building, BuildingId.field);
+      expect(built.lots[emptyA]!.field!.empty, isTrue);
+      expect(built.coins, s.coins - 25);
+      expect(built.log.last.kind, LogKind.build);
+      expect(() => GameEngine.build(built, emptyA, BuildingId.coop), fails(GameError.lotOccupied));
+      expect(() => GameEngine.build(s, emptyB, BuildingId.goatPen), fails(GameError.levelTooLow));
+      expect(() => GameEngine.build(s.copyWith(coins: 10), emptyB, BuildingId.field), fails(GameError.notEnoughCoins));
+      expect(() => GameEngine.build(s, const LotId(0, 0), BuildingId.field), fails(GameError.notOwned));
+      expect(() => GameEngine.build(s, emptyB, BuildingId.farmhouse), fails(GameError.wrongBuilding));
+    });
+
+    test('같은 건물을 여러 개 지을 수 있다', () {
+      var s = rich(fresh());
+      s = GameEngine.build(s, emptyA, BuildingId.coop);
+      s = GameEngine.build(s, emptyB, BuildingId.coop);
+      expect([for (final l in s.lots.values) l.building].where((b) => b == BuildingId.coop), hasLength(3));
+    });
+
+    test('비어 있는 건물만 철거하고 짓기 비용의 절반을 돌려받는다. 핵심 건물은 철거할 수 없다', () {
+      var s = GameEngine.build(fresh(), emptyA, BuildingId.coop);
+      final demolished = GameEngine.demolish(s, emptyA);
+      expect(demolished.lots.containsKey(emptyA), isFalse);
+      expect(demolished.coins, s.coins + 20);
+      expect(demolished.log.last.kind, LogKind.demolish);
+      expect(() => GameEngine.demolish(s, coop), fails(GameError.cannotDemolish)); // 닭이 있다
+      expect(() => GameEngine.demolish(s, field), fails(GameError.cannotDemolish)); // 상추가 자란다
+      expect(() => GameEngine.demolish(s, GameDefs.farmhouseLot), fails(GameError.cannotDemolish));
+      expect(() => GameEngine.demolish(s, emptyB), fails(GameError.cannotDemolish)); // 빈 땅
+      s = GameEngine.harvest(after(s, 1), field);
+      expect(GameEngine.demolish(s, field).lots.containsKey(field), isFalse);
+    });
+
+    test('땅 넓히기는 붙은 칸만, 레벨 한도 안에서, 횟수에 따라 오르는 비용으로 한다', () {
+      final s = fresh();
+      expect(() => GameEngine.clearLand(s, const LotId(0, 1)), fails(GameError.expansionLimit)); // 1레벨은 0칸
+      final lv2 = rich(s, level: 2);
+      expect(() => GameEngine.clearLand(lv2, const LotId(0, 4)), fails(GameError.cannotExpand)); // 붙어 있지 않다
+      expect(() => GameEngine.clearLand(lv2, field), fails(GameError.cannotExpand)); // 이미 가졌다
+      final one = GameEngine.clearLand(lv2, const LotId(0, 1));
+      expect(one.owned.contains(const LotId(0, 1)), isTrue);
+      expect(one.coins, lv2.coins - 30);
+      expect(one.expansions, 1);
+      final two = GameEngine.clearLand(one, const LotId(0, 2)); // 방금 넓힌 칸에 붙은 칸
+      expect(two.coins, one.coins - 50);
+      expect(() => GameEngine.clearLand(two, const LotId(3, 1)), fails(GameError.expansionLimit)); // 2레벨은 2칸
+      expect(GameDefs.expansionsAllowed(8), GameDefs.expansionCosts.length);
+      expect(() => GameEngine.clearLand(lv2.copyWith(coins: 10), const LotId(0, 1)), fails(GameError.notEnoughCoins));
     });
   });
 
@@ -54,10 +116,17 @@ void main() {
     test('나눠서 진행해도 한 번에 진행한 결과와 똑같다(무작위 분할, 초 단위 포함)', () {
       final rng = math.Random(42);
       var base = rich(fresh(), level: 8);
-      base = GameEngine.plant(base, ZoneId.tomato, CropId.tomato);
-      base = GameEngine.plant(base, ZoneId.orchard, CropId.apple);
-      base = GameEngine.buyAnimal(base, Species.cow);
-      base = GameEngine.buyAnimal(base, Species.goat);
+      base = GameEngine.build(base, emptyA, BuildingId.orchard);
+      base = GameEngine.build(base, emptyB, BuildingId.cowBarn);
+      base = GameEngine.clearLand(base, const LotId(1, 3));
+      base = GameEngine.build(base, const LotId(1, 3), BuildingId.goatPen);
+      base = GameEngine.clearLand(base, const LotId(0, 1));
+      base = GameEngine.build(base, const LotId(0, 1), BuildingId.field);
+      base = GameEngine.plant(base, const LotId(0, 1), CropId.tomato);
+      base = GameEngine.plant(base, emptyA, CropId.apple);
+      base = GameEngine.buyAnimal(base, emptyB);
+      base = GameEngine.buyAnimal(base, const LotId(1, 3));
+      base = GameEngine.buyAnimal(base, const LotId(1, 3));
       base = base.copyWith(feedUnits: 90 * GameDefs.feedUnit);
       final end = base.simTime.add(const Duration(minutes: 230, seconds: 40));
       final whole = GameEngine.advance(base, end).$1;
@@ -102,16 +171,17 @@ void main() {
 
   group('가축', () {
     test('병아리는 사료를 절반만 먹으며 10분 뒤 성체가 된다', () {
-      var s = GameEngine.buyAnimal(fresh().copyWith(animals: const []), Species.chicken);
+      var s = GameEngine.buyAnimal(fresh().copyWith(animals: const []), coop);
       final feed0 = s.feedUnits;
       s = after(s, 10);
       final chick = s.animals.single;
       expect(chick.adult, isTrue);
+      expect(chick.home, coop);
       expect(feed0 - s.feedUnits, 10 * 1); // 시간당 2 → 자라는 동안 분당 1/60 단위 1
     });
 
     test('성체는 6분마다 달걀을 낳고, 한도(5)에 차면 생산과 사료 소비를 멈춘다', () {
-      final hen = GameAnimal(id: 'h', species: Species.chicken, ageMinutes: 10);
+      const hen = GameAnimal(id: 'h', species: Species.chicken, home: coop, ageMinutes: 10);
       var s = fresh().copyWith(animals: [hen]);
       s = after(s, 12);
       expect(s.animals.single.stored, 2);
@@ -123,7 +193,7 @@ void main() {
     });
 
     test('사료가 떨어지면 성장·생산이 멈추고 보고서에 남는다', () {
-      final hen = GameAnimal(id: 'h', species: Species.chicken, ageMinutes: 10);
+      const hen = GameAnimal(id: 'h', species: Species.chicken, home: coop, ageMinutes: 10);
       final (s, r) = GameEngine.advance(
         fresh().copyWith(animals: [hen], feedUnits: 3),
         t0.add(const Duration(minutes: 30)),
@@ -133,40 +203,54 @@ void main() {
       expect(s.feedUnits, 1); // 분당 2단위를 먹는데 3단위뿐 → 한 번만 먹고 1이 남는다
     });
 
-    test('같은 종 성체가 2마리면 번식 주기마다 새끼가 태어나고, 우리가 차면 멈춘다', () {
+    test('같은 우리에 성체가 2마리면 번식 주기마다 새끼가 태어나고, 우리가 차면 멈춘다', () {
       final s = fresh().copyWith(feedUnits: 200 * GameDefs.feedUnit);
       final (born, r) = GameEngine.advance(s, t0.add(const Duration(minutes: 40)));
       expect(r.born[Species.chicken], 1);
       expect(born.animals, hasLength(3));
       expect(born.animals.last.adult, isFalse);
+      expect(born.animals.last.home, coop);
 
+      final cap = s.penCapacity(coop);
       final full = s.copyWith(
         animals: [
-          for (var i = 0; i < GameDefs.penCapacity; i++)
-            GameAnimal(id: 'x$i', species: Species.chicken, ageMinutes: 10),
+          for (var i = 0; i < cap; i++) GameAnimal(id: 'x$i', species: Species.chicken, home: coop, ageMinutes: 10),
         ],
       );
       final (still, r2) = GameEngine.advance(full, t0.add(const Duration(minutes: 120)));
-      expect(still.animals, hasLength(GameDefs.penCapacity));
+      expect(still.animals, hasLength(cap));
       expect(r2.born, isEmpty);
     });
 
-    test('짜기·줍기는 창고에 들어가는 만큼만 옮기고 개당 경험치를 준다', () {
+    test('번식은 우리마다 따로 센다: 다른 닭장의 닭과는 짝이 되지 않는다', () {
+      var s = GameEngine.build(fresh(), emptyA, BuildingId.coop).copyWith(feedUnits: 200 * GameDefs.feedUnit);
+      s = s.copyWith(
+        animals: const [
+          GameAnimal(id: 'p', species: Species.chicken, home: coop, ageMinutes: 10),
+          GameAnimal(id: 'q', species: Species.chicken, home: emptyA, ageMinutes: 10),
+        ],
+      );
+      final (_, r) = GameEngine.advance(s, t0.add(const Duration(minutes: 60)));
+      expect(r.born, isEmpty);
+    });
+
+    test('짜기·줍기는 그 우리 것만, 창고에 들어가는 만큼만 옮기고 개당 경험치를 준다', () {
       var s = fresh().copyWith(
-        animals: [
-          GameAnimal(id: 'a', species: Species.chicken, ageMinutes: 10, stored: 4),
-          GameAnimal(id: 'b', species: Species.chicken, ageMinutes: 10, stored: 3),
+        animals: const [
+          GameAnimal(id: 'a', species: Species.chicken, home: coop, ageMinutes: 10, stored: 4),
+          GameAnimal(id: 'b', species: Species.chicken, home: coop, ageMinutes: 10, stored: 3),
         ],
         barn: {ItemId.lettuce: GameDefs.barnCapacity - 5},
       );
-      final (after1, took) = GameEngine.collect(s, Species.chicken);
+      final (after1, took) = GameEngine.collect(s, coop);
       expect(took, 5);
       expect(after1.countOf(ItemId.egg), 5);
       expect(after1.xp, 5);
       expect([for (final a in after1.animals) a.stored], [0, 2]);
-      expect(() => GameEngine.collect(after1, Species.chicken), fails(GameError.barnFull));
+      expect(() => GameEngine.collect(after1, coop), fails(GameError.barnFull));
+      expect(() => GameEngine.collect(after1, field), fails(GameError.wrongBuilding));
       s = s.copyWith(animals: const []);
-      expect(() => GameEngine.collect(s, Species.chicken), fails(GameError.nothingToCollect));
+      expect(() => GameEngine.collect(s, coop), fails(GameError.nothingToCollect));
     });
 
     test('출하는 성체만, 쌓인 생산물은 창고로 옮기고 값과 경험치를 받는다', () {
@@ -178,70 +262,61 @@ void main() {
       expect(sold.animals, hasLength(1));
       expect(sold.log.last.kind, LogKind.slaughter);
 
-      final withChick = GameEngine.buyAnimal(s, Species.chicken);
+      final withChick = GameEngine.buyAnimal(s, coop);
       expect(() => GameEngine.slaughter(withChick, withChick.animals.last.id), fails(GameError.notAdult));
       expect(() => GameEngine.slaughter(s, 'nope'), fails(GameError.unknownAnimal));
     });
 
-    test('새끼 사기는 레벨·우리 자리·코인을 확인한다', () {
-      expect(() => GameEngine.buyAnimal(fresh(), Species.cow), fails(GameError.levelTooLow));
+    test('새끼 들이기는 우리 종류·레벨·우리 자리·코인을 확인한다', () {
+      expect(() => GameEngine.buyAnimal(fresh(), field), fails(GameError.wrongBuilding));
+      final barn = GameEngine.build(rich(fresh()), emptyA, BuildingId.cowBarn).copyWith(xp: 0);
+      expect(() => GameEngine.buyAnimal(barn, emptyA), fails(GameError.levelTooLow));
       final poor = fresh().copyWith(coins: 10);
-      expect(() => GameEngine.buyAnimal(poor, Species.chicken), fails(GameError.notEnoughCoins));
+      expect(() => GameEngine.buyAnimal(poor, coop), fails(GameError.notEnoughCoins));
       var s = rich(fresh());
-      for (var i = s.animals.length; i < GameDefs.penCapacity; i++) {
-        s = GameEngine.buyAnimal(s, Species.chicken);
+      for (var i = s.animalsIn(coop).length; i < s.penCapacity(coop); i++) {
+        s = GameEngine.buyAnimal(s, coop);
       }
-      expect(() => GameEngine.buyAnimal(s, Species.chicken), fails(GameError.penFull));
+      expect(s.penCapacity(coop), 4);
+      expect(() => GameEngine.buyAnimal(s, coop), fails(GameError.penFull));
     });
   });
 
-  group('작물·구역', () {
-    test('잠긴 구역은 레벨과 코인이 되면 열린다', () {
-      final s = fresh();
-      expect(() => GameEngine.plant(s, ZoneId.tomato, CropId.lettuce), fails(GameError.zoneLocked));
-      expect(() => GameEngine.unlockZone(s, ZoneId.tomato), fails(GameError.levelTooLow));
-      final lv2 = s.copyWith(xp: GameDefs.xpForLevel(2));
-      final opened = GameEngine.unlockZone(lv2, ZoneId.tomato);
-      expect(opened.unlocked.contains(ZoneId.tomato), isTrue);
-      expect(opened.coins, s.coins - 30);
-      expect(() => GameEngine.unlockZone(opened, ZoneId.tomato), fails(GameError.alreadyUnlocked));
-    });
-
-    test('심기는 구역 종류·빈 밭·레벨·코인·물을 확인한다', () {
-      final s = after(fresh(), 1); // 밭 1의 상추가 다 자람
-      expect(() => GameEngine.plant(s, ZoneId.vegetable, CropId.lettuce), fails(GameError.fieldNotEmpty));
-      final empty = GameEngine.harvest(s, ZoneId.vegetable);
-      expect(() => GameEngine.plant(empty, ZoneId.vegetable, CropId.carrot), fails(GameError.levelTooLow));
-      expect(() => GameEngine.plant(empty, ZoneId.vegetable, CropId.strawberry), fails(GameError.wrongPlot));
-      expect(
-        () => GameEngine.plant(empty.copyWith(water: 5), ZoneId.vegetable, CropId.lettuce),
-        fails(GameError.notEnoughWater),
-      );
-      final planted = GameEngine.plant(empty, ZoneId.vegetable, CropId.lettuce);
+  group('작물', () {
+    test('심기는 건물 종류·빈 밭·레벨·코인·물을 확인한다', () {
+      final s = after(fresh(), 1); // 밭의 상추가 다 자람
+      expect(() => GameEngine.plant(s, field, CropId.lettuce), fails(GameError.fieldNotEmpty));
+      final empty = GameEngine.harvest(s, field);
+      expect(() => GameEngine.plant(empty, field, CropId.carrot), fails(GameError.levelTooLow));
+      expect(() => GameEngine.plant(empty, field, CropId.strawberry), fails(GameError.wrongPlot));
+      expect(() => GameEngine.plant(empty, coop, CropId.lettuce), fails(GameError.wrongPlot));
+      expect(() => GameEngine.plant(empty.copyWith(water: 5), field, CropId.lettuce), fails(GameError.notEnoughWater));
+      final planted = GameEngine.plant(empty, field, CropId.lettuce);
       expect(planted.coins, empty.coins - 4);
       expect(planted.water, empty.water - 10);
-      expect(planted.fields[ZoneId.vegetable]!.minutesLeft, 2);
+      expect(planted.lots[field]!.field!.minutesLeft, 2);
     });
 
     test('창고에 자리가 없으면 수확하지 않고 밭에서 기다린다', () {
       final s = after(fresh(), 1).copyWith(barn: {ItemId.egg: GameDefs.barnCapacity - 2});
-      expect(() => GameEngine.harvest(s, ZoneId.vegetable), fails(GameError.barnFull));
-      expect(after(s, 600).fields[ZoneId.vegetable]!.ready, isTrue);
+      expect(() => GameEngine.harvest(s, field), fails(GameError.barnFull));
+      expect(after(s, 600).lots[field]!.field!.ready, isTrue);
     });
 
     test('사과나무는 수확 뒤 물이 있으면 다음 회차가 시작되고, 없으면 물을 기다렸다 시작한다', () {
-      var s = GameEngine.plant(rich(fresh()), ZoneId.orchard, CropId.apple);
+      var s = GameEngine.build(rich(fresh()), emptyA, BuildingId.orchard);
+      s = GameEngine.plant(s, emptyA, CropId.apple);
       s = after(s, 180);
-      expect(s.fields[ZoneId.orchard]!.ready, isTrue);
-      final regrow = GameEngine.harvest(s, ZoneId.orchard);
+      expect(s.lots[emptyA]!.field!.ready, isTrue);
+      final regrow = GameEngine.harvest(s, emptyA);
       expect(regrow.countOf(ItemId.apple), 15);
-      expect(regrow.fields[ZoneId.orchard]!.minutesLeft, 90);
+      expect(regrow.lots[emptyA]!.field!.minutesLeft, 90);
 
-      final dry = GameEngine.harvest(s.copyWith(water: 0), ZoneId.orchard);
-      expect(dry.fields[ZoneId.orchard]!.waitingWater, isTrue);
+      final dry = GameEngine.harvest(s.copyWith(water: 0), emptyA);
+      expect(dry.lots[emptyA]!.field!.waitingWater, isTrue);
       final resumed = after(dry, 12); // 매분 5L → 12분째에 60L
-      expect(resumed.fields[ZoneId.orchard]!.waitingWater, isFalse);
-      expect(resumed.fields[ZoneId.orchard]!.minutesLeft, 90);
+      expect(resumed.lots[emptyA]!.field!.waitingWater, isFalse);
+      expect(resumed.lots[emptyA]!.field!.minutesLeft, 90);
     });
   });
 
@@ -274,8 +349,11 @@ void main() {
   group('저장 형식', () {
     test('JSON으로 왕복해도 같다', () {
       var s = rich(fresh(), level: 8);
-      s = GameEngine.plant(s, ZoneId.orchard, CropId.apple);
-      s = GameEngine.buyAnimal(s, Species.sheep);
+      s = GameEngine.build(s, emptyA, BuildingId.orchard);
+      s = GameEngine.plant(s, emptyA, CropId.apple);
+      s = GameEngine.build(s, emptyB, BuildingId.sheepPen);
+      s = GameEngine.buyAnimal(s, emptyB);
+      s = GameEngine.clearLand(s, const LotId(3, 1));
       s = after(s, 77);
       final back = GameState.fromJson((jsonDecode(jsonEncode(s.toJson())) as Map).cast<String, Object?>());
       expect(jsonEncode(back.toJson()), jsonEncode(s.toJson()));
@@ -287,7 +365,7 @@ void main() {
         throwsA(isA<UnsupportedGameSchema>().having((e) => e.legacy, 'legacy', isTrue)),
       );
       expect(
-        () => GameState.fromJson({'schemaVersion': 6}),
+        () => GameState.fromJson({'schemaVersion': 7}),
         throwsA(isA<UnsupportedGameSchema>().having((e) => e.newer, 'newer', isTrue)),
       );
     });

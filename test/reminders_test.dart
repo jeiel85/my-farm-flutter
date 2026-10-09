@@ -6,7 +6,7 @@ import 'package:my_farm/game/engine.dart';
 import 'package:my_farm/game/game_store.dart';
 import 'package:my_farm/game/reminder_plan.dart';
 import 'package:my_farm/game/state.dart';
-import 'package:my_farm/game/zone.dart';
+import 'package:my_farm/game/lots.dart';
 import 'package:my_farm/l10n/l10n.dart';
 
 import 'support/memory_storage.dart';
@@ -47,7 +47,12 @@ void main() {
   // 새 게임: 상추가 1분 뒤 다 자라고, 닭 두 마리(한 마리는 달걀 1개)가 6분마다 달걀을 낳는다(최대 5개).
   GameState fresh([DateTime? at]) => GameEngine.newGame(at ?? now, farmName: 'test');
 
-  GameState withField(GameState s, ZoneId zone, FieldState f) => s.copyWith(fields: {...s.fields, zone: f});
+  GameState withField(GameState s, LotId lot, FieldState f) => s.copyWith(
+    lots: {
+      ...s.lots,
+      lot: Lot(s.lots[lot]?.building ?? BuildingId.field, field: f),
+    },
+  );
 
   group('알림 계획', () {
     test('꺼져 있으면 아무것도 잡지 않는다', () {
@@ -70,8 +75,8 @@ void main() {
     });
 
     test('같은 분에 다 자라는 작물은 한 알림으로 묶는다', () {
-      var s = fresh().copyWith(unlocked: {...fresh().unlocked, ZoneId.tomato});
-      s = withField(s, ZoneId.tomato, const FieldState(crop: CropId.carrot, minutesLeft: 1, totalMinutes: 6));
+      var s = fresh();
+      s = withField(s, const LotId(1, 2), const FieldState(crop: CropId.carrot, minutesLeft: 1, totalMinutes: 6));
       final harvest = planReminders(s, now, on).whereType<HarvestReminder>().single;
       expect(harvest.crops, [CropId.lettuce, CropId.carrot]);
     });
@@ -87,7 +92,7 @@ void main() {
     test('이미 그런 상태인 것(다 자람·가득 참·사료 없음)은 앱 화면에 나오므로 보내지 않는다', () {
       var s = withField(
         fresh(),
-        ZoneId.vegetable,
+        GameDefs.startFieldLot,
         const FieldState(crop: CropId.lettuce, ready: true, totalMinutes: 2),
       );
       s = s.copyWith(
@@ -100,13 +105,13 @@ void main() {
     test('앱을 닫아 둔 동안 진행되는 4시간 안의 일만 잡는다', () {
       final s = withField(
         fresh().copyWith(animals: const []),
-        ZoneId.vegetable,
+        GameDefs.startFieldLot,
         const FieldState(crop: CropId.carrot, minutesLeft: 241, totalMinutes: 300),
       );
       expect(planReminders(s, now, on), isEmpty);
       final soon = withField(
         s,
-        ZoneId.vegetable,
+        GameDefs.startFieldLot,
         const FieldState(crop: CropId.carrot, minutesLeft: 240, totalMinutes: 300),
       );
       expect(planReminders(soon, now, on).single.at, now.add(const Duration(minutes: 240)));
@@ -116,7 +121,7 @@ void main() {
       final evening = DateTime(2026, 10, 5, 20, 50);
       final s = withField(
         fresh(evening).copyWith(animals: const []),
-        ZoneId.vegetable,
+        GameDefs.startFieldLot,
         const FieldState(crop: CropId.carrot, minutesLeft: 20, totalMinutes: 20),
       );
       expect(planReminders(s, evening, on).single.at, DateTime(2026, 10, 6, 7));
@@ -216,7 +221,7 @@ void main() {
 
       // 달걀을 모두 모으면 가득 차는 시각이 늦어진다.
       final before = platform.scheduled.firstWhere((n) => n.kind == ReminderKind.animals).at;
-      await store.actWith((s) => GameEngine.collect(s, Species.chicken));
+      await store.actWith((s) => GameEngine.collect(s, GameDefs.startCoopLot));
       await Future<void>.delayed(Duration.zero);
       await c.sync();
       expect(platform.replaceCalls, greaterThan(calls));

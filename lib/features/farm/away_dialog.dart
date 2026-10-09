@@ -13,6 +13,11 @@ Future<void> showAwayDialog(BuildContext context, AdvanceReport r) {
     for (final e in r.produced.entries)
       (itemEmoji(GameDefs.animals[e.key]!.product), l.awayProduced(l.item(GameDefs.animals[e.key]!.product), e.value)),
     for (final e in r.born.entries) ('🐣', l.awayBorn(l.young(e.key), e.value)),
+    if (r.autoHarvests > 0) ('🚜', l.awayAutoHarvests(r.autoHarvests)),
+    if (r.autoCollected > 0) ('🧺', l.awayAutoCollected(r.autoCollected)),
+    if (r.autoSoldCoins > 0) ('🪙', l.awayAutoSold(r.autoSoldCoins)),
+    if (r.craftsDone.isNotEmpty) ('🏭', l.awayCraftsDone(r.craftsDone.length)),
+    if (r.autoCrafted > 0) ('📦', l.awayAutoCrafted(r.autoCrafted)),
     if (r.feedRanOut) ('⚠️', l.awayFeedRanOut),
   ];
   return showDialog<void>(
@@ -36,7 +41,7 @@ Future<void> showAwayDialog(BuildContext context, AdvanceReport r) {
             ),
           if (r.skippedMinutes > 0) ...[
             const SizedBox(height: 8),
-            Text(l.awayCapped(l.duration(Duration(minutes: GameDefs.offlineCapMinutes))), style: AppText.caption),
+            Text(l.awayCapped(l.duration(Duration(minutes: r.minutes))), style: AppText.caption),
           ],
         ],
       ),

@@ -1,10 +1,12 @@
-import 'zone.dart';
 import 'defs.dart';
+import 'lots.dart';
+import 'migrate_v5.dart';
+import 'orders.dart';
 
 T _enum<T extends Enum>(List<T> values, Object? name) =>
     values.asNameMap()[name] ?? (throw FormatException('Unknown ${T.toString()}', name));
 
-/// 작물 구역 한 곳의 상태.
+/// 작물을 심는 건물(밭·온실·과수원) 한 곳의 상태.
 class FieldState {
   const FieldState({
     this.crop,
@@ -63,6 +65,7 @@ class GameAnimal {
   const GameAnimal({
     required this.id,
     required this.species,
+    required this.home,
     this.ageMinutes = 0,
     this.stored = 0,
     this.produceProgress = 0,
@@ -70,6 +73,9 @@ class GameAnimal {
 
   final String id;
   final Species species;
+
+  /// 사는 우리(부지).
+  final LotId home;
 
   /// 사료를 먹으며 자란 분. 성체까지 자란 뒤로는 늘지 않는다.
   final int ageMinutes;
@@ -83,9 +89,10 @@ class GameAnimal {
   AnimalDef get def => GameDefs.animals[species]!;
   bool get adult => ageMinutes >= def.growMinutes;
 
-  GameAnimal copyWith({int? ageMinutes, int? stored, int? produceProgress}) => GameAnimal(
+  GameAnimal copyWith({int? ageMinutes, int? stored, int? produceProgress, LotId? home}) => GameAnimal(
     id: id,
     species: species,
+    home: home ?? this.home,
     ageMinutes: ageMinutes ?? this.ageMinutes,
     stored: stored ?? this.stored,
     produceProgress: produceProgress ?? this.produceProgress,
@@ -94,6 +101,7 @@ class GameAnimal {
   Map<String, Object?> toJson() => {
     'id': id,
     'species': species.name,
+    'home': home.key,
     'ageMinutes': ageMinutes,
     'stored': stored,
     'produceProgress': produceProgress,
@@ -102,13 +110,15 @@ class GameAnimal {
   factory GameAnimal.fromJson(Map<String, Object?> j) => GameAnimal(
     id: j['id'] as String,
     species: _enum(Species.values, j['species']),
+    home: LotId.parse(j['home'] as String),
     ageMinutes: j['ageMinutes'] as int,
     stored: j['stored'] as int,
     produceProgress: j['produceProgress'] as int,
   );
 }
 
-enum LogKind { sale, slaughter, seed, animal, feed, unlock }
+/// 기록 종류. [unlock]은 v5(정해진 구역을 열던 때) 기록이다.
+enum LogKind { sale, slaughter, seed, animal, feed, unlock, build, expand, demolish, upgrade, order }
 
 /// 수입·지출 기록 한 건(기록 탭 차트용). [amount]는 수입이면 양수, 지출이면 음수.
 class GameLogEntry {
@@ -118,7 +128,7 @@ class GameLogEntry {
   final LogKind kind;
   final int amount;
 
-  /// 무엇을 사고팔았는지(ItemId·CropId·Species 이름 등). 문구는 화면에서 만든다.
+  /// 무엇을 사고팔았는지(ItemId·CropId·Species·BuildingId 이름 등). 문구는 화면에서 만든다.
   final String subject;
 
   Map<String, Object?> toJson() => {
@@ -136,7 +146,56 @@ class GameLogEntry {
   );
 }
 
-/// 게임 전체 상태. JSON 하나로 저장한다(저장 형식 v5).
+/// 공방에서 만드는 중인 것(레시피는 공방이 정한다).
+class WorkshopJob {
+  const WorkshopJob({required this.minutesLeft, required this.totalMinutes});
+
+  final int minutesLeft;
+  final int totalMinutes;
+
+  /// 다 만들어 꺼내기를 기다린다.
+  bool get done => minutesLeft <= 0;
+
+  Map<String, Object?> toJson() => {'minutesLeft': minutesLeft, 'totalMinutes': totalMinutes};
+
+  factory WorkshopJob.fromJson(Map<String, Object?> j) =>
+      WorkshopJob(minutesLeft: j['minutesLeft'] as int, totalMinutes: j['totalMinutes'] as int);
+}
+
+/// 지은 건물 한 칸.
+class Lot {
+  const Lot(this.building, {this.level = 1, this.field, this.job});
+
+  final BuildingId building;
+  final int level;
+
+  /// 작물 건물(밭·온실·과수원)의 작물 상태. 그 밖의 건물은 null.
+  final FieldState? field;
+
+  /// 공방에서 만드는 중이거나 다 만든 것(없으면 null).
+  final WorkshopJob? job;
+
+  BuildingDef get def => GameDefs.buildings[building]!;
+
+  Lot copyWith({int? level, FieldState? field, WorkshopJob? job, bool clearJob = false}) =>
+      Lot(building, level: level ?? this.level, field: field ?? this.field, job: clearJob ? null : job ?? this.job);
+
+  Map<String, Object?> toJson() => {
+    'building': building.name,
+    'level': level,
+    'field': ?field?.toJson(),
+    'job': ?job?.toJson(),
+  };
+
+  factory Lot.fromJson(Map<String, Object?> j) => Lot(
+    _enum(BuildingId.values, j['building']),
+    level: j['level'] as int? ?? 1,
+    field: j['field'] == null ? null : FieldState.fromJson((j['field'] as Map).cast<String, Object?>()),
+    job: j['job'] == null ? null : WorkshopJob.fromJson((j['job'] as Map).cast<String, Object?>()),
+  );
+}
+
+/// 게임 전체 상태. JSON 하나로 저장한다(저장 형식 v6, docs/farm-lots-design.md §9).
 class GameState {
   const GameState({
     required this.farmName,
@@ -146,15 +205,18 @@ class GameState {
     required this.barn,
     required this.feedUnits,
     required this.water,
-    required this.unlocked,
-    required this.fields,
+    required this.owned,
+    required this.lots,
+    required this.expansions,
     required this.animals,
     required this.breedProgress,
     required this.nextAnimalId,
     required this.log,
+    this.orders = const [],
+    this.orderSeq = 0,
   });
 
-  static const schemaVersion = 5;
+  static const schemaVersion = 6;
 
   /// 기록은 최근 이만큼만 남긴다.
   static const maxLog = 400;
@@ -170,18 +232,58 @@ class GameState {
   /// 사료(1/60 단위). 화면에는 [feed]로 보인다.
   final int feedUnits;
   final int water;
-  final Set<ZoneId> unlocked;
-  final Map<ZoneId, FieldState> fields;
+
+  /// 가진 땅. 그중 [lots]에 없는 칸은 빈 땅이다. 가지지 않은 칸은 장애물(덤불·돌 등)이 있다.
+  final Set<LotId> owned;
+  final Map<LotId, Lot> lots;
+
+  /// 지금까지 넓힌(개간한) 칸 수. 다음 개간 비용과 레벨별 한도에 쓴다.
+  final int expansions;
   final List<GameAnimal> animals;
 
-  /// 종별 번식 진행(분).
-  final Map<Species, int> breedProgress;
+  /// 우리별 번식 진행(분).
+  final Map<LotId, int> breedProgress;
   final int nextAnimalId;
   final List<GameLogEntry> log;
 
+  /// 마을 주문 게시판 칸(L4)과 다음 주문 순번. 이 칸이 없는 v6 저장본(L1~L3 개발판)은 비어 있다가 시간이 흐르면 찬다.
+  final List<OrderSlot> orders;
+  final int orderSeq;
+
   int get level => GameDefs.levelForXp(xp);
   int get barnUsed => barn.values.fold(0, (s, n) => s + n);
-  int get barnFree => GameDefs.barnCapacity - barnUsed;
+  int get barnFree => barnCapacity - barnUsed;
+
+  int _level(LotId core) => lots[core]?.level ?? 1;
+
+  /// 농가 레벨: 자리 비운 동안 계산하는 시간, 우물 용량·충전 속도.
+  int get farmhouseLevel => _level(GameDefs.farmhouseLot);
+
+  /// 창고 레벨: 창고·사료통 용량, Lv3 자동 출하.
+  int get storehouseLevel => _level(GameDefs.storehouseLot);
+  int get offlineCapMinutes => GameDefs.offlineCapByLevel[farmhouseLevel - 1];
+  int get waterCapacity => GameDefs.waterCapacityByLevel[farmhouseLevel - 1];
+  int get waterRefillPerMinute =>
+      GameDefs.waterRefillByLevel[farmhouseLevel - 1] +
+      GameDefs.pondRefill * lots.values.where((l) => l.building == BuildingId.pond).length.clamp(0, GameDefs.maxPonds);
+
+  /// [lot]에 상하좌우로 붙은 칸 중 [building]이 있는지.
+  bool touches(LotId lot, BuildingId building) => lot.neighbors.any((n) => lots[n]?.building == building);
+
+  /// 작물 건물 [lot]의 수확량 보너스(%): Lv2부터 +25, 허수아비가 붙으면 +10. 무지개는 따로(엔진).
+  int yieldBonus(LotId lot) =>
+      ((lots[lot]?.level ?? 1) >= 2 ? GameDefs.yieldBonusLv2 : 0) +
+      (touches(lot, BuildingId.scarecrow) ? GameDefs.scarecrowBonus : 0);
+
+  /// 우리 [pen]의 생산 주기(꽃밭이 붙으면 10% 빠르다).
+  int produceEvery(LotId pen, AnimalDef def) => touches(pen, BuildingId.flowerBed)
+      ? GameDefs.flowerProduceMinutes(def.produceEveryMinutes)
+      : def.produceEveryMinutes;
+  int get barnCapacity => GameDefs.barnCapacityByLevel[storehouseLevel - 1];
+  int get feedCapacity => GameDefs.feedCapacityByLevel[storehouseLevel - 1];
+
+  /// 창고 Lv3: 자동으로 거둔 몫이 창고에 다 들어가지 않으면 그 자리에서 판다.
+  bool get autoShip => storehouseLevel >= GameDefs.autoLevel;
   double get feed => feedUnits / GameDefs.feedUnit;
 
   /// 지금 있는 동물이 모두 먹는다고 칠 때 시간당 사료. 생산물이 가득 찬 성체는 실제로는
@@ -190,6 +292,38 @@ class GameState {
 
   int countOf(ItemId item) => barn[item] ?? 0;
 
+  /// 지은 건물이 있는 칸(위에서 아래, 왼쪽에서 오른쪽 순서. 계산 순서를 늘 같게 한다).
+  List<LotId> get builtLots => lots.keys.toList()..sort();
+
+  /// 가졌지만 아무것도 짓지 않은 칸.
+  List<LotId> get emptyLots => [
+    for (final l in LotId.all)
+      if (owned.contains(l) && !lots.containsKey(l)) l,
+  ];
+
+  List<GameAnimal> animalsIn(LotId pen) => [
+    for (final a in animals)
+      if (a.home == pen) a,
+  ];
+
+  /// 우리 [pen]의 최대 마릿수(우리가 아니면 0).
+  int penCapacity(LotId pen) {
+    final lot = lots[pen];
+    if (lot == null || lot.def.species == null) return 0;
+    final caps = lot.def.capacity;
+    return caps[(lot.level - 1).clamp(0, caps.length - 1)];
+  }
+
+  /// 지금 넓힐 수 있는 자리인지(가지지 않았고 가진 땅에 붙어 있다). 레벨·코인은 따로 본다.
+  bool touchesOwned(LotId lot) => lot.inLand && !owned.contains(lot) && lot.neighbors.any(owned.contains);
+
+  /// 레벨 한도 안에서 더 넓힐 수 있는 칸 수.
+  int get expansionsLeft => GameDefs.expansionsAllowed(level) - expansions;
+
+  /// 다음 개간 비용(땅을 다 넓혔으면 null).
+  int? get nextExpansionCost =>
+      expansions < GameDefs.expansionCosts.length ? GameDefs.expansionCosts[expansions] : null;
+
   GameState copyWith({
     DateTime? simTime,
     int? coins,
@@ -197,12 +331,15 @@ class GameState {
     Map<ItemId, int>? barn,
     int? feedUnits,
     int? water,
-    Set<ZoneId>? unlocked,
-    Map<ZoneId, FieldState>? fields,
+    Set<LotId>? owned,
+    Map<LotId, Lot>? lots,
+    int? expansions,
     List<GameAnimal>? animals,
-    Map<Species, int>? breedProgress,
+    Map<LotId, int>? breedProgress,
     int? nextAnimalId,
     List<GameLogEntry>? log,
+    List<OrderSlot>? orders,
+    int? orderSeq,
     String? farmName,
   }) => GameState(
     farmName: farmName ?? this.farmName,
@@ -212,12 +349,15 @@ class GameState {
     barn: barn ?? this.barn,
     feedUnits: feedUnits ?? this.feedUnits,
     water: water ?? this.water,
-    unlocked: unlocked ?? this.unlocked,
-    fields: fields ?? this.fields,
+    owned: owned ?? this.owned,
+    lots: lots ?? this.lots,
+    expansions: expansions ?? this.expansions,
     animals: animals ?? this.animals,
     breedProgress: breedProgress ?? this.breedProgress,
     nextAnimalId: nextAnimalId ?? this.nextAnimalId,
     log: log ?? this.log,
+    orders: orders ?? this.orders,
+    orderSeq: orderSeq ?? this.orderSeq,
   );
 
   Map<String, Object?> toJson() => {
@@ -230,18 +370,22 @@ class GameState {
     'barn': {for (final e in barn.entries) e.key.name: e.value},
     'feedUnits': feedUnits,
     'water': water,
-    'unlocked': [for (final z in unlocked) z.name],
-    'fields': {for (final e in fields.entries) e.key.name: e.value.toJson()},
+    'owned': [for (final l in owned.toList()..sort()) l.key],
+    'lots': {for (final l in builtLots) l.key: lots[l]!.toJson()},
+    'expansions': expansions,
     'animals': [for (final a in animals) a.toJson()],
-    'breedProgress': {for (final e in breedProgress.entries) e.key.name: e.value},
+    'breedProgress': {for (final e in breedProgress.entries) e.key.key: e.value},
     'nextAnimalId': nextAnimalId,
     'log': [for (final l in log) l.toJson()],
+    'orders': [for (final o in orders) o.toJson()],
+    'orderSeq': orderSeq,
   };
 
-  /// 다른 버전은 읽지 않는다. 관리 앱 시절(v1~v4) 저장본은 [GameStore]가 따로 보관하고 새 게임을 만든다.
-  /// 전환 방법·실패 시 동작·되돌리기는 docs/save-format-v5.md.
+  /// v6을 읽는다. v5(정해진 구역 시절 개발판)는 부지로 옮긴다(migrate_v5.dart). 관리 앱 시절(v1~v4) 저장본은
+  /// [GameStore]가 따로 보관하고 새 게임을 만든다. 전환 기록은 docs/save-format-v5.md, docs/farm-lots-design.md §9.
   factory GameState.fromJson(Map<String, Object?> j) {
     final version = j['schemaVersion'];
+    if (version == 5) return migrateV5(j);
     if (version != schemaVersion) throw UnsupportedGameSchema(version);
     Map<String, Object?> map(String key) => (j[key] as Map).cast<String, Object?>();
     return GameState(
@@ -252,15 +396,19 @@ class GameState {
       barn: {for (final e in map('barn').entries) _enum(ItemId.values, e.key): e.value as int},
       feedUnits: j['feedUnits'] as int,
       water: j['water'] as int,
-      unlocked: {for (final z in j['unlocked'] as List) _enum(ZoneId.values, z)},
-      fields: {
-        for (final e in map('fields').entries)
-          _enum(ZoneId.values, e.key): FieldState.fromJson((e.value as Map).cast<String, Object?>()),
+      owned: {for (final l in j['owned'] as List) LotId.parse(l as String)},
+      lots: {
+        for (final e in map('lots').entries) LotId.parse(e.key): Lot.fromJson((e.value as Map).cast<String, Object?>()),
       },
+      expansions: j['expansions'] as int,
       animals: [for (final a in j['animals'] as List) GameAnimal.fromJson((a as Map).cast<String, Object?>())],
-      breedProgress: {for (final e in map('breedProgress').entries) _enum(Species.values, e.key): e.value as int},
+      breedProgress: {for (final e in map('breedProgress').entries) LotId.parse(e.key): e.value as int},
       nextAnimalId: j['nextAnimalId'] as int,
       log: [for (final l in j['log'] as List) GameLogEntry.fromJson((l as Map).cast<String, Object?>())],
+      orders: [
+        for (final o in j['orders'] as List? ?? const []) OrderSlot.fromJson((o as Map).cast<String, Object?>()),
+      ],
+      orderSeq: j['orderSeq'] as int? ?? 0,
     );
   }
 }
@@ -269,8 +417,8 @@ class UnsupportedGameSchema implements Exception {
   const UnsupportedGameSchema(this.version);
   final Object? version;
 
-  /// 관리 앱 시절(v1~v4) 저장본인지.
-  bool get legacy => version is int && (version as int) >= 1 && (version as int) < GameState.schemaVersion;
+  /// 관리 앱 시절(v1~v4) 저장본인지. v5(정해진 구역 시절 게임)는 옮겨 읽으므로 여기에 들지 않는다.
+  bool get legacy => version is int && (version as int) >= 1 && (version as int) < 5;
 
   bool get newer => version is int && (version as int) > GameState.schemaVersion;
 

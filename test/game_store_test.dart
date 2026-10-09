@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_farm/game/zone.dart';
 import 'package:my_farm/game/defs.dart';
 import 'package:my_farm/game/engine.dart';
 import 'package:my_farm/game/game_store.dart';
@@ -16,11 +15,11 @@ void main() {
 
   Future<GameStore> load(MemoryStorage storage) => GameStore.load(storage, clock: clock, defaultFarmName: '새 농장');
 
-  test('저장본이 없으면 새 게임을 만들어 v5로 저장한다', () async {
+  test('저장본이 없으면 새 게임을 만들어 v6으로 저장한다', () async {
     final storage = MemoryStorage();
     final store = await load(storage);
     expect(store.state.farmName, '새 농장');
-    expect((jsonDecode(storage.value!) as Map)['schemaVersion'], 5);
+    expect((jsonDecode(storage.value!) as Map)['schemaVersion'], GameState.schemaVersion);
     expect(store.migratedFromManagement, isFalse);
   });
 
@@ -37,7 +36,7 @@ void main() {
     expect(store.state.farmName, '초록골 농장');
     expect(storage.meta[GameStore.managementArchiveKey], legacy);
     expect(await store.managementArchive(), legacy);
-    expect((jsonDecode(storage.value!) as Map)['schemaVersion'], 5);
+    expect((jsonDecode(storage.value!) as Map)['schemaVersion'], GameState.schemaVersion);
     // 다음 실행에서는 그냥 게임을 읽는다.
     final again = await load(storage);
     expect(again.migratedFromManagement, isFalse);
@@ -94,8 +93,8 @@ void main() {
     now = now.add(const Duration(hours: 3));
     await store.resume();
     expect(store.awayReport, isNotNull);
-    expect(store.awayReport!.cropsReady, {ZoneId.vegetable});
-    expect(store.state.fields[ZoneId.vegetable]!.ready, isTrue);
+    expect(store.awayReport!.cropsReady, {GameDefs.startFieldLot});
+    expect(store.state.lots[GameDefs.startFieldLot]!.field!.ready, isTrue);
     store.dismissReport();
     now = now.add(const Duration(minutes: 2));
     await store.resume();
@@ -106,16 +105,16 @@ void main() {
     final storage = MemoryStorage();
     final store = await load(storage);
     now = now.add(const Duration(minutes: 1));
-    await store.act((s) => GameEngine.harvest(s, ZoneId.vegetable));
+    await store.act((s) => GameEngine.harvest(s, GameDefs.startFieldLot));
     expect(store.state.countOf(ItemId.lettuce), 5);
     expect(GameState.fromJson((jsonDecode(storage.value!) as Map).cast()).countOf(ItemId.lettuce), 5);
 
     final before = storage.value;
-    await expectLater(store.act((s) => GameEngine.harvest(s, ZoneId.vegetable)), throwsA(isA<GameException>()));
+    await expectLater(store.act((s) => GameEngine.harvest(s, GameDefs.startFieldLot)), throwsA(isA<GameException>()));
     expect(store.state.countOf(ItemId.lettuce), 5);
     expect(storage.value, before);
 
-    final took = await store.actWith((s) => GameEngine.collect(s, Species.chicken));
+    final took = await store.actWith((s) => GameEngine.collect(s, GameDefs.startCoopLot));
     expect(took, greaterThan(0));
   });
 
@@ -134,7 +133,7 @@ void main() {
   test('새로 시작하면 지금 게임을 보관본으로 남긴다', () async {
     final storage = MemoryStorage();
     final store = await load(storage);
-    await store.act((s) => GameEngine.buyAnimal(s, Species.chicken));
+    await store.act((s) => GameEngine.buyAnimal(s, GameDefs.startCoopLot));
     await store.restart(farmName: '두 번째 농장');
     expect(store.state.farmName, '두 번째 농장');
     expect(store.state.animals, hasLength(2));

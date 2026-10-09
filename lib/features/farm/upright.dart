@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import '../../core/animal_painter.dart';
 import '../../game/defs.dart';
 import '../../game/sky.dart';
-import '../../game/zone.dart';
+import 'building_look.dart';
 import 'farm_world.dart';
 import 'sky_band.dart';
 import 'sky_layer.dart';
@@ -53,7 +53,7 @@ class FarmUprightPainter extends CustomPainter {
     final items = <(double, void Function())>[];
     final lights = <(Offset, double)>[];
     final look = _Look.of(sky);
-    for (final p in FarmWorld.props) {
+    for (final p in scene.props) {
       if (!frame.contains(local(p.base))) continue;
       final at = screen(p.base);
       final u = unit(p.base);
@@ -84,14 +84,14 @@ class FarmUprightPainter extends CustomPainter {
       c.restore();
     }
     if (labelOpacity > 0) {
-      for (final zone in ZoneId.values) {
-        final r = FarmWorld.zones[zone]!;
-        // 눕힌 지도에서는 구역 앞쪽 가운데에 세워, 안쪽의 구조물을 가리지 않게 한다.
+      for (final MapEntry(key: id, value: label) in scene.labels.entries) {
+        final r = FarmWorld.lotRect(id);
+        // 눕힌 지도에서는 칸 앞쪽 가운데에 세워, 안쪽의 구조물을 가리지 않게 한다.
         paintZoneTag(
           c,
           screen(Offset(r.center.dx, r.bottom - 4)),
-          scene.labels[zone] ?? zone.name,
-          zone.icon,
+          label,
+          scene.icons[id] ?? Icons.place_outlined,
           0.42,
           labelOpacity,
           bottomCenter: true,
@@ -218,7 +218,7 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
         wallH: 56,
         roofH: 34,
         wall: const Color(0xFF9A7650),
-        roof: const Color(0xFF6F8796),
+        roof: BuildingLook.cowBarnRoof,
         tin: true,
         snow: look.snow,
         front: (c, a, h) {
@@ -241,7 +241,7 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
         wallH: 26,
         roofH: 18,
         wall: const Color(0xFFE2C79A),
-        roof: const Color(0xFFB58A52),
+        roof: BuildingLook.coopRoof,
         snow: look.snow,
         front: (c, a, h) {
           c.drawOval(
@@ -252,6 +252,28 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
           light(const Offset(-4, -12), 3);
         },
       );
+    case PropKind.goatShed || PropKind.sheepShed:
+      // 염소·양 우리: 낮은 판자 헛간에 넓은 문. 양 우리는 이끼색 지붕.
+      final sheep = p.kind == PropKind.sheepShed;
+      _building(
+        c,
+        width: 96,
+        wallH: 40,
+        roofH: 26,
+        wall: sheep ? const Color(0xFFD8CBB0) : const Color(0xFFB99872),
+        roof: sheep ? BuildingLook.sheepRoof : BuildingLook.goatRoof,
+        snow: look.snow,
+        front: (c, a, h) {
+          final plank = pen(const Color(0x33000000), 1);
+          for (var x = -a + 8; x < a; x += 9) {
+            c.drawLine(Offset(x, -h + 2), Offset(x, -1), plank);
+          }
+          c.drawRect(const Rect.fromLTWH(-15, -30, 30, 30), fill(const Color(0xFF6B5038)));
+          light(const Offset(0, -34), 4);
+        },
+      );
+    case PropKind.mill || PropKind.jamKitchen || PropKind.dairy || PropKind.bakery:
+      _workshop(c, p.kind, look, light);
     case PropKind.warehouse:
       _building(
         c,
@@ -259,7 +281,7 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
         wallH: 46,
         roofH: 26,
         wall: const Color(0xFFCFC2A8),
-        roof: const Color(0xFF8E7A68),
+        roof: BuildingLook.warehouseRoof,
         tin: true,
         snow: look.snow,
         front: (c, a, h) {
@@ -278,8 +300,70 @@ void _prop(Canvas c, FarmProp p, Offset at, double u, _Look look, List<(Offset, 
       _hay(c, p.footprint.width / 2);
     case PropKind.tree:
       _tree(c, p.footprint.width / 2, p.seed, p.deep, look);
+    case PropKind.scarecrow:
+      _scarecrow(c, look);
   }
   c.restore();
+}
+
+/// 공방: 방앗간 물레방아, 잼 공방 줄무늬 차양, 치즈 공방 둥근 창, 빵집 굴뚝.
+void _workshop(Canvas c, PropKind kind, _Look look, void Function(Offset, double) light) {
+  final (wall, roof) = switch (kind) {
+    PropKind.mill => (const Color(0xFFEDE3CF), BuildingLook.millRoof),
+    PropKind.jamKitchen => (const Color(0xFFF3DCDD), BuildingLook.jamRoof),
+    PropKind.dairy => (const Color(0xFFF4EFE3), BuildingLook.dairyRoof),
+    _ => (const Color(0xFFC98A64), BuildingLook.bakeryRoof),
+  };
+  _building(
+    c,
+    width: 132,
+    wallH: 52,
+    roofH: 34,
+    wall: wall,
+    roof: roof,
+    snow: look.snow,
+    front: (c, a, h) {
+      c.drawRect(Rect.fromLTWH(-12, -32, 24, 32), fill(Tint.wood));
+      switch (kind) {
+        case PropKind.jamKitchen:
+          _window(c, Offset(a * 0.55, -30), 20, 14);
+          for (var i = 0; i < 4; i++) {
+            c.drawRect(
+              Rect.fromLTWH(a * 0.55 - 14 + i * 7, -44, 7, 7),
+              fill(i.isEven ? const Color(0xFFD9573F) : Colors.white),
+            );
+          }
+        case PropKind.dairy:
+          c.drawCircle(Offset(a * 0.55, -30), 9, fill(const Color(0xFFCFE0E6)));
+          c.drawCircle(Offset(a * 0.55, -30), 9, pen(Tint.wood, 2));
+        case PropKind.bakery:
+          _window(c, Offset(a * 0.55, -28), 20, 16);
+          for (var x = -a + 6; x < a; x += 12) {
+            c.drawLine(Offset(x, -h + 4), Offset(x, -2), pen(const Color(0x22000000), 1));
+          }
+        default:
+          _window(c, Offset(a * 0.55, -30), 18, 16);
+      }
+      light(const Offset(0, -36), 5);
+    },
+    extra: (c, a, h, ridge) {
+      if (kind == PropKind.bakery) {
+        final chimney = Rect.fromLTWH(a * 0.4, ridge + 2, 14, 28);
+        c.drawRect(chimney, fill(const Color(0xFF8C5A44)));
+        c.drawRect(chimney, pen(Tint.line.withValues(alpha: 0.5), 1.2));
+      }
+      if (kind == PropKind.mill) {
+        // 왼쪽 옆 물레방아.
+        final wheel = Offset(-a - 16, -26);
+        c.drawCircle(wheel, 24, fill(Tint.wood));
+        for (var i = 0; i < 8; i++) {
+          final ang = i * math.pi / 4;
+          c.drawLine(wheel, wheel + Offset(math.cos(ang), math.sin(ang)) * 24, pen(const Color(0xFF5E4630), 2.2));
+        }
+        c.drawCircle(wheel, 24, pen(Tint.line.withValues(alpha: 0.5), 1.4));
+      }
+    },
+  );
 }
 
 void _window(Canvas c, Offset center, double w, double h) {
@@ -414,6 +498,32 @@ void _hay(Canvas c, double r) {
   c.drawOval(face, fill(const Color(0xFFEDD28E)));
   c.drawOval(face.deflate(r * 0.18), pen(const Color(0x66A07830), 1.2));
   c.drawRRect(body, pen(Tint.line.withValues(alpha: 0.45), 1.2));
+}
+
+/// 서 있는 허수아비: 막대, 팔 막대, 헝겊 옷, 밀짚 얼굴과 모자.
+void _scarecrow(Canvas c, _Look look) {
+  c.drawOval(Rect.fromCenter(center: const Offset(4, 1), width: 40, height: 10), fill(Tint.shadow));
+  c.drawLine(Offset.zero, const Offset(0, -62), pen(Tint.wood, 4));
+  c.drawLine(const Offset(-26, -44), const Offset(26, -44), pen(Tint.wood, 3.5));
+  final coat = Path()
+    ..moveTo(-16, -48)
+    ..lineTo(16, -48)
+    ..lineTo(20, -18)
+    ..lineTo(-20, -18)
+    ..close();
+  c.drawPath(coat, fill(const Color(0xFF7E8FB0)));
+  c.drawRect(const Rect.fromLTWH(-6, -40, 8, 8), fill(const Color(0xFFD9573F)));
+  c.drawPath(coat, pen(Tint.line.withValues(alpha: 0.5), 1.4));
+  c.drawCircle(const Offset(0, -58), 10, fill(Tint.hay));
+  c.drawCircle(const Offset(0, -58), 10, pen(Tint.wood, 1.4));
+  c.drawOval(Rect.fromCenter(center: const Offset(0, -67), width: 34, height: 9), fill(const Color(0xFFD6B25A)));
+  c.drawRect(const Rect.fromLTWH(-9, -78, 18, 12), fill(const Color(0xFFD6B25A)));
+  if (look.snow > 0) {
+    c.drawOval(
+      Rect.fromCenter(center: const Offset(0, -71), width: 30, height: 7),
+      fill(const Color(0xFFF8FAFC).withValues(alpha: 0.9 * look.snow)),
+    );
+  }
 }
 
 /// 계절마다 잎 색이 바뀌는 둥근 나무.

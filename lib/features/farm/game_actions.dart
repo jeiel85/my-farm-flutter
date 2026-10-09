@@ -5,6 +5,7 @@ import '../../core/widgets.dart';
 import '../../game/defs.dart';
 import '../../game/engine.dart';
 import '../../game/game_store.dart';
+import '../../game/lots.dart';
 import '../../game/state.dart';
 import '../../l10n/l10n.dart';
 
@@ -21,11 +22,11 @@ Future<bool> runGame(BuildContext context, GameState Function(GameState s) actio
   }
 }
 
-/// [species]의 쌓인 생산물을 거둔다.
-Future<void> collectFrom(BuildContext context, Species species) async {
+/// 우리 [pen]의 쌓인 생산물을 거둔다.
+Future<void> collectFrom(BuildContext context, LotId pen, Species species) async {
   final l = context.l10n;
   try {
-    final took = await GameScope.read(context).actWith((s) => GameEngine.collect(s, species));
+    final took = await GameScope.read(context).actWith((s) => GameEngine.collect(s, pen));
     HapticFeedback.lightImpact();
     if (context.mounted) {
       showMessage(context, l.collected(l.item(GameDefs.animals[species]!.product), took));

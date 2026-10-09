@@ -1,17 +1,67 @@
 /// 게임 정의 표. 수치는 docs/game-design.md(수치표 v1)와 같아야 한다.
 library;
 
-import 'zone.dart';
+import 'lots.dart';
 
 /// 창고에 들어가는 물건.
-enum ItemId { lettuce, carrot, tomato, corn, strawberry, apple, egg, goatMilk, wool, milk }
+enum ItemId {
+  lettuce,
+  carrot,
+  tomato,
+  corn,
+  strawberry,
+  apple,
+  egg,
+  goatMilk,
+  wool,
+  milk,
+  wheat,
+  potato,
+  pumpkin,
+  flour,
+  jam,
+  cheese,
+  bread,
+}
 
-enum CropId { lettuce, carrot, tomato, corn, strawberry, apple }
+enum CropId { lettuce, carrot, tomato, corn, strawberry, apple, wheat, potato, pumpkin }
 
 enum Species { chicken, goat, sheep, cow }
 
-/// 작물을 심는 구역 종류.
+/// 작물을 심는 건물 종류.
 enum PlotKind { field, greenhouse, orchard }
+
+/// 부지에 짓는 건물. docs/farm-lots-design.md §4. 이름은 저장 형식(v6)에 그대로 들어가므로 바꾸지 않는다.
+enum BuildingId {
+  farmhouse,
+  storehouse,
+  field,
+  coop,
+  goatPen,
+  sheepPen,
+  cowBarn,
+  greenhouse,
+  orchard,
+  mill,
+  jamKitchen,
+  dairy,
+  bakery,
+  pond,
+  scarecrow,
+  flowerBed,
+}
+
+/// 공방 레시피: 재료를 넣으면 시간이 지나 가공품 하나가 나온다. docs/farm-lots-design.md §10.
+class Recipe {
+  const Recipe({required this.inputs, required this.output, required this.minutes, required this.xp});
+
+  final Map<ItemId, int> inputs;
+  final ItemId output;
+  final int minutes;
+
+  /// 가공품을 꺼낼 때 받는 경험치.
+  final int xp;
+}
 
 class CropDef {
   const CropDef({
@@ -77,15 +127,48 @@ class AnimalDef {
   final int unlockLevel;
 }
 
-class ZoneDef {
-  const ZoneDef({required this.zone, required this.unlockLevel, required this.unlockCost, this.plot});
+class BuildingDef {
+  const BuildingDef({
+    required this.id,
+    required this.cost,
+    required this.unlockLevel,
+    this.plot,
+    this.species,
+    this.capacity = const [],
+    this.upgradeCosts = const [],
+    this.recipe,
+    this.decor = false,
+    this.core = false,
+  });
 
-  final ZoneId zone;
+  final BuildingId id;
+
+  /// 짓는 비용(핵심 건물은 0).
+  final int cost;
   final int unlockLevel;
-  final int unlockCost;
 
-  /// 작물을 심는 구역이면 그 종류.
+  /// 작물을 심는 건물이면 그 종류.
   final PlotKind? plot;
+
+  /// 가축 우리면 기르는 종.
+  final Species? species;
+
+  /// 가축 우리의 레벨별 최대 마릿수(Lv1부터).
+  final List<int> capacity;
+
+  /// Lv2·Lv3으로 올리는 비용(올릴 수 없는 건물은 비어 있다).
+  final List<int> upgradeCosts;
+
+  /// 공방이면 그 레시피(공방마다 하나).
+  final Recipe? recipe;
+
+  /// 꾸미기(L5): 칸 하나를 쓰고, 옆 칸에 작은 효과를 준다. 올릴 수 없다.
+  final bool decor;
+
+  /// 처음부터 있고 철거할 수 없는 건물(농가·창고).
+  final bool core;
+
+  int get maxLevel => 1 + upgradeCosts.length;
 }
 
 abstract final class GameDefs {
@@ -99,7 +182,6 @@ abstract final class GameDefs {
   static const feedCapacity = 200;
   static const waterCapacity = 500;
   static const waterRefillPerMinute = 5;
-  static const penCapacity = 6;
   static const offlineCapMinutes = 4 * 60;
 
   /// 옥수수 1개를 사료로 바꾸면 얻는 사료.
@@ -120,6 +202,13 @@ abstract final class GameDefs {
     ItemId.goatMilk: 9,
     ItemId.wool: 35,
     ItemId.milk: 22,
+    ItemId.wheat: 3,
+    ItemId.potato: 5,
+    ItemId.pumpkin: 14,
+    ItemId.flour: 14,
+    ItemId.jam: 55,
+    ItemId.cheese: 70,
+    ItemId.bread: 60,
   };
 
   static const crops = <CropId, CropDef>{
@@ -190,6 +279,39 @@ abstract final class GameDefs {
       plot: PlotKind.orchard,
       regrowMinutes: 90,
     ),
+    CropId.wheat: CropDef(
+      id: CropId.wheat,
+      item: ItemId.wheat,
+      growMinutes: 8,
+      seedCost: 6,
+      waterL: 20,
+      yieldCount: 6,
+      xp: 2,
+      unlockLevel: 4,
+      plot: PlotKind.field,
+    ),
+    CropId.potato: CropDef(
+      id: CropId.potato,
+      item: ItemId.potato,
+      growMinutes: 15,
+      seedCost: 12,
+      waterL: 30,
+      yieldCount: 6,
+      xp: 3,
+      unlockLevel: 5,
+      plot: PlotKind.field,
+    ),
+    CropId.pumpkin: CropDef(
+      id: CropId.pumpkin,
+      item: ItemId.pumpkin,
+      growMinutes: 45,
+      seedCost: 30,
+      waterL: 60,
+      yieldCount: 4,
+      xp: 8,
+      unlockLevel: 7,
+      plot: PlotKind.field,
+    ),
   };
 
   static const animals = <Species, AnimalDef>{
@@ -251,17 +373,151 @@ abstract final class GameDefs {
     ),
   };
 
-  /// 구역을 여는 조건. 표에 없는 구역(농가·가축 우리·물탱크·창고)은 처음부터 열려 있다.
-  static const zones = <ZoneId, ZoneDef>{
-    ZoneId.vegetable: ZoneDef(zone: ZoneId.vegetable, unlockLevel: 1, unlockCost: 0, plot: PlotKind.field),
-    ZoneId.tomato: ZoneDef(zone: ZoneId.tomato, unlockLevel: 2, unlockCost: 30, plot: PlotKind.field),
-    ZoneId.corn: ZoneDef(zone: ZoneId.corn, unlockLevel: 3, unlockCost: 100, plot: PlotKind.field),
-    ZoneId.greenhouse: ZoneDef(zone: ZoneId.greenhouse, unlockLevel: 6, unlockCost: 600, plot: PlotKind.greenhouse),
-    ZoneId.orchard: ZoneDef(zone: ZoneId.orchard, unlockLevel: 8, unlockCost: 1500, plot: PlotKind.orchard),
+  static const buildings = <BuildingId, BuildingDef>{
+    BuildingId.farmhouse: BuildingDef(
+      id: BuildingId.farmhouse,
+      cost: 0,
+      unlockLevel: 1,
+      core: true,
+      upgradeCosts: [300, 1000],
+    ),
+    BuildingId.storehouse: BuildingDef(
+      id: BuildingId.storehouse,
+      cost: 0,
+      unlockLevel: 1,
+      core: true,
+      upgradeCosts: [200, 700],
+    ),
+    BuildingId.field: BuildingDef(
+      id: BuildingId.field,
+      cost: 25,
+      unlockLevel: 1,
+      plot: PlotKind.field,
+      upgradeCosts: [120, 500],
+    ),
+    BuildingId.coop: BuildingDef(
+      id: BuildingId.coop,
+      cost: 40,
+      unlockLevel: 1,
+      species: Species.chicken,
+      capacity: [4, 6, 8],
+      upgradeCosts: [150, 500],
+    ),
+    BuildingId.goatPen: BuildingDef(
+      id: BuildingId.goatPen,
+      cost: 120,
+      unlockLevel: 3,
+      species: Species.goat,
+      capacity: [3, 5, 6],
+      upgradeCosts: [300, 900],
+    ),
+    BuildingId.sheepPen: BuildingDef(
+      id: BuildingId.sheepPen,
+      cost: 200,
+      unlockLevel: 5,
+      species: Species.sheep,
+      capacity: [3, 5, 6],
+      upgradeCosts: [450, 1200],
+    ),
+    BuildingId.cowBarn: BuildingDef(
+      id: BuildingId.cowBarn,
+      cost: 400,
+      unlockLevel: 7,
+      species: Species.cow,
+      capacity: [3, 5, 6],
+      upgradeCosts: [800, 2000],
+    ),
+    BuildingId.greenhouse: BuildingDef(
+      id: BuildingId.greenhouse,
+      cost: 600,
+      unlockLevel: 6,
+      plot: PlotKind.greenhouse,
+      upgradeCosts: [1200, 2500],
+    ),
+    BuildingId.orchard: BuildingDef(
+      id: BuildingId.orchard,
+      cost: 1500,
+      unlockLevel: 8,
+      plot: PlotKind.orchard,
+      upgradeCosts: [2500, 4000],
+    ),
+    BuildingId.mill: BuildingDef(
+      id: BuildingId.mill,
+      cost: 300,
+      unlockLevel: 4,
+      upgradeCosts: [600, 1500],
+      recipe: Recipe(inputs: {ItemId.wheat: 3}, output: ItemId.flour, minutes: 10, xp: 2),
+    ),
+    BuildingId.jamKitchen: BuildingDef(
+      id: BuildingId.jamKitchen,
+      cost: 700,
+      unlockLevel: 6,
+      upgradeCosts: [1400, 3000],
+      recipe: Recipe(inputs: {ItemId.strawberry: 3}, output: ItemId.jam, minutes: 30, xp: 6),
+    ),
+    BuildingId.dairy: BuildingDef(
+      id: BuildingId.dairy,
+      cost: 900,
+      unlockLevel: 7,
+      upgradeCosts: [1800, 3600],
+      recipe: Recipe(inputs: {ItemId.milk: 2}, output: ItemId.cheese, minutes: 40, xp: 8),
+    ),
+    BuildingId.bakery: BuildingDef(
+      id: BuildingId.bakery,
+      cost: 1200,
+      unlockLevel: 9,
+      upgradeCosts: [2400, 4800],
+      recipe: Recipe(inputs: {ItemId.flour: 2, ItemId.egg: 2}, output: ItemId.bread, minutes: 25, xp: 6),
+    ),
+    BuildingId.pond: BuildingDef(id: BuildingId.pond, cost: 60, unlockLevel: 2, decor: true),
+    BuildingId.scarecrow: BuildingDef(id: BuildingId.scarecrow, cost: 80, unlockLevel: 3, decor: true),
+    BuildingId.flowerBed: BuildingDef(id: BuildingId.flowerBed, cost: 120, unlockLevel: 4, decor: true),
   };
 
-  /// 작물을 심을 수 있는 구역.
-  static Iterable<ZoneId> get plotZones => zones.keys;
+  /// 종을 기르는 우리.
+  static BuildingId penFor(Species species) => buildings.values.firstWhere((b) => b.species == species).id;
+
+  /// 처음 가진 땅(가운데 2열 × 위 3행)과 처음 지어진 건물.
+  static const farmhouseLot = LotId(1, 0);
+  static const storehouseLot = LotId(2, 0);
+  static const startFieldLot = LotId(1, 1);
+  static const startCoopLot = LotId(2, 1);
+  static const startLots = [farmhouseLot, storehouseLot, startFieldLot, startCoopLot, LotId(1, 2), LotId(2, 2)];
+
+  /// 몇 번째로 넓히는지에 따른 개간 비용.
+  static const expansionCosts = [30, 50, 80, 120, 170, 230, 300, 380, 470, 580, 700, 850, 1000, 1200];
+
+  /// 레벨 L에서 지금까지 넓힐 수 있는 칸 수: (L − 1) × 2, 최대 전부.
+  static int expansionsAllowed(int level) => ((level - 1) * 2).clamp(0, expansionCosts.length);
+
+  /// 핵심 건물 레벨별 값(Lv1부터). docs/farm-lots-design.md §4.
+  static const offlineCapByLevel = [4 * 60, 6 * 60, 8 * 60];
+  static const waterCapacityByLevel = [500, 800, 1200];
+  static const waterRefillByLevel = [5, 7, 10];
+  static const barnCapacityByLevel = [100, 160, 250];
+  static const feedCapacityByLevel = [200, 300, 450];
+
+  /// 작물 건물 Lv2부터 수확량 보너스(%).
+  static const yieldBonusLv2 = 25;
+
+  /// 작물 건물·우리가 저절로 돌아가는 레벨(자동 수확·다시 심기·자동 줍기). 창고는 이 레벨에서 자동 출하.
+  static const autoLevel = 3;
+
+  /// 꾸미기 효과(L5): 허수아비가 붙은 작물 건물 수확량 +10%, 꽃밭이 붙은 우리 생산 주기 −10%(내림, 닭 6 → 5분),
+  /// 연못 하나마다 우물 분당 +1L(최대 3개까지 센다).
+  static const scarecrowBonus = 10;
+  static const pondRefill = 1;
+  static const maxPonds = 3;
+
+  /// 꽃밭이 붙은 우리의 생산 주기.
+  /// 올림으로 하면 닭(6분)에 효과가 없어서 내린다(최소 1분).
+  static int flowerProduceMinutes(int minutes) => (minutes * 9 ~/ 10).clamp(1, minutes);
+
+  /// 공방 레벨에 따른 만드는 시간(Lv2부터 25% 빠르게, 올림).
+  static int craftMinutes(Recipe recipe, int level) => level >= 2 ? (recipe.minutes * 3 + 3) ~/ 4 : recipe.minutes;
+
+  /// 철거하면 돌려받는 코인(짓기 비용의 절반).
+  static int demolishRefund(BuildingId id) => buildings[id]!.cost ~/ 2;
 
   /// 레벨 경계(누적 경험치). 인덱스 i는 (i+2)레벨이 되는 경험치. 10레벨 이후는 레벨마다 +500.
   /// 초반은 몇 분 만에 오르고 갈수록 완만해지게, 레벨당 필요량이 대략 두 배씩 늘다가 1.4배 안팎으로 줄어든다.

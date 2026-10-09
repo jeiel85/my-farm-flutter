@@ -3,7 +3,6 @@ import 'package:flutter/widgets.dart';
 import '../game/defs.dart';
 import '../game/engine.dart';
 import '../game/state.dart';
-import '../game/zone.dart';
 import 'app_localizations.dart';
 
 export 'app_localizations.dart';
@@ -17,28 +16,49 @@ extension L10nContext on BuildContext {
 
 /// 게임 값(enum 등)을 화면 문구로 바꾼다.
 extension Labels on AppLocalizations {
-  String zoneShort(ZoneId z) => switch (z) {
-    ZoneId.house => zoneShortHouse,
-    ZoneId.tomato => zoneShortTomato,
-    ZoneId.vegetable => zoneShortVegetable,
-    ZoneId.corn => zoneShortCorn,
-    ZoneId.animals => zoneShortAnimals,
-    ZoneId.water => zoneShortWater,
-    ZoneId.storage => zoneShortStorage,
-    ZoneId.greenhouse => zoneShortGreenhouse,
-    ZoneId.orchard => zoneShortOrchard,
+  String building(BuildingId b) => switch (b) {
+    BuildingId.farmhouse => buildingFarmhouse,
+    BuildingId.storehouse => buildingStorehouse,
+    BuildingId.field => buildingField,
+    BuildingId.coop => buildingCoop,
+    BuildingId.goatPen => buildingGoatPen,
+    BuildingId.sheepPen => buildingSheepPen,
+    BuildingId.cowBarn => buildingCowBarn,
+    BuildingId.greenhouse => buildingGreenhouse,
+    BuildingId.orchard => buildingOrchard,
+    BuildingId.mill => buildingMill,
+    BuildingId.jamKitchen => buildingJamKitchen,
+    BuildingId.dairy => buildingDairy,
+    BuildingId.bakery => buildingBakery,
+    BuildingId.pond => buildingPond,
+    BuildingId.scarecrow => buildingScarecrow,
+    BuildingId.flowerBed => buildingFlowerBed,
   };
 
-  String zone(ZoneId z) => switch (z) {
-    ZoneId.house => zoneHouse,
-    ZoneId.tomato => zoneTomato,
-    ZoneId.vegetable => zoneVegetable,
-    ZoneId.corn => zoneCorn,
-    ZoneId.animals => zoneAnimals,
-    ZoneId.water => zoneWater,
-    ZoneId.storage => zoneStorage,
-    ZoneId.greenhouse => zoneGreenhouse,
-    ZoneId.orchard => zoneOrchard,
+  /// 레시피 재료(밀 3, 밀가루 2 + 달걀 2).
+  String recipeInputs(Recipe r) => [for (final e in r.inputs.entries) '${item(e.key)} ${e.value}'].join(' + ');
+
+  /// 짓기 목록의 한 줄 쓰임.
+  String buildingDesc(BuildingId b) {
+    final def = GameDefs.buildings[b]!;
+    if (def.species case final sp?) return buildingDescPen(species(sp), def.capacity.first);
+    if (def.recipe case final r?) return buildingDescWorkshop(recipeInputs(r), item(r.output));
+    if (b == BuildingId.pond) return decorPond(GameDefs.pondRefill, GameDefs.maxPonds);
+    if (b == BuildingId.scarecrow) return decorScarecrow(GameDefs.scarecrowBonus);
+    if (b == BuildingId.flowerBed) return decorFlowerBed;
+    return switch (b) {
+      BuildingId.greenhouse => buildingDescGreenhouse,
+      BuildingId.orchard => buildingDescOrchard,
+      _ => buildingDescField,
+    };
+  }
+
+  /// 넓히기 전 칸의 장애물 이름.
+  String wild(int kind) => switch (kind) {
+    0 => wildBush,
+    1 => wildRocks,
+    2 => wildStumps,
+    _ => wildReeds,
   };
 
   /// 무리 이름(닭, Chickens).
@@ -68,6 +88,13 @@ extension Labels on AppLocalizations {
     ItemId.goatMilk => itemGoatMilk,
     ItemId.wool => itemWool,
     ItemId.milk => itemMilk,
+    ItemId.wheat => itemWheat,
+    ItemId.potato => itemPotato,
+    ItemId.pumpkin => itemPumpkin,
+    ItemId.flour => itemFlour,
+    ItemId.jam => itemJam,
+    ItemId.cheese => itemCheese,
+    ItemId.bread => itemBread,
   };
 
   String crop(CropId c) => item(GameDefs.crops[c]!.item);
@@ -80,8 +107,6 @@ extension Labels on AppLocalizations {
   };
 
   String gameError(GameError e) => switch (e) {
-    GameError.zoneLocked => errZoneLocked,
-    GameError.alreadyUnlocked => errAlreadyUnlocked,
     GameError.levelTooLow => errLevelTooLow,
     GameError.notEnoughCoins => errNotEnoughCoins,
     GameError.notEnoughWater => errNotEnoughWater,
@@ -95,6 +120,15 @@ extension Labels on AppLocalizations {
     GameError.notEnoughItems => errNotEnoughItems,
     GameError.siloFull => errSiloFull,
     GameError.unknownAnimal => errUnknownAnimal,
+    GameError.notOwned => errNotOwned,
+    GameError.lotOccupied => errLotOccupied,
+    GameError.cannotExpand => errCannotExpand,
+    GameError.expansionLimit => errExpansionLimit,
+    GameError.wrongBuilding => errWrongBuilding,
+    GameError.cannotDemolish => errCannotDemolish,
+    GameError.maxLevel => errMaxLevel,
+    GameError.workshopBusy => errWorkshopBusy,
+    GameError.noOrder => errNoOrder,
   };
 
   /// 남은 시간 같은 길이(3시간 5분, 2시간, 4분 12초, 6분, 30초).
@@ -144,6 +178,13 @@ String itemEmoji(ItemId i) => switch (i) {
   ItemId.goatMilk => '🍼',
   ItemId.wool => '🧶',
   ItemId.milk => '🥛',
+  ItemId.wheat => '🌾',
+  ItemId.potato => '🥔',
+  ItemId.pumpkin => '🎃',
+  ItemId.flour => '🍚',
+  ItemId.jam => '🫙',
+  ItemId.cheese => '🧀',
+  ItemId.bread => '🍞',
 };
 
 String cropEmoji(CropId c) => itemEmoji(GameDefs.crops[c]!.item);
