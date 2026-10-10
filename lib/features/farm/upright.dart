@@ -59,6 +59,50 @@ class FarmUprightPainter extends CustomPainter {
       final u = unit(p.base);
       items.add((at.dy, () => _prop(c, p, at, u, look, lights)));
     }
+    for (final v in scene.lots) {
+      if (!v.swapsInSky || !frame.contains(local(FarmWorld.lotRect(v.id).center))) continue;
+      final r = FarmWorld.lotRect(v.id);
+      void rows(Rect bed) {
+        // 평면 그림(paintCrops)과 같은 이랑·간격에 세운다. 한 이랑을 한 번에 그려 매 프레임 그리는 양을 줄인다.
+        for (final y in bedRows(bed)) {
+          final spots = [
+            for (var x = bed.left + 30.0; x < bed.right - 20; x += 30)
+              (screen(Offset(x, y - 2)), unit(Offset(x, y - 2))),
+          ];
+          items.add((screen(Offset(bed.center.dx, y)).dy, () => _cropRow(c, spots, v.crop!, v.stage!)));
+        }
+      }
+
+      switch (v.building) {
+        case BuildingId.orchard:
+          for (final (i, p) in orchardSpots(r.deflate(6)).indexed) {
+            final at = screen(p);
+            final u = unit(p);
+            items.add((at.dy, () => _fruitTree(c, at, u, v.stage!, v.id.col * 31 + v.id.row * 7 + i, look)));
+          }
+        case BuildingId.greenhouse:
+          if (v.hasUprightCrop) LotLayout.greenhouseBeds(r).map((g) => g.deflate(4)).forEach(rows);
+          // 칸을 덮는 유리 상자: 뒷벽은 작물보다 먼저, 지붕·앞벽은 작물 위에 그린다.
+          final box = r.deflate(12);
+          (Offset, Offset) up(Offset ground) => (screen(ground), Offset(0, -_glassHeight * unit(ground)));
+          final (bl, blUp) = up(box.topLeft);
+          final (br, brUp) = up(box.topRight);
+          final (fl, flUp) = up(box.bottomLeft);
+          final (fr, frUp) = up(box.bottomRight);
+          items.add((bl.dy, () => _glassWall(c, [bl, br, br + brUp, bl + blUp], look)));
+          items.add((
+            fl.dy,
+            () {
+              _glassWall(c, [bl + blUp, br + brUp, fr + frUp, fl + flUp], look, roof: true);
+              _glassWall(c, [bl, fl, fl + flUp, bl + blUp], look);
+              _glassWall(c, [br, fr, fr + frUp, br + brUp], look);
+              _glassWall(c, [fl, fr, fr + frUp, fl + flUp], look);
+            },
+          ));
+        default:
+          rows(r.deflate(10));
+      }
+    }
     for (final a in animalPlacements(scene, sky, t)) {
       if (!frame.contains(local(a.at))) continue;
       final at = screen(a.at);
@@ -524,6 +568,117 @@ void _scarecrow(Canvas c, _Look look) {
       fill(const Color(0xFFF8FAFC).withValues(alpha: 0.9 * look.snow)),
     );
   }
+}
+
+/// 하늘 보기의 작물 한 이랑. [spots]는 포기마다 (화면 위치, 그 자리의 단위)다.
+/// 잎·줄기·열매를 각각 한 경로로 모아 이랑마다 세 번만 그린다.
+void _cropRow(Canvas c, List<(Offset, double)> spots, CropId crop, int stage) {
+  final leaves = Path();
+  final stalks = Path();
+  final fruits = Path();
+  final leaf = switch (crop) {
+    CropId.lettuce => const Color(0xFF8DBE58),
+    CropId.corn => const Color(0xFF6E9E44),
+    CropId.wheat => stage == 3 ? const Color(0xFFD6B25A) : const Color(0xFF8DAE55),
+    CropId.potato => const Color(0xFF6F9A4C),
+    CropId.pumpkin => const Color(0xFF5E8E3E),
+    CropId.carrot => const Color(0xFF6FA244),
+    _ => Tint.leafDeep,
+  };
+  final fruit = switch (crop) {
+    CropId.tomato => Tint.tomato,
+    CropId.strawberry => Tint.berry,
+    CropId.corn => Tint.corn,
+    CropId.pumpkin || CropId.carrot => Tint.carrot,
+    CropId.potato => const Color(0xFFB9A3D6),
+    _ => null,
+  };
+  // 키(월드 단위): 단계마다 자라고, 옥수수·밀은 높게, 덩굴(호박·감자)은 낮게 깔린다.
+  final grow = switch (stage) {
+    0 => 5.0,
+    1 => 9.0,
+    _ => 13.0,
+  };
+  final tall = switch (crop) {
+    CropId.corn => 2.2,
+    CropId.wheat => 1.6,
+    CropId.pumpkin || CropId.potato => 0.8,
+    _ => 1.0,
+  };
+  var stroke = 1.0;
+  for (final (p, u) in spots) {
+    final h = grow * tall * u;
+    stroke = u;
+    if (stage == 0 || crop == CropId.corn || crop == CropId.wheat || crop == CropId.carrot) {
+      // 싹과 줄기 작물은 줄기 몇 가닥으로.
+      for (final a in [-0.45, -0.15, 0.15, 0.45]) {
+        stalks
+          ..moveTo(p.dx, p.dy)
+          ..lineTo(p.dx + math.sin(a) * h * 0.6, p.dy - h * math.cos(a));
+      }
+    } else {
+      leaves.addOval(Rect.fromCenter(center: p - Offset(0, h * 0.45), width: h * 1.4, height: h));
+    }
+    if (fruit == null || stage < 2) continue;
+    final r = 1.6 * u;
+    switch (crop) {
+      case CropId.corn when stage == 3:
+        fruits.addOval(Rect.fromCenter(center: p - Offset(-r, h * 0.55), width: r * 2, height: r * 4));
+      case CropId.pumpkin:
+        final pr = (stage == 3 ? 3.4 : 2.0) * u;
+        fruits.addOval(Rect.fromCenter(center: p + Offset(h * 0.4, -pr * 0.6), width: pr * 2.4, height: pr * 1.8));
+      case CropId.carrot when stage == 3:
+        fruits.addOval(Rect.fromCenter(center: p, width: r * 2.6, height: r * 1.6));
+      case CropId.tomato || CropId.strawberry when stage == 3:
+        for (final o in const [Offset(-0.35, 0.3), Offset(0.3, 0.45), Offset(0.05, 0.7)]) {
+          fruits.addOval(Rect.fromCircle(center: p - Offset(o.dx * h, o.dy * h), radius: r));
+        }
+      case CropId.potato:
+        fruits.addOval(Rect.fromCircle(center: p - Offset(0, h * 0.9), radius: r * 0.9));
+      default:
+        break;
+    }
+  }
+  c.drawPath(leaves, fill(leaf.withValues(alpha: 0.95)));
+  c.drawPath(leaves, pen(Tint.line.withValues(alpha: 0.2), stroke));
+  c.drawPath(stalks, pen(stage == 0 ? const Color(0xFF7DAA4E) : leaf, 1.6 * stroke));
+  if (fruit != null) c.drawPath(fruits, fill(fruit));
+}
+
+/// 과수원 나무를 세운 모습(평면 paintOrchard와 같은 크기·꽃·열매 단계).
+void _fruitTree(Canvas c, Offset at, double u, int stage, int seed, _Look look) {
+  final r = orchardTreeRadius(stage) * 0.9;
+  c.save();
+  c.translate(at.dx, at.dy);
+  c.scale(u);
+  _tree(c, r, seed, false, look);
+  final dot = stage == 3 ? Tint.apple : (stage == 2 ? Tint.flowerB : null);
+  if (dot != null) {
+    final crown = Offset(0, -r * 1.7);
+    for (var i = 0; i < (stage == 3 ? 8 : 5); i++) {
+      final a = _hash(seed + i * 2.1) * math.pi * 2;
+      final d = 0.25 + _hash(seed * 0.7 + i) * 0.45;
+      c.drawCircle(crown + Offset(math.cos(a), math.sin(a)) * r * d, r * 0.11, fill(dot));
+    }
+  }
+  c.restore();
+}
+
+/// 온실 유리 상자의 높이(월드 단위).
+const _glassHeight = 46.0;
+
+/// 온실 유리 한 면(화면 좌표 네 점). 안쪽의 세운 작물이 비쳐 보이게 옅게 칠하고 살을 긋는다.
+void _glassWall(Canvas c, List<Offset> q, _Look look, {bool roof = false}) {
+  final face = Path()..addPolygon(q, true);
+  c.drawPath(face, fill(roof ? const Color(0x55E6F2F2) : const Color(0x33E6F2F2)));
+  if (roof && look.snow > 0) c.drawPath(face, fill(const Color(0xFFF8FAFC).withValues(alpha: 0.7 * look.snow)));
+  // 유리 살: 아랫변(q0→q1)과 윗변(q3→q2)을 같은 비율로 이어 긋는다.
+  final frame = pen(const Color(0x99FFFFFF), 1);
+  for (var i = 1; i < 6; i++) {
+    final f = i / 6;
+    c.drawLine(Offset.lerp(q[0], q[1], f)!, Offset.lerp(q[3], q[2], f)!, frame);
+  }
+  c.drawPath(face, pen(Tint.line.withValues(alpha: 0.35), 1.2));
 }
 
 /// 계절마다 잎 색이 바뀌는 둥근 나무.

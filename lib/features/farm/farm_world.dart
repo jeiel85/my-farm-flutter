@@ -156,16 +156,27 @@ abstract final class FarmWorld {
 class LotVisual {
   const LotVisual.built(this.id, BuildingId this.building, {this.level = 1, this.crop, this.stage})
     : wild = null,
-      reachable = false;
+      reachable = false,
+      skyBase = false;
+
+  /// 하늘 보기용 바닥: 세워 그리는 것(작물·과수원 나무·온실 유리)을 뺀 칸.
+  const LotVisual._skyBase(this.id, BuildingId this.building, this.level)
+    : crop = null,
+      stage = null,
+      wild = null,
+      reachable = false,
+      skyBase = true;
   const LotVisual.empty(this.id)
-    : building = null,
+    : skyBase = false,
+      building = null,
       level = 0,
       crop = null,
       stage = null,
       wild = null,
       reachable = false;
   const LotVisual.wild(this.id, int this.wild, {required this.reachable})
-    : building = null,
+    : skyBase = false,
+      building = null,
       level = 0,
       crop = null,
       stage = null;
@@ -182,9 +193,25 @@ class LotVisual {
   /// 가진 땅에 붙어 있어 넓힐 수 있는 자리(레벨·코인은 따로).
   final bool reachable;
 
+  /// [bare]로 만든 하늘 보기용 바닥인지.
+  final bool skyBase;
+
   bool get isEmpty => building == null && wild == null;
 
-  String get key => '${id.key}/${building?.name}/$level/${crop?.name}/$stage/$wild';
+  /// 하늘 보기에서 작물·나무를 세워 그리는 칸(심어 둔 밭·온실·과수원). upright.dart가 그린다.
+  bool get hasUprightCrop =>
+      crop != null &&
+      stage != null &&
+      (building == BuildingId.field || building == BuildingId.greenhouse || building == BuildingId.orchard);
+
+  /// 하늘 보기에서 바닥 그림을 [bare]로 바꾸는 칸. 온실은 비어 있어도 유리 상자를 세우므로 늘 바꾼다.
+  bool get swapsInSky => hasUprightCrop || building == BuildingId.greenhouse;
+
+  /// 세워 그리는 것(작물·과수원 나무·온실 유리)을 뺀 같은 칸. 하늘 보기에서는 평면 그림을 이 그림으로 서서히 바꿔,
+  /// 세운 그림과 겹쳐 보이지 않게 한다.
+  LotVisual get bare => LotVisual._skyBase(id, building!, level);
+
+  String get key => '${id.key}/${building?.name}/$level/${crop?.name}/$stage/$wild${skyBase ? '/sky' : ''}';
 
   @override
   bool operator ==(Object other) => other is LotVisual && other.key == key && other.reachable == reachable;
@@ -231,12 +258,10 @@ void paintLotBase(Canvas c, LotVisual v, Rect r) {
       if (v.crop != null && v.stage != null) paintCrops(c, bed, v.crop!, v.stage!, rng);
     case BuildingId.greenhouse:
       wash(c, wobblyRect(r, rng, radius: 22), const Color(0xFFC6D79A), rng, layers: 2, edge: false);
-      final h = (r.height - 50) / 2;
-      for (var i = 0; i < 2; i++) {
-        final g = Rect.fromLTWH(r.left + 16, r.top + 18 + i * (h + 14), r.width - 32, h);
+      for (final g in LotLayout.greenhouseBeds(r)) {
         paintBed(c, g.deflate(4), rng);
         if (v.crop != null && v.stage != null) paintCrops(c, g.deflate(4), v.crop!, v.stage!, rng);
-        paintGlass(c, g, rng);
+        if (!v.skyBase) paintGlass(c, g, rng);
       }
     case BuildingId.orchard:
       wash(c, wobblyRect(r, rng, radius: 22), const Color(0xFFBFD293), rng, layers: 2);
@@ -291,6 +316,13 @@ abstract final class LotLayout {
   static Rect house(Rect r) => Rect.fromLTWH(r.left + 18, r.top + 22, 140, 100);
   static Offset tank(Rect r) => Offset(r.right - 58, r.bottom - 60);
   static const tankRadius = 42.0;
+
+  /// 온실 안 두 줄 화단(유리를 덮는 자리).
+  static List<Rect> greenhouseBeds(Rect r) {
+    final h = (r.height - 50) / 2;
+    return [for (var i = 0; i < 2; i++) Rect.fromLTWH(r.left + 16, r.top + 18 + i * (h + 14), r.width - 32, h)];
+  }
+
   static Rect warehouse(Rect r) => Rect.fromLTWH(r.left + 14, r.top + 40, 150, 104);
   static List<Offset> silos(Rect r) => [Offset(r.right - 44, r.top + 64), Offset(r.right - 44, r.top + 132)];
   static Rect shed(Rect r, BuildingId b) => b == BuildingId.coop
@@ -836,11 +868,18 @@ class FarmMapPainter extends CustomPainter {
     canvas.translate(-view.center.dx, -view.center.dy);
 
     _blit(canvas, FarmWorld.ground, FarmWorld.bakeArea);
+    final flat = 1 - upright;
     for (final v in scene.lots) {
-      _blit(canvas, FarmWorld.lotImage(v), FarmWorld.lotRect(v.id).inflate(14));
+      final dst = FarmWorld.lotRect(v.id).inflate(14);
+      if (upright > 0 && v.swapsInSky) {
+        // 세운 작물(upright.dart)과 겹치지 않게, 눕힐수록 작물 없는 바닥으로 바꾼다.
+        _blit(canvas, FarmWorld.lotImage(v.bare), dst);
+        if (flat > 0) _blit(canvas, FarmWorld.lotImage(v), dst, opacity: flat);
+      } else {
+        _blit(canvas, FarmWorld.lotImage(v), dst);
+      }
     }
     _drawVeils(canvas);
-    final flat = 1 - upright;
     if (flat > 0) _blit(canvas, FarmWorld.propsFlat(scene.props, scene.propsKey), FarmWorld.bakeArea, opacity: flat);
 
     _drawWater(canvas, t);
