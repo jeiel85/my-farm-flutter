@@ -60,7 +60,7 @@ class FarmUprightPainter extends CustomPainter {
       items.add((at.dy, () => _prop(c, p, at, u, look, lights)));
     }
     for (final v in scene.lots) {
-      if (!v.hasUprightCrop || !frame.contains(local(FarmWorld.lotRect(v.id).center))) continue;
+      if (!v.swapsInSky || !frame.contains(local(FarmWorld.lotRect(v.id).center))) continue;
       final r = FarmWorld.lotRect(v.id);
       void rows(Rect bed) {
         // 평면 그림(paintCrops)과 같은 이랑·간격에 세운다. 한 이랑을 한 번에 그려 매 프레임 그리는 양을 줄인다.
@@ -81,7 +81,7 @@ class FarmUprightPainter extends CustomPainter {
             items.add((at.dy, () => _fruitTree(c, at, u, v.stage!, v.id.col * 31 + v.id.row * 7 + i, look)));
           }
         case BuildingId.greenhouse:
-          LotLayout.greenhouseBeds(r).map((g) => g.deflate(4)).forEach(rows);
+          if (v.hasUprightCrop) LotLayout.greenhouseBeds(r).map((g) => g.deflate(4)).forEach(rows);
           // 칸을 덮는 유리 상자: 뒷벽은 작물보다 먼저, 지붕·앞벽은 작물 위에 그린다.
           final box = r.deflate(12);
           (Offset, Offset) up(Offset ground) => (screen(ground), Offset(0, -_glassHeight * unit(ground)));

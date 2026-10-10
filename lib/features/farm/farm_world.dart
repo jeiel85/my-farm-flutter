@@ -156,16 +156,27 @@ abstract final class FarmWorld {
 class LotVisual {
   const LotVisual.built(this.id, BuildingId this.building, {this.level = 1, this.crop, this.stage})
     : wild = null,
-      reachable = false;
+      reachable = false,
+      skyBase = false;
+
+  /// 하늘 보기용 바닥: 세워 그리는 것(작물·과수원 나무·온실 유리)을 뺀 칸.
+  const LotVisual._skyBase(this.id, BuildingId this.building, this.level)
+    : crop = null,
+      stage = null,
+      wild = null,
+      reachable = false,
+      skyBase = true;
   const LotVisual.empty(this.id)
-    : building = null,
+    : skyBase = false,
+      building = null,
       level = 0,
       crop = null,
       stage = null,
       wild = null,
       reachable = false;
   const LotVisual.wild(this.id, int this.wild, {required this.reachable})
-    : building = null,
+    : skyBase = false,
+      building = null,
       level = 0,
       crop = null,
       stage = null;
@@ -182,6 +193,9 @@ class LotVisual {
   /// 가진 땅에 붙어 있어 넓힐 수 있는 자리(레벨·코인은 따로).
   final bool reachable;
 
+  /// [bare]로 만든 하늘 보기용 바닥인지.
+  final bool skyBase;
+
   bool get isEmpty => building == null && wild == null;
 
   /// 하늘 보기에서 작물·나무를 세워 그리는 칸(심어 둔 밭·온실·과수원). upright.dart가 그린다.
@@ -190,10 +204,14 @@ class LotVisual {
       stage != null &&
       (building == BuildingId.field || building == BuildingId.greenhouse || building == BuildingId.orchard);
 
-  /// 작물을 뺀 같은 칸. 하늘 보기에서는 평면 작물을 이 그림으로 서서히 바꿔, 세운 작물과 겹쳐 보이지 않게 한다.
-  LotVisual get bare => LotVisual.built(id, building!, level: level);
+  /// 하늘 보기에서 바닥 그림을 [bare]로 바꾸는 칸. 온실은 비어 있어도 유리 상자를 세우므로 늘 바꾼다.
+  bool get swapsInSky => hasUprightCrop || building == BuildingId.greenhouse;
 
-  String get key => '${id.key}/${building?.name}/$level/${crop?.name}/$stage/$wild';
+  /// 세워 그리는 것(작물·과수원 나무·온실 유리)을 뺀 같은 칸. 하늘 보기에서는 평면 그림을 이 그림으로 서서히 바꿔,
+  /// 세운 그림과 겹쳐 보이지 않게 한다.
+  LotVisual get bare => LotVisual._skyBase(id, building!, level);
+
+  String get key => '${id.key}/${building?.name}/$level/${crop?.name}/$stage/$wild${skyBase ? '/sky' : ''}';
 
   @override
   bool operator ==(Object other) => other is LotVisual && other.key == key && other.reachable == reachable;
@@ -243,7 +261,7 @@ void paintLotBase(Canvas c, LotVisual v, Rect r) {
       for (final g in LotLayout.greenhouseBeds(r)) {
         paintBed(c, g.deflate(4), rng);
         if (v.crop != null && v.stage != null) paintCrops(c, g.deflate(4), v.crop!, v.stage!, rng);
-        paintGlass(c, g, rng);
+        if (!v.skyBase) paintGlass(c, g, rng);
       }
     case BuildingId.orchard:
       wash(c, wobblyRect(r, rng, radius: 22), const Color(0xFFBFD293), rng, layers: 2);
@@ -853,7 +871,7 @@ class FarmMapPainter extends CustomPainter {
     final flat = 1 - upright;
     for (final v in scene.lots) {
       final dst = FarmWorld.lotRect(v.id).inflate(14);
-      if (upright > 0 && v.hasUprightCrop) {
+      if (upright > 0 && v.swapsInSky) {
         // 세운 작물(upright.dart)과 겹치지 않게, 눕힐수록 작물 없는 바닥으로 바꾼다.
         _blit(canvas, FarmWorld.lotImage(v.bare), dst);
         if (flat > 0) _blit(canvas, FarmWorld.lotImage(v), dst, opacity: flat);

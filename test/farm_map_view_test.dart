@@ -102,4 +102,14 @@ void main() {
     expect(const LotVisual.built(LotId(3, 1), BuildingId.orchard, crop: CropId.apple, stage: 0).hasUprightCrop, isTrue);
     expect(const LotVisual.built(LotId(2, 1), BuildingId.coop).hasUprightCrop, isFalse);
   });
+
+  // 온실은 비어 있어도 유리 상자를 세우므로, 하늘 보기 바닥에서는 평면 유리까지 뺀다(#31 리뷰).
+  test('빈 온실도 하늘 보기에서 바닥을 바꾸고, 그 바닥은 평면 유리가 있는 빈 온실 그림과 다르다', () {
+    const empty = LotVisual.built(LotId(0, 1), BuildingId.greenhouse);
+    expect(empty.hasUprightCrop, isFalse);
+    expect(empty.swapsInSky, isTrue);
+    expect(empty.bare.skyBase, isTrue);
+    expect(empty.bare.key, isNot(empty.key));
+    expect(const LotVisual.built(LotId(1, 1), BuildingId.field).swapsInSky, isFalse);
+  });
 }
