@@ -7,7 +7,8 @@
 // Input: 없음(봇 정책과 접속 일정은 아래 상수).
 // Output: 표준 출력에 레벨업 표, 하루 끝 요약, 접속마다 "할 게 없던" 확인 비율.
 // 핵심 로직: 매 확인 때 GameEngine 행동을 정해진 순서로 되는 만큼 반복한다.
-//   거두기 → 주문 → 공방 → 팔기(주문·공방 재료는 남김) → 사료 → 심기 → 새끼 → 짓기 → 넓히기 → 올리기.
+//   거두기 → 주문 → 공방 → 팔기·사료로 바꾸기(주문·공방 재료는 남김) → 사료 → 심기 → 새끼 → 짓기 → 넓히기 → 올리기.
+//   해금된 건물 종류가 아직 없으면 그 값을 모은다(밭으로 땅을 채우거나 올리기에 쓰지 않음).
 // 왜 이렇게 짰나: 사람 플레이를 흉내 내려는 게 아니라, 같은 정책으로 수치만 바꿔 돌려 비교하려는 것이다.
 //   그래서 정책은 단순하게 두고(출하·꾸미기·주문 넘기기는 하지 않음), 결과는 "이 봇 기준"으로만 읽는다.
 import 'package:my_farm/game/defs.dart';
@@ -65,14 +66,22 @@ CropDef? bestCrop(GameState s, LotId lot, int horizon) {
   return best;
 }
 
-/// 빈 땅에 지을 것: 아직 없는 종류(해금 순)를 먼저, 그다음 밭.
-BuildingId? nextBuilding(GameState s) {
+/// 해금됐지만 아직 하나도 없는 건물 종류 중 가장 먼저 열린 것(꾸미기 제외).
+BuildingDef? wanted(GameState s) {
   final have = s.lots.values.map((l) => l.building).toSet();
-  final candidates = GameDefs.buildings.values.where((d) => !d.core && !d.decor && d.unlockLevel <= s.level).toList()
-    ..sort((a, b) => a.unlockLevel.compareTo(b.unlockLevel));
-  for (final d in candidates) {
-    if (!have.contains(d.id) && d.cost <= s.coins) return d.id;
-  }
+  final candidates =
+      GameDefs.buildings.values
+          .where((d) => !d.core && !d.decor && d.unlockLevel <= s.level && !have.contains(d.id))
+          .toList()
+        ..sort((a, b) => a.unlockLevel.compareTo(b.unlockLevel));
+  return candidates.firstOrNull;
+}
+
+/// 빈 땅에 지을 것: 아직 없는 종류를 먼저 짓고, 그 값이 모자라면 밭으로 땅을 채우지 않고 모은다.
+/// 없는 종류가 없을 때만 밭을 짓는다.
+BuildingId? nextBuilding(GameState s) {
+  final want = wanted(s);
+  if (want != null) return want.cost <= s.coins ? want.id : null;
   return GameDefs.buildings[BuildingId.field]!.cost <= s.coins ? BuildingId.field : null;
 }
 
@@ -101,7 +110,8 @@ BuildingId? nextBuilding(GameState s) {
   final k = keep(s);
   for (final e in [...s.barn.entries]) {
     if (e.key == ItemId.corn && s.feed < s.feedCapacity * 0.6) {
-      step(attempt(() => GameEngine.cornToFeed(s, e.value)));
+      final spare = e.value - (k[e.key] ?? 0);
+      if (spare > 0) step(attempt(() => GameEngine.cornToFeed(s, spare)));
       continue;
     }
     final extra = e.value - (k[e.key] ?? 0);
@@ -128,6 +138,8 @@ BuildingId? nextBuilding(GameState s) {
     if (target != null) step(attempt(() => GameEngine.clearLand(s, target)));
   }
   // 올리기는 남는 돈으로만: 가장 싼 것부터, 올린 뒤에도 50코인은 남게.
+  // 아직 없는 건물 종류를 모으는 중이면 올리지 않는다(모은 돈을 올리기에 쓰지 않게).
+  if (wanted(s) != null) return (s, acted);
   final ups = [
     for (final lot in s.builtLots)
       if (s.lots[lot]!.def.upgradeCosts.isNotEmpty && s.lots[lot]!.level < s.lots[lot]!.def.maxLevel) lot,
