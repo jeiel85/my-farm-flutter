@@ -85,4 +85,21 @@ void main() {
     expect(events, ['sky']);
     await tester.pumpWidget(const SizedBox());
   });
+
+  // 하늘 보기에서 작물을 세워 그리면, 바닥 그림의 평면 작물은 작물 없는 같은 칸으로 바꿔 두 번 그려지지 않게 한다.
+  test('심어 둔 밭·온실·과수원만 작물을 세워 그리고, 바꿀 바닥 그림에는 작물이 없다', () {
+    const field = LotVisual.built(LotId(1, 1), BuildingId.field, level: 2, crop: CropId.corn, stage: 2);
+    expect(field.hasUprightCrop, isTrue);
+    expect(field.bare.crop, isNull);
+    expect(field.bare.stage, isNull);
+    expect(field.bare.level, 2);
+    expect(field.bare.key, isNot(field.key));
+    expect(const LotVisual.built(LotId(1, 1), BuildingId.field).hasUprightCrop, isFalse);
+    expect(
+      const LotVisual.built(LotId(0, 1), BuildingId.greenhouse, crop: CropId.strawberry, stage: 3).hasUprightCrop,
+      isTrue,
+    );
+    expect(const LotVisual.built(LotId(3, 1), BuildingId.orchard, crop: CropId.apple, stage: 0).hasUprightCrop, isTrue);
+    expect(const LotVisual.built(LotId(2, 1), BuildingId.coop).hasUprightCrop, isFalse);
+  });
 }

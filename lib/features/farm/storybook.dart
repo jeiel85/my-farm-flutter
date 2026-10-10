@@ -432,34 +432,40 @@ void paintGlass(Canvas c, Rect r, math.Random rng) {
   inkOutline(c, shape, width: 1.8, alpha: 0.6);
 }
 
-/// 과수원 나무: 단계에 따라 크기·꽃·열매가 바뀐다. 비어 있으면 말뚝만.
-void paintOrchard(Canvas c, Rect r, int? stage, math.Random rng) {
-  // 칸 크기에 맞춰 엇갈린 줄로 심는다(한 그루 약 80×75).
+/// 과수원 나무 자리: 칸 크기에 맞춰 엇갈린 줄로 심는다(한 그루 약 80×75).
+/// 평면 그림과 하늘 보기의 세운 나무(upright.dart)가 같은 자리에 서도록 함께 쓴다.
+List<Offset> orchardSpots(Rect r) {
   final cols = math.max(2, (r.width / 80).floor());
   final rows = math.max(2, (r.height / 75).floor());
   final dx = r.width / cols;
   final dy = r.height / rows;
-  final spots = <Offset>[
+  return [
     for (var row = 0; row < rows; row++)
       for (var col = 0; col < cols; col++)
         if (!(row.isOdd && col == cols - 1))
           Offset(r.left + dx * (col + 0.5) + (row.isOdd ? dx / 2 : 0), r.top + dy * (row + 0.5)),
   ];
-  for (final p in spots) {
+}
+
+/// 과수원 나무의 단계별 반지름(0 묘목 · 1 어린 나무 · 2 이상 다 큰 나무).
+double orchardTreeRadius(int stage) => switch (stage) {
+  0 => 11.0,
+  1 => 18.0,
+  _ => 25.0,
+};
+
+/// 과수원 나무: 단계에 따라 크기·꽃·열매가 바뀐다. 비어 있으면 말뚝만.
+void paintOrchard(Canvas c, Rect r, int? stage, math.Random rng) {
+  for (final p in orchardSpots(r)) {
     if (stage == null) {
       c.drawLine(p + const Offset(0, 6), p - const Offset(0, 10), pen(Tint.wood, 3));
       c.drawCircle(p + const Offset(0, 6), 6, fill(const Color(0x55806040)));
       continue;
     }
-    final radius = switch (stage) {
-      0 => 11.0,
-      1 => 18.0,
-      _ => 25.0,
-    };
     paintTree(
       c,
       p,
-      radius,
+      orchardTreeRadius(stage),
       rng,
       leaf: const Color(0xFF7FA857),
       fruit: stage == 3 ? Tint.apple : (stage == 2 ? Tint.flowerB : null),
