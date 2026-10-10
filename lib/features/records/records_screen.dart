@@ -34,15 +34,12 @@ class RecordsScreen extends StatelessWidget {
     final store = GameScope.of(context);
     final s = store.state;
     final now = store.now;
-    final today = DateTime(now.year, now.month, now.day);
-    final (income, expense) = totalsBetween(s.log, today, today.add(const Duration(days: 1)));
-    final days = [
-      for (var i = 6; i >= 0; i--)
-        () {
-          final d = today.subtract(Duration(days: i));
-          return (d, totalsBetween(s.log, d, d.add(const Duration(days: 1))));
-        }(),
-    ];
+    // 하루는 달력 날짜의 자정부터 다음 자정까지다. Duration(days: 1)은 늘 24시간이라 서머타임이 바뀌는 날에는
+    // 한 시간이 어긋나고, 엔진이 같은 날 자동 기록을 묶어 그 마지막 시각으로 옮기므로 하루치가 통째로 빠질 수 있다(#33 리뷰).
+    DateTime day(int offset) => DateTime(now.year, now.month, now.day + offset);
+    final today = day(0);
+    final (income, expense) = totalsBetween(s.log, today, day(1));
+    final days = [for (var i = 6; i >= 0; i--) (day(-i), totalsBetween(s.log, day(-i), day(-i + 1)))];
     final maxY = days.fold(10, (m, d) => [m, d.$2.$1, d.$2.$2].reduce((a, b) => a > b ? a : b)).toDouble();
     final recent = s.log.reversed.take(30).toList();
     return SafeArea(
