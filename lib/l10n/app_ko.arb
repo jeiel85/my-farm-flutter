@@ -1106,7 +1106,7 @@
     }
   },
   "demolishBody": "빈 땅으로 돌아가고 짓기 비용의 절반을 돌려받아요.",
-  "demolishHint": "작물이나 동물이 있으면 철거할 수 없어요.",
+  "demolishHint": "작물이나 동물이 있거나 공방에 만드는 것이 남아 있으면 철거할 수 없어요.",
   "demolished": "철거했어요",
   "errNotOwned": "아직 가진 땅이 아니에요",
   "errLotOccupied": "이미 지은 곳이에요",

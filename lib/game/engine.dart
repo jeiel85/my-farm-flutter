@@ -186,6 +186,22 @@ abstract final class GameEngine {
     final orders = [...s.orders];
     var orderSeq = s.orderSeq;
 
+    /// 자동 판매·자동 다시 심기 기록을 남긴다. Lv3 건물은 몇 분마다 기록을 만들어 [GameState.maxLog]를 금방 채우고,
+    /// 그러면 기록 화면의 오늘·7일 합계가 실제보다 작아진다(#32 리뷰). 그래서 같은 날 같은 종류·대상의 기록이 있으면
+    /// 그 금액에 더해 맨 뒤로 옮긴다. 날마다 합계는 그대로이고, 나눠 진행해도 한 번에 진행한 것과 같다.
+    void addAuto(GameLogEntry e) {
+      for (var i = log.length - 1; i >= 0; i--) {
+        final o = log[i];
+        if (!_sameDay(o.at, e.at)) break;
+        if (o.kind != e.kind || o.subject != e.subject) continue;
+        log
+          ..removeAt(i)
+          ..add(GameLogEntry(at: e.at, kind: e.kind, amount: o.amount + e.amount, subject: e.subject));
+        return;
+      }
+      log.add(e);
+    }
+
     /// 자동으로 거둔 [count]개를 창고에 넣는다. 다 들어가지 않으면 창고 Lv3은 남는 몫을 팔고, 아니면 들어가는
     /// 만큼만 넣는다. 넣거나 판 개수를 돌려준다.
     int store(ItemId item, int count, DateTime at, {required bool partial}) {
@@ -206,7 +222,7 @@ abstract final class GameEngine {
       final amount = GameDefs.itemPrice[item]! * sold;
       coins += amount;
       report.autoSoldCoins += amount;
-      log.add(GameLogEntry(at: at, kind: LogKind.sale, amount: amount, subject: item.name));
+      addAuto(GameLogEntry(at: at, kind: LogKind.sale, amount: amount, subject: item.name));
       return count;
     }
 
@@ -259,7 +275,7 @@ abstract final class GameEngine {
         } else if (coins >= def.seedCost && water >= def.waterL) {
           coins -= def.seedCost;
           water -= def.waterL;
-          log.add(GameLogEntry(at: minute, kind: LogKind.seed, amount: -def.seedCost, subject: f.crop!.name));
+          addAuto(GameLogEntry(at: minute, kind: LogKind.seed, amount: -def.seedCost, subject: f.crop!.name));
           next = FieldState(crop: f.crop, minutesLeft: def.growMinutes, totalMinutes: def.growMinutes);
         } else {
           next = FieldState.emptyField; // 씨앗값·물이 모자라면 그 칸만 멈춘다
@@ -731,6 +747,13 @@ abstract final class GameEngine {
       next[item] = n;
     }
     return next;
+  }
+
+  /// 기록 화면은 기기 시간대의 날짜로 묶으므로(records_screen.dart) 같은 기준으로 비교한다.
+  static bool _sameDay(DateTime a, DateTime b) {
+    final x = a.toLocal();
+    final y = b.toLocal();
+    return x.year == y.year && x.month == y.month && x.day == y.day;
   }
 
   static GameState _log(GameState s, LogKind kind, int amount, String subject) {

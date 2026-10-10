@@ -235,6 +235,27 @@ void main() {
       expect(c.scheduledCount, 0);
     });
 
+    // 언어를 바꾸면 예약해 둔 알림 문구도 바로 새 언어로 다시 만든다(#32 리뷰).
+    test('언어를 바꾸면 행동이 없어도 알림을 새 언어로 다시 예약한다', () async {
+      final c = ReminderController(
+        store: store,
+        platform: platform,
+        storage: storage,
+        localizations: () => lookupAppLocalizations(Locale(store.localeOverride ?? 'ko')),
+        debounce: Duration.zero,
+      );
+      addTearDown(c.dispose);
+      await c.init();
+      await c.setEnabled(true);
+      String harvestTitle() => platform.scheduled.firstWhere((n) => n.kind == ReminderKind.harvest).title;
+      expect(harvestTitle(), '작물이 다 자랐어요');
+
+      await store.setLocaleOverride('en');
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(harvestTitle(), lookupAppLocalizations(const Locale('en')).notifHarvestTitle);
+    });
+
     test('휴대폰 설정에서 알림이 꺼졌거나 예약에 실패하면 알려 준다', () async {
       final c = await controller();
       await c.setEnabled(true);
