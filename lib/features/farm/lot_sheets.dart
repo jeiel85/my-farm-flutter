@@ -402,7 +402,8 @@ class _DemolishSection extends StatelessWidget {
     final l = context.l10n;
     final s = GameScope.of(context).state;
     final b = s.lots[lot]!;
-    final busy = (b.field != null && !b.field!.empty) || s.animals.any((a) => a.home == lot);
+    // GameEngine.demolish와 같은 조건: 작물·동물이 있거나 공방에 만드는 것(다 된 것 포함)이 있으면 헐 수 없다.
+    final busy = (b.field != null && !b.field!.empty) || b.job != null || s.animals.any((a) => a.home == lot);
     return Padding(
       padding: const EdgeInsets.only(top: 18),
       child: Column(
