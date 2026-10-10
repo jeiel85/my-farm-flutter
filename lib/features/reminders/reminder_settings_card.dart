@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
-import '../../data/reminder_plan.dart';
+import '../../game/reminder_plan.dart';
 import '../../l10n/l10n.dart';
 import 'reminders.dart';
 
-/// 프로필의 알림 설정(Android·Windows).
+/// 설정 화면의 알림 설정(Android·Windows).
 class ReminderSettingsCard extends StatelessWidget {
   const ReminderSettingsCard({super.key, required this.reminders});
 
@@ -59,6 +59,7 @@ class ReminderSettingsCard extends StatelessWidget {
               Text(l.remindersAndroidDelay, style: AppText.tiny),
             ],
             const SizedBox(height: 8),
+            Text(l.remindersQuietHours, style: AppText.tiny),
             for (final kind in ReminderKind.values)
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
@@ -67,11 +68,10 @@ class ReminderSettingsCard extends StatelessWidget {
                 value: s.allows(kind),
                 onChanged: (on) => reminders.setKind(kind, on ?? false),
                 title: Text(switch (kind) {
-                  ReminderKind.watering => l.remindersWatering,
-                  ReminderKind.feeding => l.remindersFeeding,
-                  ReminderKind.care => l.remindersCare,
+                  ReminderKind.harvest => l.remindersHarvest,
+                  ReminderKind.animals => l.remindersAnimals,
+                  ReminderKind.feed => l.remindersFeed,
                 }, style: AppText.body),
-                subtitle: kind == ReminderKind.watering ? Text(l.remindersQuietHours, style: AppText.tiny) : null,
               ),
           ],
           if (status != null) ...[

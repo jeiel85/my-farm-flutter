@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../data/models.dart';
+import '../game/defs.dart';
 
 /// 가축 아이콘(옆모습). 이미지 에셋 없이 코드로 그린다.
 class AnimalAvatar extends StatelessWidget {
   const AnimalAvatar({super.key, required this.kind, this.size = 48, this.variant = 0});
 
-  final AnimalKind kind;
+  final Species kind;
   final double size;
 
   /// 같은 종이라도 개체마다 무늬를 조금씩 다르게 한다.
@@ -16,27 +16,35 @@ class AnimalAvatar extends StatelessWidget {
   Widget build(BuildContext context) => CustomPaint(size: Size.square(size), painter: _AnimalPainter(kind, variant));
 }
 
+/// 옆모습 동물을 100×100 상자 안에 그린다(지도에 세워 그릴 때).
+void paintAnimalSide(Canvas canvas, Species kind, {int variant = 0}) => _AnimalPainter(kind, variant).paintBox(canvas);
+
 class _AnimalPainter extends CustomPainter {
   _AnimalPainter(this.kind, this.variant);
 
-  final AnimalKind kind;
+  final Species kind;
   final int variant;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / 100, size.height / 100);
+    paintBox(canvas);
+    canvas.restore();
+  }
+
+  /// 100×100 상자 안에 그린다(오른쪽을 보고, 발은 y 84 근처).
+  void paintBox(Canvas canvas) {
     switch (kind) {
-      case AnimalKind.cow:
+      case Species.cow:
         _cow(canvas);
-      case AnimalKind.chicken:
+      case Species.chicken:
         _chicken(canvas);
-      case AnimalKind.sheep:
+      case Species.sheep:
         _sheep(canvas);
-      case AnimalKind.goat:
+      case Species.goat:
         _goat(canvas);
     }
-    canvas.restore();
   }
 
   Paint _p(Color c) => Paint()..color = c;

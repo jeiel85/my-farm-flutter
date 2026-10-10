@@ -346,15 +346,21 @@ class PrimaryButton extends StatelessWidget {
           color: filled ? AppColors.primary : AppColors.primarySoft,
           borderRadius: BorderRadius.circular(24),
         ),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: filled ? Colors.white : AppColors.primary,
+            // 두 버튼을 나란히 둔 좁은 칸이나 큰 글자 설정에서도 넘치지 않게 줄인다.
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: filled ? Colors.white : AppColors.primary,
+                ),
               ),
             ),
             if (icon != null) ...[

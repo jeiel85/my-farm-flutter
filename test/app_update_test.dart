@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:my_farm/data/app_update.dart';
-import 'package:my_farm/data/farm_store.dart';
+import 'package:my_farm/data/storage.dart';
 
 class MetaStorage implements FarmStorage {
   final meta = <String, String>{};
