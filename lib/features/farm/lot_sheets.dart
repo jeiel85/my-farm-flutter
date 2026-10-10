@@ -118,7 +118,8 @@ class LotDetail extends StatelessWidget {
                   children: [
                     Text(l.buildingDesc(b.building), style: AppText.body),
                     const SizedBox(height: 6),
-                    Text(l.decorHint, style: AppText.caption),
+                    // 연못은 붙은 칸이 아니라 농장 전체 연못 수로 우물을 채운다(GameState.waterRefillPerMinute).
+                    Text(b.building == BuildingId.pond ? l.decorPondHint : l.decorHint, style: AppText.caption),
                   ],
                 ),
               ),

@@ -9,6 +9,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:my_farm/data/app_update.dart';
 import 'package:my_farm/features/farm/farm_map_view.dart';
 import 'package:my_farm/game/defs.dart';
+import 'package:my_farm/game/engine.dart';
 import 'package:my_farm/game/game_store.dart';
 import 'package:my_farm/game/lots.dart';
 import 'package:my_farm/main.dart';
@@ -158,6 +159,28 @@ void main() {
     await tapAndSettle(tester, find.text('🪙200에 Lv2로'));
     expect(store.state.lots[GameDefs.storehouseLot]!.level, 2);
     expect(tester.takeException(), isNull);
+    semantics.dispose();
+    await _unmount(tester);
+  });
+
+  // 연못은 붙은 칸이 아니라 농장 전체에 효과가 있어 다른 꾸미기와 안내가 다르다.
+  testWidgets('연못 상세는 농장 어디에 두어도 효과가 있다고 안내한다', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final store = await pumpApp(tester);
+    await store.act(
+      (s) => GameEngine.build(s.copyWith(coins: 500, xp: GameDefs.xpForLevel(2)), const LotId(1, 2), BuildingId.pond),
+    );
+    await tester.pump();
+    tester.semantics.tap(
+      find.semantics.descendant(
+        of: find.semantics.byLabel('농장 지도'),
+        matching: find.semantics.byLabel(RegExp('^작은 연못')),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('농장 어디에 두어도 효과가 있어요. 꾸미기는 올릴 수 없어요.'), findsOneWidget);
+    expect(find.text('상하좌우로 붙은 칸에 효과가 있어요. 꾸미기는 올릴 수 없어요.'), findsNothing);
     semantics.dispose();
     await _unmount(tester);
   });
