@@ -185,6 +185,29 @@ void main() {
     await _unmount(tester);
   });
 
+  // 엔진은 만드는 중인 공방을 헐지 않으므로, 버튼도 미리 꺼 두어 확인까지 누른 뒤에 실패하지 않게 한다(#32 리뷰).
+  testWidgets('공방이 만드는 중이면 철거 버튼이 꺼지고 이유를 알려 준다', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final store = await pumpApp(tester);
+    await store.act((s) {
+      var t = s.copyWith(coins: 1000, xp: GameDefs.xpForLevel(4), barn: {ItemId.wheat: 3});
+      t = GameEngine.build(t, const LotId(1, 2), BuildingId.mill);
+      return GameEngine.startCraft(t, const LotId(1, 2));
+    });
+    await tester.pump();
+    tester.semantics.tap(
+      find.semantics.descendant(of: find.semantics.byLabel('농장 지도'), matching: find.semantics.byLabel(RegExp('^방앗간'))),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    final button = find.widgetWithText(TextButton, '철거 · 🪙150 돌려받기');
+    await tester.ensureVisible(button);
+    expect(tester.widget<TextButton>(button).onPressed, isNull);
+    expect(find.text('작물이나 동물이 있거나 공방에 만드는 것이 남아 있으면 철거할 수 없어요.'), findsOneWidget);
+    semantics.dispose();
+    await _unmount(tester);
+  });
+
   testWidgets('오래 비웠다 돌아오면 그동안 일어난 일을 알려 준다', (tester) async {
     await pumpApp(tester);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);

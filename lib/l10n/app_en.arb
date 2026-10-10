@@ -325,7 +325,7 @@
   "demolish": "Demolish · get 🪙{refund} back",
   "demolishTitle": "Demolish this {name}?",
   "demolishBody": "It becomes an empty plot and you get half the cost back.",
-  "demolishHint": "Remove crops or animals before demolishing.",
+  "demolishHint": "Clear crops, animals or workshop goods before demolishing.",
   "demolished": "Demolished",
   "errNotOwned": "You don't own this plot yet",
   "errLotOccupied": "Something is already built here",

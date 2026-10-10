@@ -82,7 +82,7 @@ class GameStore extends ChangeNotifier {
   /// 마지막 저장 실패 원인. 성공하면 null로 돌아간다.
   Object? saveError;
 
-  /// 앞으로 일어날 일의 시각이 달라질 수 있는 변경(행동·복원·새로 시작·오프라인 진행) 횟수.
+  /// 앞으로 일어날 일의 시각이나 알림 문구가 달라질 수 있는 변경(행동·복원·새로 시작·오프라인 진행·언어) 횟수.
   /// 매초 [tick]은 예정 시각을 바꾸지 않으므로 세지 않는다. 알림 예약이 이 값이 바뀔 때만 다시 계산한다.
   int revision = 0;
 
@@ -93,6 +93,8 @@ class GameStore extends ChangeNotifier {
 
   Future<void> setLocaleOverride(String? code) async {
     locale.value = code;
+    // 예약해 둔 알림 문구도 새 언어로 다시 만들어야 하므로 알림 예약(revision을 보는 쪽)에 알린다(#32 리뷰).
+    revision++;
     notifyListeners();
     await _storage.writeMeta('locale', code ?? '');
   }

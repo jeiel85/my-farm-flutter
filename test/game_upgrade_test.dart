@@ -87,7 +87,24 @@ void main() {
     expect(after.coins, coins - 5 * 4); // 다시 심을 때마다 씨앗값
     expect(after.lots[field]!.field!.crop, CropId.lettuce);
     expect(r.cropsReady, isEmpty); // 저절로 거둔 것은 '다 자람'으로 알리지 않는다
-    expect(after.log.where((e) => e.kind == LogKind.seed), hasLength(1 + 5));
+    // 같은 날 같은 작물의 씨앗 기록은 하나로 묶이고 금액은 모두 더해진다(손으로 심은 1번 + 저절로 5번).
+    expect(after.log.where((e) => e.kind == LogKind.seed).single.amount, -(1 + 5) * 4);
+  });
+
+  // 자동 기록이 몇 분마다 쌓이면 보관 한도(400건)가 몇 시간 만에 차서 기록 화면의 오늘·7일 합계가 줄어들었다(#32 리뷰).
+  test('Lv3 밭과 자동 출하를 사흘 돌려도 자동 기록은 하루에 종류별 하나라 한도에 닿지 않고, 날마다 합계가 맞다', () {
+    var s = up(up(emptyField(rich(fresh())), field, 2), GameDefs.storehouseLot, 2);
+    s = GameEngine.plant(s, field, CropId.lettuce).copyWith(barn: {ItemId.egg: 250}, log: const []);
+    final coins = s.coins;
+    // 농가 Lv1은 자리 비운 시간을 4시간까지만 계산하므로, 한 시간씩 나눠 사흘을 진행한다.
+    var t = s;
+    for (var h = 0; h < 72; h++) {
+      t = GameEngine.advance(t, t.simTime.add(const Duration(hours: 1))).$1;
+    }
+    // 10월 6일 9시부터 72시간은 6·7·8·9일 나흘에 걸친다: 나흘 × (상추 씨앗, 상추 판매).
+    expect(t.log.length, lessThanOrEqualTo(4 * 2));
+    expect(t.log.length, lessThan(GameState.maxLog));
+    expect(t.log.fold(0, (sum, e) => sum + e.amount), t.coins - coins);
   });
 
   test('씨앗값이 모자라면 거둔 뒤 그 밭만 비워 두고 멈춘다', () {
