@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -317,6 +318,16 @@ void main() {
     expect(need, findsOneWidget);
     expect(tester.getTopLeft(need).dx, greaterThan(tester.getTopRight(find.bySemanticsLabel('농장 지도')).dx));
     await tapAndSettle(tester, find.byTooltip('닫기'));
+    expect(find.text('무엇을 지을까요?'), findsNothing);
+
+    // Esc로도 상세를 닫고 전체 지도로 돌아간다.
+    tester.semantics.tap(find.semantics.byLabel('빈 땅, 지을 수 있어요').first);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('무엇을 지을까요?'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('무엇을 지을까요?'), findsNothing);
     semantics.dispose();
     await _unmount(tester);

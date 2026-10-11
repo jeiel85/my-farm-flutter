@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app_shell.dart';
 import '../../core/layout.dart';
@@ -47,9 +48,31 @@ class _FarmScreenState extends State<FarmScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onKey);
     _previewTimer?.cancel();
     super.dispose();
+  }
+
+  /// 한 단계 돌아간다: 다가간 구역에서 전체 지도로, 하늘 보기에서 평면으로. 돌아갈 곳이 없으면 false.
+  bool _back() {
+    if (_zone == null && !_sky) return false;
+    setState(() => _zone != null ? _zone = null : _sky = false);
+    return true;
+  }
+
+  /// Esc로 [_back]. 지도에 포커스가 없어도(지도를 누르거나 패널 버튼이 사라진 뒤) 듣도록 전역 키 처리기에 둔다.
+  /// 대화상자·시트가 위에 떠 있으면 그 창이 Esc를 받게 넘긴다.
+  bool _onKey(KeyEvent e) {
+    if (e is! KeyDownEvent || e.logicalKey != LogicalKeyboardKey.escape) return false;
+    if (!mounted || ModalRoute.of(context)?.isCurrent == false) return false;
+    return _back();
   }
 
   /// 칸을 연다. 넓은 화면은 지도 옆(오른쪽 열)에, 휴대폰은 아래 시트로 띄운다(지도를 가리지 않게).
@@ -84,8 +107,7 @@ class _FarmScreenState extends State<FarmScreen> {
               selected: _zone,
               onZoneTap: _open,
               skyMode: _sky,
-              // 한 단계 돌아가기: 다가간 구역에서 전체 하늘 보기로, 전체에서 평면으로.
-              onSkyTap: () => setState(() => _zone == null ? _sky = false : _zone = null),
+              onBack: _back,
               // 휴대폰 시트는 화면 아래 40% 남짓을 덮으므로, 고른 구역을 지도 위쪽으로 올린다.
               focusBias: wide ? 0 : 0.18,
               aspect: wide ? 0.9 : 0.86,
