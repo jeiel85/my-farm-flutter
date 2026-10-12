@@ -18,7 +18,7 @@ class FarmMapView extends StatefulWidget {
     required this.scene,
     required this.sky,
     this.skyMode = false,
-    this.onSkyTap,
+    this.onBack,
     this.focusBias = 0,
     this.aspect = 0.8,
   });
@@ -28,10 +28,12 @@ class FarmMapView extends StatefulWidget {
   final FarmScene scene;
   final SkyView sky;
 
-  /// 하늘 보기. 지도판을 눕힌 채로 구역을 고르고 다가갈 수 있다. 구역이 아닌 곳(하늘·길 등)을 누르면 [onSkyTap]을
-  /// 부른다(한 단계 돌아가기: 다가간 구역에서 전체로, 전체에서 평면으로).
+  /// 하늘 보기. 지도판을 눕힌 채로 구역을 고르고 다가갈 수 있다.
   final bool skyMode;
-  final VoidCallback? onSkyTap;
+
+  /// 구역이 아닌 곳을 눌렀을 때(한 단계 돌아가기: 다가간 구역에서 전체로, 하늘 보기에서 평면으로).
+  /// 다가간 상태에서는 칸 사이 길·땅 밖 풀밭이 빈 곳이고, 하늘 보기에서는 하늘·능선도 빈 곳이다.
+  final VoidCallback? onBack;
 
   /// 고른 구역을 화면에서 위로 올리는 정도(구역 높이 비율). 휴대폰은 아래 시트에 가리지 않게 올린다.
   final double focusBias;
@@ -102,10 +104,13 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
     final scale = FarmMapPainter.scaleFor(view, size);
     final world = view.center + (d.localPosition - size.center(Offset.zero)) / scale;
     final zone = FarmWorld.hitTest(world);
-    if (zone != null) {
+    // 전체 지도에서는 칸이 작아 길 절반까지 그 칸으로 쳐 누르기 쉽게 하고, 다가간 상태에서는 길을 빈 곳으로 본다
+    // (다가간 화면은 대부분 길과 이웃 칸 가장자리라, 길을 누를 때 옆 칸이 열리면 돌아갈 곳이 없다).
+    final onLot = zone != null && (widget.selected == null || FarmWorld.lotRect(zone).contains(world));
+    if (onLot) {
       widget.onZoneTap(zone);
-    } else if (widget.skyMode) {
-      widget.onSkyTap?.call();
+    } else {
+      widget.onBack?.call();
     }
   }
 
@@ -150,7 +155,7 @@ class _FarmMapViewState extends State<FarmMapView> with TickerProviderStateMixin
           );
           return GestureDetector(
             // 지도판 밖(하늘·능선)을 누르면 한 단계 돌아간다. 지도판 위는 안쪽 GestureDetector가 먼저 받는다.
-            onTap: widget.skyMode ? widget.onSkyTap : null,
+            onTap: widget.skyMode ? widget.onBack : null,
             behavior: HitTestBehavior.opaque,
             child: Stack(
               fit: StackFit.expand,

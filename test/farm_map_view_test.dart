@@ -24,7 +24,7 @@ void main() {
     expect(bottom.dy, closeTo(size.height, 0.01));
   });
 
-  Future<(List<LotId>, List<String>)> pumpMap(WidgetTester tester, {required bool skyMode}) async {
+  Future<(List<LotId>, List<String>)> pumpMap(WidgetTester tester, {required bool skyMode, LotId? selected}) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final now = DateTime(2026, 10, 6, 12);
@@ -41,9 +41,9 @@ void main() {
           child: SizedBox.fromSize(
             size: size,
             child: FarmMapView(
-              selected: null,
+              selected: selected,
               onZoneTap: tapped.add,
-              onSkyTap: () => events.add('sky'),
+              onBack: () => events.add('back'),
               skyMode: skyMode,
               scene: scene,
               sky: SkyView.at(now),
@@ -74,6 +74,25 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('다가간 상태에서는 칸 사이 길을 누르면 옆 칸이 아니라 돌아가기를 부르고, 칸 안을 누르면 그 칸이 열린다', (tester) async {
+    const lot = LotId(1, 2);
+    final (tapped, events) = await pumpMap(tester, skyMode: false, selected: lot);
+    final view = FarmWorld.focusRect(lot, size.width / size.height);
+    final scale = FarmMapPainter.scaleFor(view, size);
+    Offset screen(Offset world) => (world - view.center) * scale + size.center(Offset.zero);
+    final r = FarmWorld.lotRect(lot);
+    // 오른쪽 길 가운데: 전체 지도에서는 옆 칸(2, 2)으로 치는 자리다.
+    final road = Offset(r.right + FarmWorld.road * 3 / 4, r.center.dy);
+    expect(FarmWorld.hitTest(road), const LotId(2, 2));
+    await tester.tapAt(screen(road));
+    await tester.pump();
+    await tester.tapAt(screen(r.center));
+    await tester.pump();
+    expect(events, ['back']);
+    expect(tapped, [lot]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('하늘 보기에서는 눕힌 지도판 위 구역을 누르면 그 구역을, 하늘을 누르면 돌아가기를 부른다', (tester) async {
     final (tapped, events) = await pumpMap(tester, skyMode: true);
     // 원근을 거친 화면 위치로 가축 우리를 누르고, 맨 위 하늘을 누른다.
@@ -82,7 +101,7 @@ void main() {
     await tester.tapAt(const Offset(200, 20));
     await tester.pump();
     expect(tapped, [GameDefs.startCoopLot]);
-    expect(events, ['sky']);
+    expect(events, ['back']);
     await tester.pumpWidget(const SizedBox());
   });
 
